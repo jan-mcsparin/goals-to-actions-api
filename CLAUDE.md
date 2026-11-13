@@ -20,7 +20,10 @@ app/
   schemas.py     ApiModel, the base for everything the API sends or accepts
   main.py        the FastAPI app and its routes
 tests/
+specs/           the map of the API work (specs/README.md) and one spec per slice
 ```
+
+Work is built slice by slice from `specs/`. A spec is a draft until its plan is written; read the map's shared decisions and conventions before starting a slice.
 
 ## Rules
 

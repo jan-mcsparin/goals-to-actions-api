@@ -25,7 +25,8 @@ tests/
 ## Rules
 
 - **The OpenAPI schema is the contract.** The front end generates its types from it, so every route declares its request and response models.
-- **JSON is camelCase, Python is snake_case.** Every API model extends `ApiModel`, which does the aliasing. Don't alias fields by hand.
+- **JSON is camelCase, Python is snake_case.** Every API model extends `ApiModel`, which does the aliasing. Don't alias fields by hand. `tests/test_contract.py` fails if a snake_case property reaches the schema.
+- **An operation is named after its route function,** in camelCase (`check_off_task` becomes `checkOffTask`), because generated clients take their function names from it. Give route functions the name the front end should call.
 - **Ask before adding a dependency.**
 - **Days, moments and times are stored three ways** (`date`, `timestamptz` in UTC, `time`), never with an offset. See `../docs/data-model.md`.
 - **History:** if a feature reads it, it's a table or column; everything else is the audit log (ADR-005). Nothing reads the audit log.

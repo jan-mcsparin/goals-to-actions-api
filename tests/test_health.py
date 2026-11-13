@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.config import APP_NAME
 from app.main import app
 
 client = TestClient(app)
@@ -15,5 +16,5 @@ def test_health_says_ok() -> None:
 def test_openapi_schema_is_served() -> None:
     schema = client.get("/openapi.json").json()
 
-    assert schema["info"]["title"] == "Goals to Actions API"
+    assert schema["info"]["title"] == f"{APP_NAME} API"
     assert "/health" in schema["paths"]

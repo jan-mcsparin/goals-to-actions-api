@@ -4,7 +4,7 @@ The API for Goals to Actions. Product context, rules and ADRs live in the parent
 
 ## Stack
 
-Python 3.13, FastAPI, Pydantic. Packages and the virtualenv are managed by uv (`pyproject.toml`, `uv.lock`, `.python-version`).
+Python 3.15, FastAPI, Pydantic. Packages and the virtualenv are managed by uv (`pyproject.toml`, `uv.lock`, `.python-version`).
 
 Decided, not built yet (ADR-007):
 

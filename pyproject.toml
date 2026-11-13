@@ -3,7 +3,7 @@ name = "goals-to-actions-api"
 version = "0.1.0"
 description = "API for Goals to Actions: FastAPI on Postgres"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.15"
 dependencies = [
     "fastapi>=0.162.7",
     "pydantic>=2.14.3",
@@ -16,7 +16,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py315"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

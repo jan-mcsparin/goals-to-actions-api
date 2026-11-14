@@ -112,9 +112,9 @@ Every task: write the tests first where there is behaviour to test, run the four
 **Description:** `README.md` (setup from a fresh clone, the database commands), `CLAUDE.md` (structure, how a slice adds a table, "decided, not built yet" becomes built). In the docs repo, its own PR: a dated "Revisited" section on ADR-007 with what each check found, and the parent `CLAUDE.md` and `README.md` no longer saying "no database yet". Mark the spec built.
 
 **Acceptance criteria:**
-- [ ] Following the README on a fresh clone brings up Postgres, migrates both databases and runs the tests.
-- [ ] ADR-007 records each check, with `numeric` marked as answered in `tasks-week`.
-- [ ] Every success criterion in the spec is ticked, or the PR says why not.
+- [x] Following the README on a fresh clone brings up Postgres, migrates both databases and runs the tests.
+- [x] ADR-007 records each check, with `numeric` marked as answered in `tasks-week`.
+- [x] Every success criterion in the spec is ticked, or the PR says why not.
 
 **Verify:** a fresh clone in the scratchpad, following the README word for word.
 

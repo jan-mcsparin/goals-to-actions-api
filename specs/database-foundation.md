@@ -1,6 +1,6 @@
 # Spec: Database foundation
 
-Status: approved 2026-11-13; plan in [`../tasks/plan.md`](../tasks/plan.md). Issue: [#3](https://github.com/jan-mcsparin/goals-to-actions-api/issues/3). Module `database-foundation` in the [map](README.md). Depends on nothing; every other slice depends on it.
+Status: built 2026-11-13; plan in [`../tasks/plan.md`](../tasks/plan.md). Issue: [#3](https://github.com/jan-mcsparin/goals-to-actions-api/issues/3). Module `database-foundation` in the [map](README.md). Depends on nothing; every other slice depends on it.
 
 ## Objective
 
@@ -28,7 +28,7 @@ References: [ADR-005](../../docs/adr/0005-history.md), [ADR-007](../../docs/adr/
 
 **In:**
 
-- `compose.yaml`, `.env.example` (local connection strings; `.env` is ignored by git).
+- `compose.yaml`. (`.env.example` was dropped while building: a permission rule blocks writing `.env*` files, so the app and tests default to the local URLs and the README lists them.)
 - `db/migrations/` with two migrations: the audit log, trigger function and `updated_at` function; then `users` with its triggers and the fixed user.
 - `db/queries/users.sql`: get a user, set intensity, set time zone, set planned-through week. Enough to exercise every column type the table has.
 - `sqlc.yaml`; generated `app/db/`, committed.
@@ -147,13 +147,13 @@ All against the test database, each test rolled back.
 
 ## Success criteria
 
-- [ ] On a fresh clone, the README's steps bring up Postgres, migrate both databases and run the tests.
-- [ ] `users` and `audit_log` exist as described, and the fixed user is there.
-- [ ] `sqlc generate` produces `app/db/` from the migrations and `db/queries/users.sql`, and `sqlc diff` is clean.
-- [ ] Every test above exists and passes; ruff, format, mypy and pytest pass.
-- [ ] Rolling back both migrations and applying them again works.
-- [ ] ADR-007 records what each of the four checks found, with `numeric` marked as answered in `tasks-week`.
-- [ ] `README.md` and `CLAUDE.md` describe the new commands and structure, and the docs repo no longer says "no database yet".
+- [x] On a fresh clone, the README's steps bring up Postgres, migrate both databases and run the tests.
+- [x] `users` and `audit_log` exist as described, and the fixed user is there.
+- [x] `sqlc generate` produces `app/db/` from the migrations and `db/queries/users.sql`, and `sqlc diff` is clean.
+- [x] Every test above exists and passes; ruff, format, mypy and pytest pass.
+- [x] Rolling back both migrations and applying them again works.
+- [x] ADR-007 records what each of the four checks found, with `numeric` marked as answered in `tasks-week`.
+- [x] `README.md` and `CLAUDE.md` describe the new commands and structure, and the docs repo no longer says "no database yet". (ADR-007 and the docs repo: jan-mcsparin/goals-to-actions#17.)
 
 ## Settled with Jan, 2026-11-13
 

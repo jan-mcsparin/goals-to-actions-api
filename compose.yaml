@@ -1,0 +1,21 @@
+# Local development only. These credentials are for the local container and nothing else.
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: gta
+      POSTGRES_PASSWORD: gta
+      POSTGRES_DB: gta_dev
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # From Postgres 18 the image keeps its data here, not in /var/lib/postgresql/data.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gta -d gta_dev"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  db-data:

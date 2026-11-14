@@ -19,6 +19,7 @@ References: [`data-model.md`](../../docs/data-model.md#aspirations), [`product-r
   - `updateAspiration`: name and why.
   - `reorderAspirations`: the active ids in their new order.
   - `retireAspiration`, `bringBackAspiration`: brought back, it goes last.
+- `openapi.json`: the schema written to a committed file by one command, with a test that fails when it is out of date. The front end generates its types from it (its issue #40), and its diff shows every contract change in review.
 - The rule that active aspirations are numbered 1 to n with no gaps and a retired one has no position, kept by the database where it can be and by the route where it can't.
 
 **Out (later):**
@@ -46,6 +47,5 @@ As shared. **Ask first:** any field not in the data model.
 
 ## Open questions
 
-1. **Are the shared write conventions right** (create as `PUT` with the device's id, actions as `POST`, last write wins)? This is the first slice that uses them.
-2. **How is position kept unique while a reorder is in progress?** A deferred constraint, or a rewrite in one statement. Settled in the plan once slice 1 shows what sqlc handles.
-3. **Does `listAspirations` carry counts** (goals, "2 of 3 on track") that the Aspirations tab shows? If so they arrive with `goals-targets`, and this slice returns the aspiration alone.
+1. **How is position kept unique while a reorder is in progress?** A deferred constraint, or a rewrite in one statement. Settled in the plan once slice 1 shows what sqlc handles.
+2. **Does `listAspirations` carry counts** (goals, "2 of 3 on track") that the Aspirations tab shows? If so they arrive with `goals-targets`, and this slice returns the aspiration alone.

@@ -1,6 +1,6 @@
 # Spec: Database foundation
 
-Status: written in full 2026-11-13, awaiting approval. No plan yet. Issue: [#3](https://github.com/jan-mcsparin/goals-to-actions-api/issues/3). Module `database-foundation` in the [map](README.md). Depends on nothing; every other slice depends on it.
+Status: built 2026-11-13; plan in [`../tasks/plan.md`](../tasks/plan.md). Issue: [#3](https://github.com/jan-mcsparin/goals-to-actions-api/issues/3). Module `database-foundation` in the [map](README.md). Depends on nothing; every other slice depends on it.
 
 ## Objective
 
@@ -28,7 +28,7 @@ References: [ADR-005](../../docs/adr/0005-history.md), [ADR-007](../../docs/adr/
 
 **In:**
 
-- `compose.yaml`, `.env.example` (local connection strings; `.env` is ignored by git).
+- `compose.yaml`, `example.env` (the local connection strings, which are also the defaults). Named `example.env`, not `.env.example`, because a permission rule blocks writing `.env*` files.
 - `db/migrations/` with two migrations: the audit log, trigger function and `updated_at` function; then `users` with its triggers and the fixed user.
 - `db/queries/users.sql`: get a user, set intensity, set time zone, set planned-through week. Enough to exercise every column type the table has.
 - `sqlc.yaml`; generated `app/db/`, committed.
@@ -147,16 +147,16 @@ All against the test database, each test rolled back.
 
 ## Success criteria
 
-- [ ] On a fresh clone, the README's steps bring up Postgres, migrate both databases and run the tests.
-- [ ] `users` and `audit_log` exist as described, and the fixed user is there.
-- [ ] `sqlc generate` produces `app/db/` from the migrations and `db/queries/users.sql`, and `sqlc diff` is clean.
-- [ ] Every test above exists and passes; ruff, format, mypy and pytest pass.
-- [ ] Rolling back both migrations and applying them again works.
-- [ ] ADR-007 records what each of the four checks found, with `numeric` marked as answered in `tasks-week`.
-- [ ] `README.md` and `CLAUDE.md` describe the new commands and structure, and the docs repo no longer says "no database yet".
+- [x] On a fresh clone, the README's steps bring up Postgres, migrate both databases and run the tests.
+- [x] `users` and `audit_log` exist as described, and the fixed user is there.
+- [x] `sqlc generate` produces `app/db/` from the migrations and `db/queries/users.sql`, and `sqlc diff` is clean.
+- [x] Every test above exists and passes; ruff, format, mypy and pytest pass.
+- [x] Rolling back both migrations and applying them again works.
+- [x] ADR-007 records what each of the four checks found, with `numeric` marked as answered in `tasks-week`.
+- [x] `README.md` and `CLAUDE.md` describe the new commands and structure, and the docs repo no longer says "no database yet". (ADR-007 and the docs repo: jan-mcsparin/goals-to-actions#17.)
 
-## Open questions
+## Settled with Jan, 2026-11-13
 
-1. **Should this slice add one route** to prove the whole path from request to database? `getSettings` is the natural one and is tiny, but it belongs to `settings-sync`. I'd keep this slice to plumbing and let slice 2 be the first route.
-2. **The fixed user in a migration.** It means the same id in every environment until sign-in, which is what one user needs. The alternative is a separate seed command. I'd keep the migration.
-3. **`sqlc-gen-python` is a WebAssembly plugin that sqlc downloads** from the URL in `sqlc.yaml`, checked against a pinned hash, the first time it generates. Is that fine, or would you rather the plugin file sat in the repo?
+1. **This slice adds no route.** It is plumbing, proved by tests. Slice 2 is the first route.
+2. **The fixed user is created by a migration,** with the same id in every environment until sign-in.
+3. **sqlc downloads `sqlc-gen-python`** from the URL in `sqlc.yaml`, checked against a pinned hash. The plugin file isn't kept in the repo.

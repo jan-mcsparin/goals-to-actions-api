@@ -51,7 +51,7 @@ Settled:
 
 12. **The contract is checked against the front end after every slice; screens switch to the API at three points.** Each slice that adds endpoints ends with the front end's types regenerated and its mock client compiling against them. The app keeps running on mock data until a whole group of screens can be real, because mock rows point at each other and a half-real app needs throwaway glue. The wiring itself is front-end work, with its own issues and specs there.
 
-Assumed (say so if wrong). These are used from slice 2 on, so they are settled when slice 2 is planned, not left to `settings-sync`:
+Settled with Jan on 2026-11-13, and used from slice 2 on. The front end's client foundation (its issue #40) is where each is first tried from a real client; one that doesn't survive that is changed here:
 
 6. **The device makes the id, and a create is safe to repeat.** A create is `PUT /things/{id}`: the first call creates the row, and the same call again returns the row as it is. This is what lets the phone's offline queue resend without making duplicates (ADR-004).
 7. **Actions are `POST /things/{id}/action`** (`/goals/{id}/pause`), each written so that repeating it changes nothing: pausing a paused goal returns the paused goal.
@@ -113,7 +113,3 @@ tests/
 - **Always:** work on a branch and open a PR; run the four checks before saying work is done; update `../docs/` in the same work when behaviour or the data model changes; keep generated code generated.
 - **Ask first:** any new dependency; a change to the data model in `data-model.md`; a new shared convention; anything a spec lists as an open question.
 - **Never:** SQL outside `db/`; a query without the owner; reading the audit log from a route; a planner write to today or to a hand-placed task; tests against anything but Postgres.
-
-## Open questions about the set
-
-1. **Assumed decisions 6 to 11** above need a yes before slice 2 is planned. They don't block slice 1.

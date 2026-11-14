@@ -17,5 +17,19 @@ services:
       timeout: 5s
       retries: 15
 
+  # Run through bin/dbmate, not directly. It reaches Postgres as `db` on the compose network.
+  dbmate:
+    image: ghcr.io/amacneil/dbmate:2.38.1
+    profiles: [tools]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://gta:gta@db:5432/gta_dev?sslmode=disable
+      DBMATE_MIGRATIONS_DIR: /db/migrations
+      DBMATE_SCHEMA_FILE: /db/schema.sql
+    volumes:
+      - ./db:/db
+
 volumes:
   db-data:

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Runs dbmate in its compose service against the development database, then writes
+# db/schema.sql. `bin/dbmate --test <command>` runs it against the test database
+# instead, and leaves db/schema.sql alone.
+#
+# The schema is dumped with the Postgres container's own pg_dump, not dbmate's: the
+# one in the dbmate image (18.6) writes `pg_attver` values that change on every run.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+export PODMAN_COMPOSE_WARNING_LOGS=false
+
+if [[ "${1:-}" == "--test" ]]; then
+  shift
+  exec podman compose run --rm \
+    -e DATABASE_URL='postgres://gta:gta@db:5432/gta_test?sslmode=disable' \
+    dbmate --no-dump-schema "$@"
+fi
+
+podman compose run --rm dbmate --no-dump-schema "$@"
+
+case "${1:-}" in
+  up | migrate | rollback | down | dump) ;;
+  *) exit 0 ;;
+esac
+
+{
+  podman compose exec -T db pg_dump -U gta -d gta_dev \
+    --schema-only --no-owner --no-privileges --restrict-key=dbmate
+  printf '\n--\n-- Dbmate schema migrations\n--\n\n'
+  podman compose exec -T db psql -U gta -d gta_dev -At -c "
+    select 'INSERT INTO public.schema_migrations (version) VALUES' || E'\n'
+      || string_agg(format('    (%L)', version), E',\n' order by version) || ';'
+    from schema_migrations"
+} > db/schema.sql
+echo "Writing: db/schema.sql"

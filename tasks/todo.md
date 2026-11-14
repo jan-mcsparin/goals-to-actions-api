@@ -11,9 +11,9 @@ Every task: write the tests first where there is behaviour to test, run the four
 **Description:** `compose.yaml` with `postgres:18`, a named volume at `/var/lib/postgresql`, port 5432 and a health check. `.env.example` with the development and test URLs.
 
 **Acceptance criteria:**
-- [ ] `podman compose up -d` starts Postgres and it reports healthy.
-- [ ] Data survives `podman compose down` and `up` again.
-- [ ] `.env.example` is committed; `.env` is not.
+- [x] `podman compose up -d` starts Postgres and it reports healthy.
+- [x] Data survives `podman compose down` and `up` again.
+- [x] ~~`.env.example` is committed~~ Dropped: a permission rule blocks writing `.env*` files. The app defaults to the local URLs instead (task 5), and the README lists them (task 7).
 
 **Verify:** `podman compose up -d`, then `podman compose exec db psql -U <user> -c 'select version()'` shows 18; down, up, a table created before is still there.
 
@@ -24,9 +24,11 @@ Every task: write the tests first where there is behaviour to test, run the four
 **Description:** A `dbmate` compose service and `bin/dbmate` (with `--test`). The first migration: `audit_log`, the `audit()` trigger function, the `set_updated_at()` function, each with a down.
 
 **Acceptance criteria:**
-- [ ] `bin/dbmate up`, `status` and `rollback` work against the development database; `bin/dbmate --test up` creates and migrates the test database.
-- [ ] `db/schema.sql` is written by `up` and committed; `--test` doesn't touch it.
-- [ ] `up`, `rollback`, `up` leaves `schema.sql` unchanged.
+- [x] `bin/dbmate up`, `status` and `rollback` work against the development database; `bin/dbmate --test up` creates and migrates the test database.
+- [x] `db/schema.sql` is written by `up` and committed; `--test` doesn't touch it.
+- [x] `up`, `rollback`, `up` leaves `schema.sql` unchanged.
+
+**Found:** the dbmate image's `pg_dump` (18.6) writes `pg_attver=<n>` lines that change on every run. `bin/dbmate` dumps with the Postgres container's own `pg_dump` (18.7) instead, which doesn't.
 
 **Verify:** the commands above; `git diff --stat db/schema.sql` empty after the round trip.
 

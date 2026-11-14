@@ -78,10 +78,12 @@ Every task: write the tests first where there is behaviour to test, run the four
 **Description:** `app/database.py`: the engine from `DATABASE_URL`, the connection provider, `transaction(user_id, action)`, a read connection, the current-user dependency. `tests/conftest.py`: a connection to the test database inside a rolled-back transaction, connecting only when asked for. Tests for the generated queries and the fixed user.
 
 **Acceptance criteria:**
-- [ ] Tests: get the fixed user; set intensity, time zone and planned-through week and read them back; set a nullable value back to empty.
-- [ ] Test: the current-user dependency returns the fixed user's id.
-- [ ] Nothing a test writes is left in the test database.
-- [ ] The eight existing tests pass with Postgres stopped.
+- [x] Tests: get the fixed user; set intensity, time zone and planned-through week and read them back; set a nullable value back to empty.
+- [x] Test: the current-user dependency returns the fixed user's id.
+- [x] Nothing a test writes is left in the test database.
+- [x] The eight existing tests pass with Postgres stopped.
+
+**Built as:** `Database(bind)` holds the provider, so `transaction()` and `read()` are its methods: `database.transaction(user_id, action)`. Bound to the engine, a transaction is `engine.begin()` and a read is a read-only connection (a test proves Postgres refuses a write through it). Bound to a test's connection, a transaction is a savepoint. Routes get it from the `get_database` dependency, which tests override. `DATABASE_URL` and `TEST_DATABASE_URL` default to the local compose URLs.
 
 **Verify:** the four checks with Postgres up; `uv run pytest tests/test_health.py tests/test_schemas.py tests/test_contract.py` with it down.
 

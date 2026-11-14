@@ -7,7 +7,6 @@ from sqlalchemy import Connection, Engine, create_engine, text
 
 from app.config import FIXED_USER_ID
 from app.database import Database
-from tests.conftest import TEST_DATABASE_URL
 
 
 def audit_rows(connection: Connection, row_id: UUID) -> list[Any]:
@@ -112,7 +111,7 @@ def test_the_audit_log_itself_is_not_audited(connection: Connection) -> None:
 @pytest.fixture
 def one_connection_engine(test_engine: Engine) -> Iterator[Engine]:
     """An engine whose pool holds exactly one connection, so every transaction reuses it."""
-    engine = create_engine(TEST_DATABASE_URL, pool_size=1, max_overflow=0)
+    engine = create_engine(test_engine.url, pool_size=1, max_overflow=0)
     yield engine
     engine.dispose()
 

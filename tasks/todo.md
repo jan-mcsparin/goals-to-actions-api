@@ -54,10 +54,18 @@ Every task: write the tests first where there is behaviour to test, run the four
 **Description:** `sqlc.yaml` (plugin 1.3.0 by URL and hash, schema `db/migrations`, queries `db/queries`, out `app/db`, sync querier, Pydantic models). `db/queries/users.sql`: get a user, set intensity, set time zone, set planned-through week. Add `sqlalchemy` and `psycopg[binary]`. Leave `app/db/` out of ruff.
 
 **Acceptance criteria:**
-- [ ] `sqlc generate` writes `app/db/` from the migrations as they are, triggers and functions included.
-- [ ] `sqlc diff` is clean; the generated code is committed.
-- [ ] mypy strict passes over `app/db/` with no ignores.
-- [ ] The generated types for the UUID, the date, the nullable columns and `intensity` are written down for the ADR.
+- [x] `sqlc generate` writes `app/db/` from the migrations as they are, triggers and functions included.
+- [x] `sqlc diff` is clean; the generated code is committed.
+- [x] mypy strict passes over `app/db/` with no ignores.
+- [x] The generated types for the UUID, the date, the nullable columns and `intensity` are written down for the ADR.
+
+**Found (for ADR-007), sqlc 1.31.1, sqlc-gen-python 1.3.0, SQLAlchemy 2.1.8, psycopg 3.3.9:**
+- sqlc reads the dbmate migrations as they are: up/down markers, `create function` (plpgsql) and `create trigger` all parse.
+- `uuid` → `uuid.UUID`; `date` → `datetime.date`; `timestamptz` → `datetime.datetime`, which arrives aware (UTC); `jsonb` → `Any`.
+- Nullable columns and parameters are `Optional[...]`; passing `None` sets a column back to empty.
+- `intensity` (text with a check) is plain `str`. The API model narrows it with a `Literal`.
+- Each query gets its own row model even when the columns are the same (`GetUserRow`, `SetIntensityRow`, ...). Parameters are keyword-only.
+- The generated code passes mypy strict with no ignores; it's excluded from ruff, whose style it doesn't follow. No `__init__.py` is generated; `app.db` works as a namespace package.
 
 **Verify:** `sqlc generate && sqlc diff`; the four checks.
 

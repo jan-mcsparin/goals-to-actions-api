@@ -28,7 +28,7 @@ References: [ADR-005](../../docs/adr/0005-history.md), [ADR-007](../../docs/adr/
 
 **In:**
 
-- `compose.yaml`. (`.env.example` was dropped while building: a permission rule blocks writing `.env*` files, so the app and tests default to the local URLs and the README lists them.)
+- `compose.yaml`, `example.env` (the local connection strings, which are also the defaults). Named `example.env`, not `.env.example`, because a permission rule blocks writing `.env*` files.
 - `db/migrations/` with two migrations: the audit log, trigger function and `updated_at` function; then `users` with its triggers and the fixed user.
 - `db/queries/users.sql`: get a user, set intensity, set time zone, set planned-through week. Enough to exercise every column type the table has.
 - `sqlc.yaml`; generated `app/db/`, committed.

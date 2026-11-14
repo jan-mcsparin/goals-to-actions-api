@@ -17,14 +17,7 @@ bin/dbmate up               # migrate the development database (and write db/sch
 bin/dbmate --test up        # create and migrate the test database
 ```
 
-The app and the tests connect to the local Postgres by default. To point them elsewhere, set `DATABASE_URL` (the app) or `TEST_DATABASE_URL` (the tests):
-
-```
-DATABASE_URL=postgresql+psycopg://gta:gta@localhost:5432/gta_dev
-TEST_DATABASE_URL=postgresql+psycopg://gta:gta@localhost:5432/gta_test
-```
-
-These credentials are for the local container only.
+The app and the tests connect to the local Postgres by default. To point them elsewhere, set `DATABASE_URL` (the app) or `TEST_DATABASE_URL` (the tests) in your environment; `example.env` shows both with their defaults. Nothing reads a `.env` file.
 
 ## Develop
 

@@ -13,7 +13,7 @@ Every task: write the tests first where there is behaviour to test, run the four
 **Acceptance criteria:**
 - [x] `podman compose up -d` starts Postgres and it reports healthy.
 - [x] Data survives `podman compose down` and `up` again.
-- [x] ~~`.env.example` is committed~~ Dropped: a permission rule blocks writing `.env*` files. The app defaults to the local URLs instead (task 5), and the README lists them (task 7).
+- [x] `example.env` is committed (named so because a permission rule blocks writing `.env*` files). The app and tests also default to these URLs (task 5).
 
 **Verify:** `podman compose up -d`, then `podman compose exec db psql -U <user> -c 'select version()'` shows 18; down, up, a table created before is still there.
 

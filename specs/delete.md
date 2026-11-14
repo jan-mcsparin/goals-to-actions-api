@@ -47,6 +47,7 @@ As shared. **Never:** a hard delete from application code; a delete that leaves 
 - [ ] Each of the five deletes hides the row and what goes with it, in one transaction.
 - [ ] No read returns a deleted row.
 - [ ] Every delete is in the audit log with its action.
+- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.
 
 ## Open questions

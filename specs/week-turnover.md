@@ -49,6 +49,7 @@ As shared. **Always:** closing and filling a week is one transaction. **Never:**
 - [ ] A new week's bank holds exactly what the rules say, and last week's rows are closed with the right outcome.
 - [ ] Running turnover again changes nothing.
 - [ ] The upcoming list and "Still matter?" read and answer correctly.
+- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.
 
 ## Open questions

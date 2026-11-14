@@ -41,6 +41,7 @@ As shared. **Ask first:** any field not in the data model.
 - [ ] The six routes work as described and appear in the OpenAPI schema in camelCase.
 - [ ] The position rule holds after every route, and the database refuses two active aspirations in the same position.
 - [ ] Every write appears in the audit log with its action.
+- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.
 
 ## Open questions

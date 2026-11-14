@@ -40,6 +40,7 @@ As shared. **Never:** store the repeat text or the next due day.
 - [ ] Items of all three kinds can be created, edited, turned off and on.
 - [ ] The repeat text and next due day are right for each kind.
 - [ ] A reached goal can be continued as an item.
+- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.
 
 ## Open questions

@@ -40,6 +40,7 @@ As shared. **Never:** store "passed on the way" or the goal as a milestone row; 
 - [ ] Milestones can be added, edited, reordered and checked in, on building and quitting goals only.
 - [ ] Every check-in is kept, and the goal's read shows the count and the latest result.
 - [ ] The three follow-ups work and add no check-in.
+- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.
 
 ## Open questions

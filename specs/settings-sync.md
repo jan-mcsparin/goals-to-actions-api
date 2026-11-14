@@ -39,6 +39,7 @@ As shared. **Never:** trust the phone's clock for ordering; store an offset.
 - [ ] The user's time zone follows the phone.
 - [ ] Every write in the API passes the repeat test.
 - [ ] The README says what the offline queue can rely on.
+- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.
 
 ## Open questions

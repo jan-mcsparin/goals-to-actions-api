@@ -49,6 +49,7 @@ As shared. **Never:** change a task's planned day except in a route the person c
 - [ ] Pause and resume set aside and return tasks.
 - [ ] Progress against a weekly target reads correctly for count and amount.
 - [ ] ADR-007 records how `numeric` is typed.
+- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.
 
 ## Open questions

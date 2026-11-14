@@ -48,6 +48,7 @@ As shared. **Never:** infer a goal's type; add a "missed" status or a hard-deadl
 - [ ] Weekly target history is kept per week.
 - [ ] Retiring an aspiration can pause its goals.
 - [ ] The rules above are refused by the database or the route, each with a test.
+- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.
 
 ## Open questions

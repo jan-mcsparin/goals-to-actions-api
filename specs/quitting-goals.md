@@ -35,6 +35,7 @@ As shared. **Never:** a response that words an unanswered day, or a "no", as fai
 
 - [ ] A day can be answered, changed and cleared, and an urge rated and cleared.
 - [ ] The goal's read shows the record with unknown days as unknown.
+- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.
 
 ## Open questions

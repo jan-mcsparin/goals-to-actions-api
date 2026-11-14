@@ -43,6 +43,7 @@ As shared. **Ask first:** any change to a planning rule in `product-rules.md`; a
 - [ ] Today is byte-for-byte the same before and after any planner run.
 - [ ] A week that doesn't fit says so and leaves the rest in the bank.
 - [ ] Changing intensity changes the next draft.
+- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.
 
 ## Open questions

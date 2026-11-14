@@ -25,6 +25,16 @@ What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product
 
 **Build order:** 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12.
 
+**Where the front end joins in** (shared decision 12):
+
+| After slice | In the front end |
+| --- | --- |
+| Every slice from 2 | Types regenerated; the mock client compiles against them. Still running on mock data. |
+| 2 | One screen wired for real, behind a switch, to prove the pipe and assumed decisions 6 to 11. |
+| 4 | The Aspirations tab, an aspiration's page and a goal's page switch to the API. |
+| 8 | Today, Week and the bank switch. |
+| 11 | Settings, the on-device cache and the offline queue (ADR-004). |
+
 4 and 9 need only 3, and 11 needs only 1, so any of them can move earlier if the front end wants them sooner. The path that gets a real plan onto Today is 1, 2, 3, 5, 6, 7, 8.
 
 **Not in the map:** hosting and deployment (they wait until the API is done), CI (checks are run by hand for now), and switching the front end to the real API (front-end issues #30 to #39).
@@ -38,6 +48,8 @@ Settled:
 3. **Every table arrives with the full set of shared columns** (`id`, `user_id`, `created_at`, `updated_at`, `deleted_at`) **and the audit trigger**, in the migration that creates it. Every read leaves out deleted rows from the start, even though the routes that delete arrive in slice 10.
 4. **A slice adds its tables, its queries, its routes and their tests together.** No migration runs ahead of the slice that uses it.
 5. **Where one action spans two slices, the later slice finishes it.** Pausing a goal changes its status in slice 3; setting its tasks aside is added in slice 5, when tasks exist. Each spec lists what it leaves for later.
+
+12. **The contract is checked against the front end after every slice; screens switch to the API at three points.** Each slice that adds endpoints ends with the front end's types regenerated and its mock client compiling against them. The app keeps running on mock data until a whole group of screens can be real, because mock rows point at each other and a half-real app needs throwaway glue. The wiring itself is front-end work, with its own issues and specs there.
 
 Assumed (say so if wrong). These are used from slice 2 on, so they are settled when slice 2 is planned, not left to `settings-sync`:
 

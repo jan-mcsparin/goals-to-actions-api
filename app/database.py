@@ -10,13 +10,15 @@ from app.config import DATABASE_URL, FIXED_USER_ID
 SET_AUDIT_CONTEXT = text(
     "select set_config('app.user_id', :user_id, true), set_config('app.action', :action, true)"
 )
+SET_READ_ONLY = text("set transaction read only")
 
 
 class Database:
     """Where application code gets its connections.
 
     Normally it's bound to the engine. Tests bind it to one connection inside a transaction
-    they roll back; then each transaction() is a savepoint and read() is that connection.
+    they roll back; then each transaction() is a savepoint, and each read() a read-only
+    savepoint that's rolled back.
     """
 
     def __init__(self, bind: Engine | Connection) -> None:
@@ -34,7 +36,13 @@ class Database:
     def read(self) -> Iterator[Connection]:
         """A connection for reads. Postgres refuses any write made through it."""
         if isinstance(self._bind, Connection):
-            yield self._bind
+            # A read-only savepoint, always rolled back: that's what puts read-write back.
+            savepoint = self._bind.begin_nested()
+            try:
+                self._bind.execute(SET_READ_ONLY)
+                yield self._bind
+            finally:
+                savepoint.rollback()
             return
         with self._bind.connect() as connection:
             yield connection.execution_options(postgresql_readonly=True)

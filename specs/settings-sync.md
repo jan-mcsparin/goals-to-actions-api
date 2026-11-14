@@ -1,6 +1,6 @@
 # Spec: Settings and sync
 
-Status: draft 2026-11-13; finalised when its plan is written. Module `settings-sync` in the [map](README.md). Depends on `database-foundation`.
+Status: draft 2026-11-13; finalised when its plan is written. Issue: [#13](https://github.com/jan-mcsparin/goals-to-actions-api/issues/13). Module `settings-sync` in the [map](README.md). Depends on `database-foundation`.
 
 ## Objective
 

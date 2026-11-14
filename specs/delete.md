@@ -1,6 +1,6 @@
 # Spec: Delete
 
-Status: draft 2026-11-13; finalised when its plan is written. Module `delete` in the [map](README.md). Depends on slices 2 to 6 and 9.
+Status: draft 2026-11-13; finalised when its plan is written. Issue: [#12](https://github.com/jan-mcsparin/goals-to-actions-api/issues/12). Module `delete` in the [map](README.md). Depends on slices 2 to 6 and 9.
 
 ## Objective
 

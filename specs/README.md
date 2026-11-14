@@ -1,6 +1,6 @@
 # Specs: the API
 
-The map of the API work: twelve slices, what each depends on, the order they're built in, and what they share. One spec per slice, named by its module id.
+The map of the API work: twelve slices, what each depends on, the order they're built in, and what they share. One spec and one issue per slice; a spec is named by its module id.
 
 **A spec written up front is a draft.** It gives the picture and lists what is still open. It is finalised when its plan is written (`../tasks/plan.md`, `../tasks/todo.md`), just before it's built, because earlier slices change later ones. Only [`database-foundation`](database-foundation.md) is written in full so far.
 
@@ -8,20 +8,20 @@ What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product
 
 ## Capability map
 
-| # | Module id | Covers | Tables it adds | Depends on |
-| --- | --- | --- | --- | --- |
-| 1 | [`database-foundation`](database-foundation.md) | Postgres under `podman compose`, dbmate, sqlc, the audit log, transactions that carry the user and action, tests against real Postgres | `users`, `audit_log` | — |
-| 2 | [`aspirations`](aspirations.md) | Create, edit, priority order, retire and bring back | `aspirations` | 1 |
-| 3 | [`goals-targets`](goals-targets.md) | The three goal types, count and amount targets, pause, resume, end, reached, reopen, go again | `goals`, `weekly_targets` | 2 |
-| 4 | [`milestones-check-ins`](milestones-check-ins.md) | Ordered milestones, check-in records, "not yet" follow-ups | `milestones`, `check_ins` | 3 |
-| 5 | [`tasks-week`](tasks-week.md) | Tasks and their week records; reading a day, the week and the bank; add, check off, back to bank, pull, swap, place | `tasks`, `task_weeks` | 3 |
-| 6 | [`recurring-items`](recurring-items.md) | Structured schedules, create and edit, on and off | `recurring_items` | 3, 5 |
-| 7 | [`week-turnover`](week-turnover.md) | Filling a week's bank, rollover and lapse, the upcoming list, "Still matter?" | — | 5, 6 |
-| 8 | [`planner`](planner.md) | Drafting the week onto days: maintenance first, the intensity cap, never today, never a hand-placed task | — | 7 |
-| 9 | [`quitting-goals`](quitting-goals.md) | Daily answers and urge ratings | `quit_days`, `urge_ratings` | 3 |
-| 10 | [`delete`](delete.md) | Delete for mistakes, with what it takes along | — | 2–6, 9 |
-| 11 | [`settings-sync`](settings-sync.md) | Intensity, the phone's time zone, a check that every write is safe to repeat | — | 1 |
-| 12 | [`sign-in`](sign-in.md) | Replacing the one fixed user; needs its own ADR first | to be decided | 1 |
+| # | Module id | Issue | Covers | Tables it adds | Depends on |
+| --- | --- | --- | --- | --- | --- |
+| 1 | [`database-foundation`](database-foundation.md) | #3 | Postgres under `podman compose`, dbmate, sqlc, the audit log, transactions that carry the user and action, tests against real Postgres | `users`, `audit_log` | — |
+| 2 | [`aspirations`](aspirations.md) | #4 | Create, edit, priority order, retire and bring back | `aspirations` | 1 |
+| 3 | [`goals-targets`](goals-targets.md) | #5 | The three goal types, count and amount targets, pause, resume, end, reached, reopen, go again | `goals`, `weekly_targets` | 2 |
+| 4 | [`milestones-check-ins`](milestones-check-ins.md) | #6 | Ordered milestones, check-in records, "not yet" follow-ups | `milestones`, `check_ins` | 3 |
+| 5 | [`tasks-week`](tasks-week.md) | #7 | Tasks and their week records; reading a day, the week and the bank; add, check off, back to bank, pull, swap, place | `tasks`, `task_weeks` | 3 |
+| 6 | [`recurring-items`](recurring-items.md) | #8 | Structured schedules, create and edit, on and off | `recurring_items` | 3, 5 |
+| 7 | [`week-turnover`](week-turnover.md) | #9 | Filling a week's bank, rollover and lapse, the upcoming list, "Still matter?" | — | 5, 6 |
+| 8 | [`planner`](planner.md) | #10 | Drafting the week onto days: maintenance first, the intensity cap, never today, never a hand-placed task | — | 7 |
+| 9 | [`quitting-goals`](quitting-goals.md) | #11 | Daily answers and urge ratings | `quit_days`, `urge_ratings` | 3 |
+| 10 | [`delete`](delete.md) | #12 | Delete for mistakes, with what it takes along | — | 2–6, 9 |
+| 11 | [`settings-sync`](settings-sync.md) | #13 | Intensity, the phone's time zone, a check that every write is safe to repeat | — | 1 |
+| 12 | [`sign-in`](sign-in.md) | #14 | Replacing the one fixed user; needs its own ADR first | to be decided | 1 |
 
 **Build order:** 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12.
 
@@ -116,5 +116,4 @@ tests/
 
 ## Open questions about the set
 
-1. **Issues.** The front end has one issue per spec and numbers the spec by it. Here the specs are named by module id. Shall I open one issue per slice, as each is planned or all twelve now?
-2. **Assumed decisions 6 to 11** above need a yes before slice 2 is planned. They don't block slice 1.
+1. **Assumed decisions 6 to 11** above need a yes before slice 2 is planned. They don't block slice 1.

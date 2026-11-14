@@ -1,6 +1,6 @@
 # Spec: The planner
 
-Status: draft 2026-11-13; finalised when its plan is written. Module `planner` in the [map](README.md). Depends on `week-turnover`.
+Status: draft 2026-11-13; finalised when its plan is written. Issue: [#10](https://github.com/jan-mcsparin/goals-to-actions-api/issues/10). Module `planner` in the [map](README.md). Depends on `week-turnover`.
 
 ## Objective
 

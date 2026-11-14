@@ -1,6 +1,6 @@
 # Spec: Quitting goals
 
-Status: draft 2026-11-13; finalised when its plan is written. Module `quitting-goals` in the [map](README.md). Depends on `goals-targets`.
+Status: draft 2026-11-13; finalised when its plan is written. Issue: [#11](https://github.com/jan-mcsparin/goals-to-actions-api/issues/11). Module `quitting-goals` in the [map](README.md). Depends on `goals-targets`.
 
 ## Objective
 

@@ -1,6 +1,6 @@
 # Spec: Sign-in
 
-Status: draft 2026-11-13, and blocked on a decision: ADR-003 left sign-in open. It needs its own ADR before this spec can be finalised. Module `sign-in` in the [map](README.md). Depends on `database-foundation`; built last.
+Status: draft 2026-11-13, and blocked on a decision: ADR-003 left sign-in open. It needs its own ADR before this spec can be finalised. Issue: [#14](https://github.com/jan-mcsparin/goals-to-actions-api/issues/14). Module `sign-in` in the [map](README.md). Depends on `database-foundation`; built last.
 
 ## Objective
 

@@ -1,6 +1,6 @@
 # Spec: Tasks and the week
 
-Status: draft 2026-11-13; finalised when its plan is written. Module `tasks-week` in the [map](README.md). Depends on `goals-targets`.
+Status: draft 2026-11-13; finalised when its plan is written. Issue: [#7](https://github.com/jan-mcsparin/goals-to-actions-api/issues/7). Module `tasks-week` in the [map](README.md). Depends on `goals-targets`.
 
 ## Objective
 

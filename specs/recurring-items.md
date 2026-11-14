@@ -1,6 +1,6 @@
 # Spec: Recurring items
 
-Status: draft 2026-11-13; finalised when its plan is written. Module `recurring-items` in the [map](README.md). Depends on `goals-targets` and `tasks-week`.
+Status: draft 2026-11-13; finalised when its plan is written. Issue: [#8](https://github.com/jan-mcsparin/goals-to-actions-api/issues/8). Module `recurring-items` in the [map](README.md). Depends on `goals-targets` and `tasks-week`.
 
 ## Objective
 

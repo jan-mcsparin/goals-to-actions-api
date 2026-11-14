@@ -1,6 +1,6 @@
 # Spec: Milestones and check-ins
 
-Status: draft 2026-11-13; finalised when its plan is written. Module `milestones-check-ins` in the [map](README.md). Depends on `goals-targets`.
+Status: draft 2026-11-13; finalised when its plan is written. Issue: [#6](https://github.com/jan-mcsparin/goals-to-actions-api/issues/6). Module `milestones-check-ins` in the [map](README.md). Depends on `goals-targets`.
 
 ## Objective
 

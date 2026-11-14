@@ -1,6 +1,6 @@
 # Spec: Database foundation
 
-Status: written in full 2026-11-13, awaiting approval. No plan yet. Module `database-foundation` in the [map](README.md). Depends on nothing; every other slice depends on it.
+Status: written in full 2026-11-13, awaiting approval. No plan yet. Issue: [#3](https://github.com/jan-mcsparin/goals-to-actions-api/issues/3). Module `database-foundation` in the [map](README.md). Depends on nothing; every other slice depends on it.
 
 ## Objective
 

@@ -1,6 +1,6 @@
 # Spec: Goals and weekly targets
 
-Status: draft 2026-11-13; finalised when its plan is written. Module `goals-targets` in the [map](README.md). Depends on `aspirations`.
+Status: draft 2026-11-13; finalised when its plan is written. Issue: [#5](https://github.com/jan-mcsparin/goals-to-actions-api/issues/5). Module `goals-targets` in the [map](README.md). Depends on `aspirations`.
 
 ## Objective
 

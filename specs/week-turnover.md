@@ -1,6 +1,6 @@
 # Spec: Week turnover
 
-Status: draft 2026-11-13; finalised when its plan is written. Module `week-turnover` in the [map](README.md). Depends on `tasks-week` and `recurring-items`.
+Status: draft 2026-11-13; finalised when its plan is written. Issue: [#9](https://github.com/jan-mcsparin/goals-to-actions-api/issues/9). Module `week-turnover` in the [map](README.md). Depends on `tasks-week` and `recurring-items`.
 
 ## Objective
 

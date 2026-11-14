@@ -1,6 +1,6 @@
 # Spec: Database foundation
 
-Status: written in full 2026-11-13, awaiting approval. No plan yet. Issue: [#3](https://github.com/jan-mcsparin/goals-to-actions-api/issues/3). Module `database-foundation` in the [map](README.md). Depends on nothing; every other slice depends on it.
+Status: approved 2026-11-13; plan in [`../tasks/plan.md`](../tasks/plan.md). Issue: [#3](https://github.com/jan-mcsparin/goals-to-actions-api/issues/3). Module `database-foundation` in the [map](README.md). Depends on nothing; every other slice depends on it.
 
 ## Objective
 
@@ -155,8 +155,8 @@ All against the test database, each test rolled back.
 - [ ] ADR-007 records what each of the four checks found, with `numeric` marked as answered in `tasks-week`.
 - [ ] `README.md` and `CLAUDE.md` describe the new commands and structure, and the docs repo no longer says "no database yet".
 
-## Open questions
+## Settled with Jan, 2026-11-13
 
-1. **Should this slice add one route** to prove the whole path from request to database? `getSettings` is the natural one and is tiny, but it belongs to `settings-sync`. I'd keep this slice to plumbing and let slice 2 be the first route.
-2. **The fixed user in a migration.** It means the same id in every environment until sign-in, which is what one user needs. The alternative is a separate seed command. I'd keep the migration.
-3. **`sqlc-gen-python` is a WebAssembly plugin that sqlc downloads** from the URL in `sqlc.yaml`, checked against a pinned hash, the first time it generates. Is that fine, or would you rather the plugin file sat in the repo?
+1. **This slice adds no route.** It is plumbing, proved by tests. Slice 2 is the first route.
+2. **The fixed user is created by a migration,** with the same id in every environment until sign-in.
+3. **sqlc downloads `sqlc-gen-python`** from the URL in `sqlc.yaml`, checked against a pinned hash. The plugin file isn't kept in the repo.

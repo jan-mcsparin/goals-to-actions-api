@@ -94,12 +94,14 @@ Every task: write the tests first where there is behaviour to test, run the four
 **Description:** The tests that prove the database rules, and whatever they show is missing.
 
 **Acceptance criteria:**
-- [ ] An insert, an update and a delete each write one audit row with the right operation, before and after.
-- [ ] A write inside `transaction()` carries its user and action.
-- [ ] A second transaction on the same pooled connection doesn't inherit them (the one test that commits; it restores what it changed).
-- [ ] `audit_log` isn't audited.
-- [ ] `updated_at` moves on update without the query setting it; `created_at` doesn't.
-- [ ] An intensity outside the three is refused by the database.
+- [x] An insert, an update and a delete each write one audit row with the right operation, before and after.
+- [x] A write inside `transaction()` carries its user and action.
+- [x] A second transaction on the same pooled connection doesn't inherit them (the one test that commits; it restores what it changed).
+- [x] `audit_log` isn't audited.
+- [x] `updated_at` moves on update without the query setting it; `created_at` doesn't.
+- [x] An intensity outside the three is refused by the database.
+
+**Checked by breaking:** dropping the audit trigger fails the five audit tests; dropping the `updated_at` trigger fails its test; `set_config(..., false)` fails the pooled-connection test. No gap found, so no migration or code changed. The committing test leaves the fixed user's `updated_at` moved; everything else is put back.
 
 **Verify:** the four checks; break each rule by hand once (drop the trigger in a scratch migration, see the test fail, put it back).
 

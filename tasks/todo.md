@@ -41,9 +41,9 @@ Every task: write the tests first where there is behaviour to test, run the four
 **Description:** The second migration: `users` as in the spec, its `updated_at` and audit triggers, and the fixed user. The fixed user's id in `app/config.py`.
 
 **Acceptance criteria:**
-- [ ] `users` exists with the check on intensity; the fixed user is there with intensity `normal`.
-- [ ] Inserting the fixed user wrote one audit row, with no user and no action.
-- [ ] `up`, `rollback`, `up` works and leaves `schema.sql` unchanged.
+- [x] `users` exists with the check on intensity; the fixed user is there with intensity `normal`.
+- [x] Inserting the fixed user wrote one audit row, with no user and no action.
+- [x] `up`, `rollback`, `up` works and leaves `schema.sql` unchanged.
 
 **Verify:** `bin/dbmate up`; `psql` shows the user and its audit row; the round trip.
 

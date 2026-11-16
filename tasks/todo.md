@@ -26,9 +26,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** The first routes and the pieces every later route uses: the queries and generated code, the router and models, the `client` fixture, and the owner lock.
 
 **Acceptance criteria:**
-- [ ] `PUT /aspirations/{id}` creates an aspiration last among the active; the same call again returns the row as it is and makes no second row or audit row.
-- [ ] `GET /aspirations` returns the active ones by position, then the retired ones; never another user's.
-- [ ] A blank name is 422; an id that is another user's row is 409; the create's audit row carries the user and "create aspiration".
+- [x] `PUT /aspirations/{id}` creates an aspiration last among the active; the same call again returns the row as it is and makes no second row or audit row.
+- [x] `GET /aspirations` returns the active ones by position, then the retired ones; never another user's.
+- [x] A blank name is 422; an id that is another user's row is 409; the create's audit row carries the user and "create aspiration".
 
 **Verify:** `uv run pytest tests/test_aspirations.py tests/test_contract.py`.
 

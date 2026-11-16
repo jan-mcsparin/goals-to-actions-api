@@ -7,6 +7,19 @@ from typing import Any, Optional
 import uuid
 
 
+class Aspiration(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    name: str
+    why: Optional[str]
+    status: str
+    position: Optional[int]
+    retired_on: Optional[datetime.date]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+
+
 class AuditLog(pydantic.BaseModel):
     id: int
     table_name: str

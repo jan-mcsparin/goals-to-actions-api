@@ -28,6 +28,13 @@ class GetUserRow(pydantic.BaseModel):
     updated_at: datetime.datetime
 
 
+LOCK_USER = """-- name: lock_user \\:exec
+select id from users
+where id = :p1 and deleted_at is null
+for update
+"""
+
+
 SET_INTENSITY = """-- name: set_intensity \\:one
 update users set intensity = :p2
 where id = :p1 and deleted_at is null
@@ -92,6 +99,9 @@ class Querier:
             created_at=row[4],
             updated_at=row[5],
         )
+
+    def lock_user(self, *, id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(LOCK_USER), {"p1": id})
 
     def set_intensity(self, *, id: uuid.UUID, intensity: str) -> Optional[SetIntensityRow]:
         row = self._conn.execute(sqlalchemy.text(SET_INTENSITY), {"p1": id, "p2": intensity}).first()

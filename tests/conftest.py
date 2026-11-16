@@ -2,10 +2,12 @@ import os
 from collections.abc import Iterator
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import Connection, Engine, create_engine
 from sqlalchemy.exc import OperationalError
 
-from app.database import Database
+from app.database import Database, get_database
+from app.main import app
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://gta:gta@localhost:5432/gta_test"
@@ -43,3 +45,11 @@ def connection(test_engine: Engine) -> Iterator[Connection]:
 def database(connection: Connection) -> Database:
     """The app's Database on the test connection: each transaction() is a savepoint."""
     return Database(connection)
+
+
+@pytest.fixture
+def client(database: Database) -> Iterator[TestClient]:
+    """The API on the test connection, so what a request writes is rolled back too."""
+    app.dependency_overrides[get_database] = lambda: database
+    yield TestClient(app)
+    app.dependency_overrides.clear()

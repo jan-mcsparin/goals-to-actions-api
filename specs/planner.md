@@ -42,8 +42,8 @@ This is why `task_weeks` needs no extra column: the planner only places tasks cr
 
 1. **Fixed-day recurring tasks** on their day, even when that takes the day over the cap. If the day is before the first day the draft may use, the first day.
 2. **Tasks with a due date in the week:** one with an "at" time on its due date; any other on the lightest day up to its due date. If the date has passed, the first day.
-3. **Other maintenance:** flexible recurring tasks and tasks with no goal, on the lightest day with room. Several of one item in a week are spaced apart.
-4. **Goal work,** by priority (below).
+3. **Other maintenance:** flexible recurring tasks whose item has no aspiration, and tasks with no goal, on the lightest day with room. Several of one item in a week are spaced apart.
+4. **Goal work,** by priority (below): sessions, tasks that belong to a goal, and flexible recurring tasks whose item sits under an aspiration.
 
 "Lightest" is the day with the fewest tasks; ties go to the earlier day.
 
@@ -57,7 +57,7 @@ This is why `task_weeks` needs no extra column: the planner only places tasks cr
 ### Spread and priority
 
 - A goal's sessions are spaced as evenly as the days allow, never two on one day unless there are more sessions than days.
-- Goals are taken in the order of their aspirations' positions, then by when the goal was made; goals with no aspiration come last.
+- Goals are taken in the order of their aspirations' positions, then by when the goal was made. An aspiration's recurring items come after its goals. Goals with no aspiration, or a retired one, come last.
 - Goals take turns: every goal gets its first session placed before any gets its second. When the week is short, what is left in the bank is the later sessions of the lower goals.
 
 ### Left to other slices

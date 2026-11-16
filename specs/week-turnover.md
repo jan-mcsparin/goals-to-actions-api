@@ -14,12 +14,14 @@ References: [`data-model.md`](../../docs/data-model.md#task_weeks) (how a week e
 
 **In:**
 
-- **Closing a week**, by origin: weekly-target tasks lapse; flexible recurring tasks lapse at the end of their period and carry inside it; fixed-day recurring tasks and tasks added by hand roll over into the next week's bank. Tasks set aside stay set aside.
+- **Closing a week**, by origin: weekly-target tasks lapse; flexible recurring tasks lapse at the end of their period and carry inside it; fixed-day recurring tasks and tasks added by hand roll over into the next week's bank.
+- **Set-aside rows stay set aside at the close.** A generated task among them ends with its week or period: the task closes as lapsed, and its row still says set aside, so it never reads as a miss. A task added by hand stays open with no row in play.
 - **Opening a week**, which fills its bank and then calls the planner's first draft in the same transaction:
-  - one task per session of each active building goal's target for that week;
+  - one task per session of each active building goal's target for that week, from the week of the goal's start date;
   - recurring tasks due in that week, by schedule kind;
   - open tasks whose due date falls in the week and have no row yet.
 - **Carry-overs arrive at the close,** not at the opening: a task can have only one row in play, so it can't be in next week while this week still holds it. They are handed to the planner as new arrivals.
+- **One step brings the week up to date,** before any route that needs the day, read or write. Reads are read-only, so it runs in its own write transaction, with its own audit action (`open week`, `close week`), and does nothing when nothing is due.
 - **When each runs** (ADR-009), with no job:
   - opening: the first request at or after 6 p.m. on Sunday, by the phone's time zone. The hour is one constant;
   - closing: the first request on Monday or later;
@@ -30,8 +32,10 @@ References: [`data-model.md`](../../docs/data-model.md#task_weeks) (how a week e
 - **Safe to run twice.** Generated tasks are unique per goal or item, period and number, and the two markers record how far opening and closing have got.
 - **A week nobody opened is skipped.** A week with no rows is never filled or closed after the fact. Coming back after three weeks closes the weeks that have rows, in order, and opens the current one; a hand-added task carries straight into it as one carry-over.
 - `getUpcoming`: open tasks with a later due date and no row yet.
-- "Still matter?": the read marks a task that has rolled over twice and hasn't been answered since; `answerStillMatters` takes keep, schedule (onto a day) or drop.
-- Changes mid-week that alter what the week should hold: a target raised or lowered, a goal created, an item added or its schedule changed.
+- "Still matter?": the read marks a task added by hand, or a fixed-day recurring task, that has rolled over twice and hasn't been answered since. A flexible item carrying inside its period is never asked; `answerStillMatters` takes keep, schedule (onto a day) or drop.
+- **A change acts on every open week:** a goal created, paused, resumed, ended or reopened; an item added, changed, turned on or off. The one exception is a target change once next week is open, which takes effect from next week.
+- **Coming back makes the week's tasks fresh.** A goal resumed, reopened or gone again, or an item turned on, gets the current week's sessions or recurring tasks if the week has none. Last week's set-aside sessions don't return.
+- **A short first week.** A goal made or brought back midweek gets at most one session for each day left in that week, today included.
 
 **Out (later):**
 
@@ -47,6 +51,11 @@ Most of this slice is set-based SQL with dates, so most tests are at that level,
 - filling twice creates nothing new;
 - flexible periods: weekly, two weeks anchored on starts-on, monthly across a month boundary;
 - a paused goal and a turned-off item get nothing;
+- a goal paused in one week and resumed in a later one gets that week's sessions, and the old ones stay closed with no miss recorded;
+- a monthly item in a week that straddles two months belongs to the month of that week's Monday, and is not asked "Still matter?" in its third week;
+- a goal made on Saturday gets two sessions; one made on Monday gets its full target;
+- a target changed on Sunday evening leaves this week's sessions and count as they were;
+- a session checked off offline on Sunday night and sent after Monday's close is done, not lapsed;
 - a week of 1 of 3 is followed by a week of 3, not 5;
 - several weeks with no request in between: nothing is created for them, and a hand-added task carries over once;
 - a request at 5:59 p.m. on Sunday opens nothing, and one at 6 p.m. opens next week and leaves Sunday as it was;
@@ -71,8 +80,8 @@ As shared. **Always:** closing a week is one transaction, and so is opening one 
 
 ## Open questions
 
-1. **A target changed mid-week:** raising 3 to 4 adds a session; lowering 3 to 2 with all three still open removes which one? With next week already open, the change applies there too.
+1. **A target changed mid-week:** raising 3 to 4 adds a session; lowering 3 to 2 with all three still open removes which one?
 2. **"Rolled over two weeks":** two rows with the outcome rolled over, counted since the last answer? Confirmed against front-end issue #35. A skipped week adds no row, so time away doesn't count towards it.
-3. **A goal reached, ended or paused between the opening and the close:** its tasks in next week are set aside or dropped with the rest. Listed so the plan covers it.
+3. **What a short first week reads against.** A goal made on Saturday gets two sessions while its target says three. I'd show the week against the sessions it got ("1 of 2"). An amount target ("25 miles over 4 runs") isn't scaled yet.
 
-Settled 2026-11-16 (ADR-009): when turnover runs, and what happens to weeks nobody opened.
+Settled 2026-11-16: when turnover runs and what happens to weeks nobody opened (ADR-009); a goal paused, ended or reached while two weeks are open has its tasks set aside in both.

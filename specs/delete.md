@@ -23,9 +23,9 @@ References: [`data-model.md`](../../docs/data-model.md#drop-and-delete), front-e
   | A milestone | Its check-ins | The goal's other milestones, renumbered |
   | A goal | Its tasks and their week records, milestones, check-ins, weekly targets, quit days, urge ratings | A recurring item continued from it, with its from-goal emptied |
   | An aspiration | | Its goals and recurring items, with no aspiration; the other aspirations, renumbered |
-  | A recurring item | Its open tasks | Its done tasks, with no item |
+  | A recurring item | Its open tasks | Its done tasks, with the link to the item emptied; they keep the origin recurring item |
 
-- A pass over every unique index to make sure it ignores deleted rows.
+- A pass over every unique index to make sure it ignores deleted rows, except the one on generated tasks: a deleted session's period and number stay taken, so turnover never makes it again.
 - A pass over every read to prove deleted rows never appear.
 
 **Out (later):**
@@ -36,7 +36,7 @@ References: [`data-model.md`](../../docs/data-model.md#drop-and-delete), front-e
 
 ## Testing strategy
 
-As shared, plus: for each row of the table, everything that should go is gone from every read and everything that should stay is there; deleting twice changes nothing; a new row can reuse what a deleted one held (a position, a generated task's period and number).
+As shared, plus: for each row of the table, everything that should go is gone from every read and everything that should stay is there; deleting twice changes nothing; a new row can reuse a position a deleted one held; a deleted generated task is not made again when its week is opened twice.
 
 ## Boundaries
 
@@ -54,5 +54,6 @@ As shared. **Never:** a hard delete from application code; a delete that leaves 
 
 1. **Deleting an aspiration leaves its goals with none** (they move to Other goals). I made that call in issue #38 and it hasn't been confirmed.
 2. **Deleting a recurring item:** I've assumed its open tasks go and its done ones stay as history. The alternative is that everything it made goes, as with a goal.
-3. **A deleted generated task and the week.** If a session of this week's target is deleted, turnover mustn't recreate it. Either the unique rule counts deleted rows for generated tasks, or deleting a generated task isn't offered and dropping is the answer.
-4. **Is an undo wanted for the few seconds after a delete?** The front end may show one; the API would need an `undelete`.
+3. **Is an undo wanted for the few seconds after a delete?** The front end may show one; the API would need an `undelete`.
+
+Settled 2026-11-16: the unique rule for generated tasks counts deleted rows, so a deleted session stays deleted; a deleted item's done tasks keep their origin with the link emptied.

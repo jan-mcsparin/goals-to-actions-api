@@ -18,7 +18,7 @@ References: [`data-model.md`](../../docs/data-model.md#goals) (goals, weekly_tar
   - `listGoals` (by aspiration, and those with none), `getGoal`.
   - `createGoal`: the type is given, never inferred; a building goal is created with its first target.
   - `updateGoal`: label, line, baseline, aspiration, deadline. Pushing a slipped deadline back is this route.
-  - `setWeeklyTarget`: takes effect this week.
+  - `setWeeklyTarget`: takes effect this week, or from next week once next week is open (ADR-009).
   - `pauseGoal`, `resumeGoal`, `endGoal`, `markGoalReached`, `reopenGoal`, `goAgain`. Go again is the same goal made active again.
 - Retiring an aspiration with its goals' work paused: `retireAspiration` gains that choice and pauses the aspiration's active goals in the same transaction.
 - The rules: a deadline is never before the start date; weekly targets only on building goals; ended on is set by reached and ended, cleared by reopen and go again.
@@ -28,7 +28,7 @@ References: [`data-model.md`](../../docs/data-model.md#goals) (goals, weekly_tar
 
 - Milestones and check-ins, and the "1 of 6" count (`milestones-check-ins`).
 - Progress this week against the target, which needs tasks (`tasks-week`).
-- Setting a paused goal's tasks aside, and returning them on resume (`tasks-week`).
+- Setting a goal's tasks aside when it is paused, ended or reached, and returning them on resume, reopen and go again (`tasks-week`).
 - A one-off goal's steps: they are tasks (`tasks-week`).
 - Daily answers on a quitting goal (`quitting-goals`).
 - Keeping a reached goal's practice as a recurring item (`recurring-items`).
@@ -55,4 +55,5 @@ As shared. **Never:** infer a goal's type; add a "missed" status or a hard-deadl
 
 1. **Which status changes are allowed from which?** The table (for example, can a paused goal be marked reached?) is written out from `flows.md` in the plan and confirmed then.
 2. **Does bringing an aspiration back resume the goals its retiring paused?** Nothing stored says which goals were paused that way; only the audit log knows, and nothing may read it. So either all its paused goals resume, or none do and the person resumes them. I'd say none.
-3. **A target change takes effect this week.** Should a change made on a Sunday wait for Monday instead? The data model says this week.
+
+Settled 2026-11-16: a target change takes effect this week until next week opens on Sunday evening, and from next week after that.

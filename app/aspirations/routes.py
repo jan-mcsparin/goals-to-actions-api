@@ -11,6 +11,7 @@ from app.aspirations.models import (
 )
 from app.db import aspirations
 from app.dependencies import CurrentDatabase, CurrentUserId
+from app.errors import NotFound
 
 router = APIRouter(prefix="/aspirations", tags=["aspirations"])
 
@@ -38,3 +39,16 @@ def reorder_aspirations(
     with database.transaction(user_id, "reorder aspirations") as connection:
         rows = rules.reorder(connection, user_id, body.ids)
     return AspirationList.from_rows(rows)
+
+
+@router.patch("/{aspiration_id}")
+def update_aspiration(
+    aspiration_id: UUID, body: AspirationInput, database: CurrentDatabase, user_id: CurrentUserId
+) -> Aspiration:
+    with database.transaction(user_id, "update aspiration") as connection:
+        row = aspirations.Querier(connection).update_aspiration(
+            id=aspiration_id, user_id=user_id, name=body.name, why=body.why
+        )
+    if row is None:
+        raise NotFound
+    return Aspiration.from_row(row)

@@ -288,3 +288,77 @@ def test_reorder_with_no_aspirations_is_fine(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"aspirations": []}
+
+
+# updateAspiration
+
+
+def test_update_changes_name_and_why_and_nothing_else(client: TestClient) -> None:
+    create(client, "Be fit")
+    write = create(client, "Write", "I have things to say")
+
+    response = client.patch(
+        f"/aspirations/{write['id']}", json={"name": " Write daily ", "why": "It clears my head"}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == write | {"name": "Write daily", "why": "It clears my head"}
+    assert names_and_positions(client) == [("Be fit", 1), ("Write daily", 2)]
+
+
+def test_update_with_no_why_empties_it(client: TestClient) -> None:
+    write = create(client, "Write", "I have things to say")
+
+    response = client.patch(f"/aspirations/{write['id']}", json={"name": "Write", "why": None})
+
+    assert response.json()["why"] is None
+
+
+def test_update_works_on_a_retired_aspiration(client: TestClient, connection: Connection) -> None:
+    retired = uuid4()
+    connection.execute(
+        text(
+            "insert into aspirations (id, user_id, name, status, retired_on) "
+            "values (:id, :user_id, 'Sail', 'retired', '2026-11-10')"
+        ),
+        {"id": retired, "user_id": FIXED_USER_ID},
+    )
+
+    response = client.patch(f"/aspirations/{retired}", json={"name": "Sail the coast"})
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Sail the coast"
+    assert response.json()["retiredOn"] == "2026-11-10"
+
+
+def test_update_of_an_unknown_or_another_users_aspiration_is_not_found(
+    client: TestClient, connection: Connection
+) -> None:
+    theirs = add_aspiration_for(connection, add_other_user(connection), "Be kind")
+
+    for aspiration_id in [uuid4(), theirs]:
+        response = client.patch(f"/aspirations/{aspiration_id}", json={"name": "Mine now"})
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Not Found"}
+    name = connection.execute(
+        text("select name from aspirations where id = :id"), {"id": theirs}
+    ).scalar_one()
+    assert name == "Be kind"
+
+
+def test_update_refuses_a_blank_name(client: TestClient) -> None:
+    write = create(client, "Write")
+
+    response = client.patch(f"/aspirations/{write['id']}", json={"name": ""})
+
+    assert response.status_code == 422
+    assert names_and_positions(client) == [("Write", 1)]
+
+
+def test_update_is_audited(client: TestClient, connection: Connection) -> None:
+    write = create(client, "Write")
+
+    client.patch(f"/aspirations/{write['id']}", json={"name": "Write daily"})
+
+    assert audit_rows(connection, write["id"])[-1].action == "update aspiration"

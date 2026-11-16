@@ -4,3 +4,7 @@ its response, so rules modules need nothing from FastAPI."""
 
 class NotAllowed(Exception):
     """The rules don't allow this change. Sent as 409 with this message."""
+
+
+class NotFound(Exception):
+    """The row doesn't exist, or belongs to someone else. Sent as 404."""

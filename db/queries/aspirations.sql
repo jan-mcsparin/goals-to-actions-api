@@ -27,3 +27,8 @@ where aspirations.id = new_order.id
   and aspirations.status = 'active'
   and aspirations.deleted_at is null
   and aspirations.position <> new_order.position;
+
+-- name: UpdateAspiration :one
+update aspirations set name = $3, why = $4
+where id = $1 and user_id = $2 and deleted_at is null
+returning *;

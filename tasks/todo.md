@@ -58,9 +58,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `PATCH /aspirations/{id}` sets name and why.
 
 **Acceptance criteria:**
-- [ ] Name and why change; `why: null` empties it; position and status don't move; it works on a retired aspiration.
-- [ ] An unknown id or another user's is 404, in FastAPI's `{"detail": ...}` shape; a blank name is 422.
-- [ ] The audit row carries "update aspiration".
+- [x] Name and why change; `why: null` empties it; position and status don't move; it works on a retired aspiration.
+- [x] An unknown id or another user's is 404, in FastAPI's `{"detail": ...}` shape; a blank name is 422.
+- [x] The audit row carries "update aspiration".
 
 **Verify:** `uv run pytest tests/test_aspirations.py`.
 

@@ -1,84 +1,90 @@
-# Implementation Plan: Database foundation (#3)
+# Implementation Plan: Aspirations (#4)
 
-Spec: [`../specs/database-foundation.md`](../specs/database-foundation.md). Tasks: [`todo.md`](todo.md).
+Spec: [`../specs/aspirations.md`](../specs/aspirations.md). Tasks: [`todo.md`](todo.md).
 
 ## Overview
 
-Postgres under `podman compose`, dbmate migrations, sqlc-generated query code, the `users` and `audit_log` tables, `transaction()` carrying the user and action to the audit trigger, and tests against real Postgres. No route. ADR-007's open checks are answered along the way and written into the ADR.
+The `aspirations` table and six routes: list, create, edit, reorder, retire, bring back. It is the first route through the whole stack, so it also adds what every later slice reuses: a test client on the rolled-back connection, the 404 and 409 errors, the time zone header, and a committed `openapi.json` with a test that fails when it's out of date.
 
-One PR, `database-foundation` (closes #3), plus a docs-repo PR linked from it.
+One PR, `aspirations` (closes #4), plus a small docs-repo PR linked from it.
 
-## Checked against the tools' documentation, 2026-11-13
+## The contract
 
-| Fact | Source | What it means here |
-| --- | --- | --- |
-| Postgres 18 is the current major (18.7); 19 is at release candidate | Docker Hub `postgres` | Pin `postgres:18`. |
-| From 18, the image's volume is `/var/lib/postgresql`, not `/var/lib/postgresql/data` | Docker Hub `postgres` | Mount the named volume there, or the data is lost on restart. |
-| dbmate's image is `ghcr.io/amacneil/dbmate`; `up` creates the database if it's missing | dbmate README | No init script: `up` against the test URL creates the test database. |
-| dbmate needs `?sslmode=disable` for a local server | dbmate README | In both URLs. |
-| dbmate writes `schema.sql` with `pg_dump`, and skips it silently if `pg_dump` is missing | dbmate README | Task 2 checks the file is really written. See Risks. |
-| sqlc reads dbmate migrations, ignores the down sections, and reads files in name order | sqlc docs | `schema: db/migrations`. dbmate's timestamp names sort correctly. |
-| `sqlc-gen-python` 1.3.0: wasm URL and sha256 in its README; options `package`, `emit_sync_querier`, `emit_async_querier`, `emit_pydantic_models`, `emit_str_enum` | plugin README | Sync querier and Pydantic models on; async off. |
+| Operation | Route | Body | Returns |
+| --- | --- | --- | --- |
+| `listAspirations` | `GET /aspirations` | | `{ "aspirations": [...] }`: active by position, then retired, newest retirement first |
+| `createAspiration` | `PUT /aspirations/{id}` | `name`, `why` (optional) | the aspiration; goes last among the active |
+| `updateAspiration` | `PATCH /aspirations/{id}` | `name`, `why` | the aspiration |
+| `reorderAspirations` | `POST /aspirations/reorder` | `ids`: every active id, in the new order | the same shape as the list |
+| `retireAspiration` | `POST /aspirations/{id}/retire` | | the aspiration |
+| `bringBackAspiration` | `POST /aspirations/{id}/bring-back` | | the aspiration; goes last |
 
-Not answered by the documentation, so found out by running it: whether sqlc accepts `create function` and `create trigger` in the schema it reads, and whether the dbmate image's `pg_dump` is new enough for Postgres 18.
+An aspiration in JSON: `id`, `name`, `why`, `status` (`active` or `retired`), `position`, `retiredOn`, `createdAt`. `why`, `position` and `retiredOn` are `null` when empty.
+
+- **The list is wrapped in an object** so goal counts can join it in `goals-targets` without changing its shape (open question 2: this slice returns aspirations alone).
+- **`updateAspiration` sends both fields every time.** `why: null` empties it. It works on a retired aspiration too.
+- **A name is trimmed and can't be blank** (422). An empty `why` is stored as empty, not `""`.
+- **Repeats change nothing** (decisions 6 and 7): the same create returns the row as it is, even if the body differs; retiring a retired aspiration and bringing back an active one return it unchanged and write no audit row.
+- **Errors** (decision 10): 404 for an id that doesn't exist or is someone else's; 409 for a reorder whose ids aren't exactly the active ones (one missing, one repeated, one retired or unknown), and for a create whose id is already another user's row; 422 for a body that doesn't validate.
+- **Retire needs today's date in the phone's time zone** (decision 9), so this slice names the header: `X-Time-Zone`, an IANA name such as `America/Denver`. Only routes that need the day read it; there, a missing or unknown zone is 422.
+- **Retire takes no body yet.** "Pause its work or keep it going" arrives with `goals-targets` and `recurring-items`.
+
+Where the front end's hand-written types differ, the API follows `data-model.md` and #40 adapts: `position` (not `priority`), `retiredOn` as a day (not `retiredAt` as a moment), a reorder of all ids (not move up or down).
+
+## Architecture decisions
+
+- **Position is unique per owner by a constraint checked at the end of each statement** (`unique (user_id, position) deferrable initially immediate`). That settles open question 1: a reorder or a gap-closing update is one statement that renumbers several rows, which a plain unique index can refuse partway through. Not `initially deferred`: that checks only at commit, so a broken write would fail far from its cause, and the tests' rolled-back transactions would never check it at all.
+- **A check constraint ties the columns together:** active means a position of 1 or more and no retired day; retired means no position and a retired day. "No gaps" can't be a constraint, so the rules module keeps it and tests check it after every route.
+- **Deleted rows:** ADR-007 says unique rules ignore deleted rows through partial indexes, and a partial index can't be deferrable. The `delete` slice will empty a deleted aspiration's position (and loosen the check to allow it), which gets the same result. Noted in the migration.
+- **Writes that change positions lock the owner's `users` row first** (`select ... for update`). Two creates arriving together, as an offline queue can send them, then take positions one after the other instead of one failing on the unique rule.
+- **A folder per slice, as the pattern for later slices** (settled with Jan 2026-11-16). Shared modules stay at the top of `app/`.
+  - `app/aspirations/routes.py`: the router. Thin.
+  - `app/aspirations/models.py`: the request and response models.
+  - `app/aspirations/rules.py`: create, reorder, retire and bring back, each several queries in one transaction. No FastAPI imports.
+  - `app/errors.py`: `NotFound` and `NotAllowed`, raised by rules modules; `main.py` turns them into 404 and 409.
+- **The database files stay organised by table, not by slice.** Migrations are one time-ordered folder, which dbmate needs. Queries are one file per table in `db/queries/`, generated into one module per table in `app/db/`, because later slices read and write earlier slices' tables.
+- **Tests stay flat** (`tests/test_aspirations.py`) until one slice's tests get long.
+  - `app/time_zone.py`: the `today` dependency reading `X-Time-Zone`, using the standard library's `zoneinfo`.
+  - `app/openapi.py`: `uv run python -m app.openapi` writes `openapi.json` at the repo root.
+- **Generated row models don't leave the API.** Each query returns the same columns, and one function maps a row to the hand-written `Aspiration`.
+- **Tests go through a `client` fixture** that overrides `get_database` with the rolled-back `database` fixture. "Someone else's row" is tested with a second user inserted by the test.
+- **No new dependency.**
 
 ## Dependency graph
 
 ```
-1 Postgres under compose
+1 the table and its constraints
       │
       ▼
-2 dbmate wrapper + migration 1 (audit_log, audit(), set_updated_at())
+2 list + create (router, models, client fixture, owner lock)
       │
-      ▼
-3 migration 2 (users, its triggers, the fixed user)
-      │
-      ▼
-4 sqlc: config, users queries, generated app/db/      ◄── checkpoint: ADR-007's checks
-      │
-      ▼
-5 app/database.py + test setup + query tests
-      │
-      ▼
-6 audit, updated_at and constraint tests
-      │
-      ▼
-7 docs: README, CLAUDE.md, ADR-007 (docs PR), spec marked built
+      ├──▶ 3 reorder          ◄── checkpoint: sqlc and array parameters
+      ├──▶ 4 edit (404)
+      └──▶ 5 retire + bring back (time zone header)
+                  │
+                  ▼
+            6 openapi.json and its test
+                  │
+                  ▼
+            7 docs, spec marked built, note on front-end #40
 ```
 
-Strictly in order. Each task leaves the four checks passing.
-
-## Architecture decisions
-
-- **dbmate is a compose service,** not a `podman run` line. It sits on the compose network and reaches Postgres as `db`, which avoids host networking through the Podman machine. A small `bin/dbmate` script wraps `podman compose run --rm dbmate "$@"`; `bin/dbmate --test ...` points it at the test database and adds `--no-dump-schema`, so only the development database writes `db/schema.sql`.
-- **Two databases on one server:** `gta_dev` and `gta_test`. dbmate `up` creates each.
-- **Local credentials are in `compose.yaml` and `.env.example`,** and are for the local container only. `.env` is already ignored.
-- **Configuration is read from the environment with `os.environ`.** No settings library; that would be a new dependency.
-- **`psycopg` is installed as `psycopg[binary]`,** so nothing has to be compiled locally. The 3.15 trial already installed and imported it.
-- **`audit()` is one function for every table.** It reads the table from `TG_TABLE_NAME`, the row id from `id`, and the user and action from `current_setting('app.user_id', true)` and `current_setting('app.action', true)`, which are empty outside `transaction()`.
-- **`audit_log` has its own identity key and no shared columns.** It is the one table the device never writes and nothing ever updates.
-- **`transaction()` sets the audit context with `set_config(..., true)`,** which lasts for that transaction only.
-- **Generated code lives in `app/db/` and is left out of ruff.** mypy still checks it. If generated code fails strict mypy, that is a finding for the checkpoint, not something to silence.
-- **Test isolation:** a fixture gives each test a connection inside a transaction that is rolled back. Application code gets its connection through one provider that tests override, and `transaction()` opens a savepoint when it is handed a connection already in a transaction.
-- **One test commits for real:** the check that a second transaction on the same pooled connection doesn't inherit the first one's user and action. Savepoints can't show that. It uses the real engine against the test database and puts back what it changed.
-- **The existing eight tests keep running without Postgres.** The database fixture connects only when a test asks for it. A test that asks while Postgres is down fails with a message naming `podman compose up -d`.
+Built in number order. Reorder comes third because it carries the one tool risk.
 
 ## Risks
 
 | Risk | If it happens |
 | --- | --- |
-| The dbmate image's `pg_dump` is older than Postgres 18, so `schema.sql` isn't written | Dump with the Postgres container's own `pg_dump` from `bin/dbmate`. Small, and stays inside the slice. |
-| sqlc can't parse the trigger or function statements in the migrations | Stop at the checkpoint. The fallbacks (point sqlc at `schema.sql`, or keep functions in files sqlc doesn't read) change ADR-007's "sqlc reads the migrations", so they are Jan's call. |
-| Generated code doesn't pass strict mypy, or doesn't run on Python 3.15 | Stop at the checkpoint with the errors. |
-| The generated types are loose (`Any` for UUID or date, `Optional` handled oddly) | Recorded in ADR-007; whether to wrap or override is decided before slice 2. |
-| A nullable parameter can't be set back to empty through a generated query | Recorded; affects how later slices write "clear this field". |
+| sqlc or the Python plugin can't take a `uuid[]` parameter with `unnest ... with ordinality` | Reorder sets each position with one small query in a loop, with `set constraints ... deferred` for that transaction. Stays inside the slice; recorded for ADR-007. |
+| `zoneinfo` finds no time zone data on some host | It works on macOS. A Linux container may need the `tzdata` package, which is a dependency question for hosting, not now. Noted in the README. |
+| The locked `users` row makes writes queue | Intended, and one user's volume is tiny. |
 
 ## Checkpoints
 
-- **After task 2:** migrations go up and down, and `schema.sql` is written. If the `pg_dump` fallback was needed, say so.
-- **After task 4:** report what ADR-007's checks found, with the generated signatures, before building on them. Stop here if any failed.
-- **After task 6:** every spec criterion but the docs is met; the four checks pass.
+- **After task 1:** migration goes up, down and up with `schema.sql` unchanged.
+- **After task 3:** report whether the one-statement reorder generated cleanly or the fallback was used.
+- **After task 6:** every spec criterion but the docs and the front end's is met; the four checks pass.
 
-## Verification
+## Decision for Jan
 
-Every task: the four checks (`ruff check`, `ruff format --check`, `mypy`, `pytest`). Tasks 2 and 3 also: `up`, `rollback`, `up` leaves `schema.sql` unchanged. From task 4: `sqlc diff` is clean.
+The spec's criterion "the front end's types are regenerated from the new schema and its mock client compiles against them" can't be met inside this slice: the command that generates the types is the first thing front-end #40 builds, and it needs a new front-end dependency. Recommended: this slice delivers `openapi.json`, the criterion moves to #40, and the spec says so. Approving the plan approves that.

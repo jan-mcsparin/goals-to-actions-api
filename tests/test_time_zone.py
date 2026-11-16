@@ -2,7 +2,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pytest
-from fastapi import HTTPException
+from fastapi.exceptions import RequestValidationError
 
 from app.time_zone import today
 
@@ -18,7 +18,8 @@ def test_today_differs_across_the_date_line() -> None:
 
 @pytest.mark.parametrize("name", ["Mars/Olympus_Mons", "", "America", "../etc/passwd", "+07:00"])
 def test_an_unknown_time_zone_is_refused(name: str) -> None:
-    with pytest.raises(HTTPException) as refused:
+    with pytest.raises(RequestValidationError) as refused:
         today(name)
 
-    assert refused.value.status_code == 422
+    [error] = refused.value.errors()
+    assert error["loc"] == ("header", "x-time-zone")

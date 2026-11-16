@@ -76,6 +76,7 @@
         "description": "What the person types. Sent whole on create and on every edit.",
         "properties": {
           "name": {
+            "maxLength": 200,
             "minLength": 1,
             "title": "Name",
             "type": "string"
@@ -83,6 +84,7 @@
           "why": {
             "anyOf": [
               {
+                "maxLength": 2000,
                 "type": "string"
               },
               {
@@ -122,6 +124,7 @@
               "format": "uuid",
               "type": "string"
             },
+            "maxItems": 500,
             "title": "Ids",
             "type": "array"
           }

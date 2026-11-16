@@ -104,6 +104,25 @@ def test_a_blank_name_is_refused(client: TestClient) -> None:
     assert listed(client) == []
 
 
+def test_text_postgres_cannot_hold_is_refused(client: TestClient) -> None:
+    for body in [{"name": "Be\u0000fit"}, {"name": "Be fit", "why": "Because\u0000"}]:
+        response = client.put(f"/aspirations/{uuid4()}", json=body)
+
+        assert response.status_code == 422
+    assert listed(client) == []
+
+
+def test_name_and_why_have_a_longest_length(client: TestClient) -> None:
+    fits = client.put(f"/aspirations/{uuid4()}", json={"name": "n" * 200, "why": "w" * 2000})
+    long_name = client.put(f"/aspirations/{uuid4()}", json={"name": "n" * 201})
+    long_why = client.put(f"/aspirations/{uuid4()}", json={"name": "Be fit", "why": "w" * 2001})
+
+    assert fits.status_code == 200
+    assert long_name.status_code == 422
+    assert long_why.status_code == 422
+    assert len(listed(client)) == 1
+
+
 def test_the_same_create_twice_makes_one_aspiration(
     client: TestClient, connection: Connection
 ) -> None:
@@ -285,6 +304,10 @@ def test_the_same_order_twice_changes_nothing_more(
     ]
 
 
+def test_reorder_refuses_an_absurdly_long_list(client: TestClient) -> None:
+    assert reorder(client, [str(uuid4()) for _ in range(501)]).status_code == 422
+
+
 def test_reorder_with_no_aspirations_is_fine(client: TestClient) -> None:
     response = reorder(client, [])
 
@@ -441,6 +464,10 @@ def test_retire_needs_a_time_zone_it_knows(client: TestClient) -> None:
 
     assert missing.status_code == 422
     assert unknown.status_code == 422
+    # Both in the shape the schema gives every 422.
+    for response in [missing, unknown]:
+        [error] = response.json()["detail"]
+        assert error["loc"] == ["header", "x-time-zone"]
     assert names_and_positions(client) == [("Be fit", 1)]
 
 

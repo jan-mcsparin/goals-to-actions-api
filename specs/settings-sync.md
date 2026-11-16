@@ -35,7 +35,7 @@ As shared. **Never:** trust the phone's clock for ordering; store an offset.
 
 ## Success criteria
 
-- [ ] Intensity reads and saves, and the planner's next draft uses it.
+- [ ] Intensity reads and saves, and the planner uses it: the next draft follows it, and lowering it lifts goal work off later days at once (`planner`).
 - [ ] The user's time zone follows the phone.
 - [ ] Every write in the API passes the repeat test.
 - [ ] The README says what the offline queue can rely on.

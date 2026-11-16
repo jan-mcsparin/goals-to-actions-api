@@ -41,9 +41,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `POST /aspirations/reorder` renumbers the active aspirations from the ids sent, in one statement if sqlc allows.
 
 **Acceptance criteria:**
-- [ ] The active aspirations come back in the order sent, numbered 1 to n; retired ones are untouched.
-- [ ] A list that leaves out, repeats or adds an id (retired, unknown or another user's) is 409 and changes nothing.
-- [ ] Sending the same order twice is fine; the audit rows carry "reorder aspirations".
+- [x] The active aspirations come back in the order sent, numbered 1 to n; retired ones are untouched.
+- [x] A list that leaves out, repeats or adds an id (retired, unknown or another user's) is 409 and changes nothing.
+- [x] Sending the same order twice is fine; the audit rows carry "reorder aspirations".
 
 **Verify:** `uv run pytest tests/test_aspirations.py`.
 
@@ -51,7 +51,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 **Files:** `db/queries/aspirations.sql`, `app/db/` (generated), `app/aspirations/` (`routes.py`, `models.py`, `rules.py`), `tests/test_aspirations.py`.
 
-**Checkpoint:** report whether the one-statement reorder generated cleanly or the fallback was used.
+**Found:** sqlc and the Python plugin take a `uuid[]` parameter (`List[uuid.UUID]`) and `unnest ... with ordinality`, so the reorder is one statement. No fallback needed.
 
 ### Task 4: Edit
 

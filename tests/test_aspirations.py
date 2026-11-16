@@ -192,3 +192,99 @@ def test_list_leaves_out_other_users_and_deleted_aspirations(
     )
 
     assert listed(client) == []
+
+
+# reorderAspirations
+
+
+def reorder(client: TestClient, ids: list[str]) -> Any:
+    return client.post("/aspirations/reorder", json={"ids": ids})
+
+
+def test_reorder_numbers_the_active_aspirations_in_the_order_sent(client: TestClient) -> None:
+    fit, friend, write = (create(client, name) for name in ["Be fit", "Be a good friend", "Write"])
+
+    response = reorder(client, [write["id"], fit["id"], friend["id"]])
+
+    assert response.status_code == 200
+    assert [(a["name"], a["position"]) for a in response.json()["aspirations"]] == [
+        ("Write", 1),
+        ("Be fit", 2),
+        ("Be a good friend", 3),
+    ]
+    assert names_and_positions(client) == [("Write", 1), ("Be fit", 2), ("Be a good friend", 3)]
+
+
+def test_reorder_leaves_retired_aspirations_alone(
+    client: TestClient, connection: Connection
+) -> None:
+    fit, write = create(client, "Be fit"), create(client, "Write")
+    connection.execute(
+        text(
+            "insert into aspirations (id, user_id, name, status, retired_on) "
+            "values (:id, :user_id, 'Sail', 'retired', '2026-11-10')"
+        ),
+        {"id": uuid4(), "user_id": FIXED_USER_ID},
+    )
+
+    reorder(client, [write["id"], fit["id"]])
+
+    assert names_and_positions(client) == [("Write", 1), ("Be fit", 2), ("Sail", None)]
+
+
+def test_reorder_refuses_a_list_that_is_not_exactly_the_active_ones(
+    client: TestClient, connection: Connection
+) -> None:
+    fit, write = create(client, "Be fit"), create(client, "Write")
+    theirs = add_aspiration_for(connection, add_other_user(connection), "Be kind")
+    wrong_lists = {
+        "one left out": [write["id"]],
+        "one repeated": [write["id"], write["id"]],
+        "one repeated as well": [write["id"], fit["id"], write["id"]],
+        "one unknown": [write["id"], fit["id"], str(uuid4())],
+        "another user's": [write["id"], fit["id"], str(theirs)],
+    }
+
+    for what, ids in wrong_lists.items():
+        response = reorder(client, ids)
+
+        assert response.status_code == 409, what
+        assert response.json() == {"detail": "The order must list every active aspiration once."}
+        assert names_and_positions(client) == [("Be fit", 1), ("Write", 2)], what
+
+
+def test_reorder_refuses_a_retired_aspiration(client: TestClient, connection: Connection) -> None:
+    fit = create(client, "Be fit")
+    retired = uuid4()
+    connection.execute(
+        text(
+            "insert into aspirations (id, user_id, name, status, retired_on) "
+            "values (:id, :user_id, 'Sail', 'retired', '2026-11-10')"
+        ),
+        {"id": retired, "user_id": FIXED_USER_ID},
+    )
+
+    assert reorder(client, [fit["id"], str(retired)]).status_code == 409
+
+
+def test_the_same_order_twice_changes_nothing_more(
+    client: TestClient, connection: Connection
+) -> None:
+    fit, write = create(client, "Be fit"), create(client, "Write")
+
+    reorder(client, [write["id"], fit["id"]])
+    again = reorder(client, [write["id"], fit["id"]])
+
+    assert again.status_code == 200
+    assert names_and_positions(client) == [("Write", 1), ("Be fit", 2)]
+    assert [row.action for row in audit_rows(connection, fit["id"])] == [
+        "create aspiration",
+        "reorder aspirations",
+    ]
+
+
+def test_reorder_with_no_aspirations_is_fine(client: TestClient) -> None:
+    response = reorder(client, [])
+
+    assert response.status_code == 200
+    assert response.json() == {"aspirations": []}

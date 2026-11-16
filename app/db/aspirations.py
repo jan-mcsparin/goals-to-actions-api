@@ -2,7 +2,7 @@
 # versions:
 #   sqlc v1.31.1
 # source: aspirations.sql
-from typing import Iterator, Optional
+from typing import Iterator, List, Optional
 import uuid
 
 import sqlalchemy
@@ -30,6 +30,18 @@ LIST_ASPIRATIONS = """-- name: list_aspirations \\:many
 select id, user_id, name, why, status, position, retired_on, created_at, updated_at, deleted_at from aspirations
 where user_id = :p1 and deleted_at is null
 order by position nulls last, retired_on desc, name
+"""
+
+
+SET_ASPIRATION_POSITIONS = """-- name: set_aspiration_positions \\:exec
+update aspirations
+set position = new_order.position
+from unnest(:p2\\:\\:uuid[]) with ordinality as new_order (id, position)
+where aspirations.id = new_order.id
+  and aspirations.user_id = :p1
+  and aspirations.status = 'active'
+  and aspirations.deleted_at is null
+  and aspirations.position <> new_order.position
 """
 
 
@@ -91,3 +103,6 @@ class Querier:
                 updated_at=row[8],
                 deleted_at=row[9],
             )
+
+    def set_aspiration_positions(self, *, user_id: uuid.UUID, ids: List[uuid.UUID]) -> None:
+        self._conn.execute(sqlalchemy.text(SET_ASPIRATION_POSITIONS), {"p1": user_id, "p2": ids})

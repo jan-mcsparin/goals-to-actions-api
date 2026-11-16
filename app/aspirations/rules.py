@@ -22,3 +22,14 @@ def create(
     if created is None:
         raise NotAllowed("That id is already in use.")
     return created
+
+
+def reorder(connection: Connection, user_id: UUID, ids: list[UUID]) -> list[models.Aspiration]:
+    """Puts the active aspirations in the order given, which must name each of them once."""
+    users.Querier(connection).lock_user(id=user_id)
+    queries = aspirations.Querier(connection)
+    active = {row.id for row in queries.list_aspirations(user_id=user_id) if row.status == "active"}
+    if len(ids) != len(active) or set(ids) != active:
+        raise NotAllowed("The order must list every active aspiration once.")
+    queries.set_aspiration_positions(user_id=user_id, ids=ids)
+    return list(queries.list_aspirations(user_id=user_id))

@@ -41,3 +41,9 @@ class AspirationInput(ApiModel):
     why: Annotated[
         str | None, StringConstraints(strip_whitespace=True), AfterValidator(empty_when_blank)
     ] = None
+
+
+class AspirationOrder(ApiModel):
+    """Every active aspiration's id, first priority first."""
+
+    ids: list[UUID]

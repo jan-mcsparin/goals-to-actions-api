@@ -16,3 +16,14 @@ from aspirations
 where user_id = $2 and status = 'active' and deleted_at is null
 on conflict (id) do nothing
 returning *;
+
+-- Numbers the owner's active aspirations in the order of the ids given.
+-- name: SetAspirationPositions :exec
+update aspirations
+set position = new_order.position
+from unnest(sqlc.arg(ids)::uuid[]) with ordinality as new_order (id, position)
+where aspirations.id = new_order.id
+  and aspirations.user_id = sqlc.arg(user_id)
+  and aspirations.status = 'active'
+  and aspirations.deleted_at is null
+  and aspirations.position <> new_order.position;

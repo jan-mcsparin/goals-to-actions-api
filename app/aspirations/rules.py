@@ -45,7 +45,7 @@ def retire(
     existing = queries.get_aspiration(id=aspiration_id, user_id=user_id)
     if existing is None:
         raise NotFound
-    if existing.position is None:
+    if existing.position is None:  # already retired
         return existing
     retired = queries.retire_aspiration(id=aspiration_id, user_id=user_id, retired_on=today)
     queries.close_aspiration_gap(user_id=user_id, position=existing.position)

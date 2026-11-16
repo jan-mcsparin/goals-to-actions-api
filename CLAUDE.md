@@ -63,7 +63,9 @@ Then: `bin/dbmate up`, `bin/dbmate --test up`, the queries in `db/queries/<table
 - A write that takes several queries is a function in `rules.py` that runs inside the route's transaction. It raises `NotFound` or `NotAllowed("why")`; the route declares them with `responses=NOT_FOUND` or `NOT_ALLOWED`.
 - A write that renumbers a user's rows calls `lock_user` first, so two arriving together run in turn.
 - A route that needs the day asks for `Today`.
-- Tests go through the `client` fixture: the ordinary case, each rule, another user's row, the same write twice, and the audit action.
+- Every text field a request can set has a longest length and `NoNul` (`app/schemas.py`): Postgres text can't hold a NUL character, and without it the request ends in a 500.
+- Every 422 has FastAPI's list shape. A check written by hand raises `RequestValidationError`, as `app/time_zone.py` does.
+- Tests go through the `client` fixture: the ordinary case, each rule, another user's row, the same write twice, and the audit action. A write that takes the user lock gets a line in a lock test like `tests/test_aspirations_lock.py`.
 - Then `uv run python -m app.openapi`, and commit `openapi.json` with the change.
 
 ## Rules

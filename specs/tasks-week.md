@@ -20,11 +20,20 @@ References: [`data-model.md`](../../docs/data-model.md#tasks) (tasks, task_weeks
 - `getWeek` and `getBank` take a week, because two can be open at once (ADR-009): the current week and, from Sunday evening, the next. Nothing opens a second week until `week-turnover`, but the reads and writes below are written for it from the start.
 - Writes, all of them things the person did:
   - `addTask`: to the bank or straight onto a day; with or without a goal; a one-off goal's step is a task with that goal. A task due in a week that is already open goes into that week's bank.
+  - When today is before the current week (after a wrap-up, or a flight west), nothing can be added or placed onto today (409): a planned day must be inside its row's week. The task goes to the bank.
   - `updateTask`: title, due date, time of day.
   - `checkOffTask` (with the moment and day the phone saw, and an optional value logged), `uncheckTask`. A row in a week that isn't the current one yet can be moved but not checked off (409).
-  - `moveTaskToBank`, `placeTask` (onto a day, marked placed by hand; pulling a bank task to today is this), `swapTasks`.
+    - Checking off a task with no row (a one-off goal's waiting step, from the goal's page) makes a done row on the day the phone sent, in that day's week. Unchecking removes the row.
+    - A check-off dated inside a week that has closed still counts. A lapsed task and its row turn to done; a task that rolled over is checked off on its row in the new week. The phone's stated day wins.
+  - `moveTaskToBank`, `placeTask` (onto a day, marked placed by hand; pulling a bank task to today is this), `swapTasks`. None of them places on a day before today, or moves a fixed-day recurring task off its day (409); one that carried over is placed like any task.
   - `dropTask`.
-- Finishing what `goals-targets` left: pausing a goal sets its unfinished tasks aside in every open week, and resuming returns its open tasks to the current week's bank. A goal's read gains this week's progress, by count or by amount, and a one-off goal's "Step 3 of 6". A task counts for the week of the row it was done in, not the date it was checked off.
+- Finishing what `goals-targets` left:
+  - pausing, ending or reaching a goal sets its unfinished tasks aside in every open week;
+  - resume, reopen and go again return them: a task whose week is still open goes to that week's bank, and a task added by hand whose week has closed gets a row in the current week's bank;
+  - a goal's read gains this week's progress, by count or by amount, and a one-off goal's "Step 3 of 6", which leaves dropped steps out of the total;
+  - a task counts for the week of the row it was done in, not the date it was checked off.
+- The unique rule for generated tasks (goal or item, period, number) counts deleted rows, so a deleted session is never made again.
+- A task with a recurring item has the origin recurring item, but not the other way round: `delete` empties the link on a deleted item's done tasks.
 - The rules: a task has a goal or a recurring item or neither; at most one row per task per week and one row in play; a planned day inside its row's week; a task's state and its rows agree, changed in one transaction.
 - ADR-007's remaining check: how `numeric` (the value logged) is typed.
 
@@ -37,7 +46,7 @@ References: [`data-model.md`](../../docs/data-model.md#tasks) (tasks, task_weeks
 
 ## Testing strategy
 
-As shared, plus: each row of the data model's "on screen / in the data" table has a test; each rule above has a test that tries to break it in the database; a check-off at 12:30 a.m. counts for the day the phone sent; check-off then uncheck leaves the task as it was; pausing and resuming a goal with tasks in the bank, on days and placed by hand.
+As shared, plus: each row of the data model's "on screen / in the data" table has a test; each rule above has a test that tries to break it in the database; a check-off at 12:30 a.m. counts for the day the phone sent; check-off then uncheck leaves the task as it was; pausing and resuming a goal with tasks in the bank, on days and placed by hand; the same for ending and reopening; a waiting step checked off and unchecked from the goal's page; a check-off dated in a closed week; adding onto today when today is before the current week.
 
 ## Boundaries
 
@@ -57,6 +66,8 @@ As shared. **Never:** change a task's planned day except in a route the person c
 
 1. **Adding a task dated in a later week:** it waits on the upcoming list with no row. Can the person also place it on a day in that week? The model allows it; the app doesn't offer it yet. I'd leave it out.
 2. **What exactly is a swap?** Trading a planned task with one from the bank, or two planned tasks trading days, or both. Confirmed against the front end in the plan.
-3. **Which week does a write belong to when the phone and the server disagree about the day** (a queued check-off sent after midnight)? The assumed convention is that the phone's stated day wins for a check-off.
 
-Settled 2026-11-16: a one-off goal's step with no date waits with no row until the person pulls it in or dates it.
+Settled 2026-11-16:
+
+- A one-off goal's step with no date waits with no row until the person pulls it in or dates it.
+- For a check-off the phone's stated day wins, even when its week has closed.

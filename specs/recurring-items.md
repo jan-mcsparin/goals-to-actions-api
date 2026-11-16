@@ -18,6 +18,9 @@ References: [`data-model.md`](../../docs/data-model.md#recurring_items), [`produ
 - Worked out on read, never stored: the readable repeat ("Every Tuesday", "3 times a week") and the next due day.
 - Keeping a reached goal's practice: creating an item with its from-goal set.
 - Retiring an aspiration with its work paused also turns its recurring items off.
+- Turning an item off, by hand or by retiring, is one state with one effect: its open tasks are set aside in every open week, and turning it on returns them, the way a paused goal's are (`tasks-week`). There are no such tasks until `week-turnover` makes them, so the rule is written here and tested there.
+- A flexible item's period is whole weeks: a week; the week of starts-on and the one after, repeating; or the weeks whose Monday falls in a month.
+- The read says whether the item is planned as goal work (it has an aspiration) or as maintenance (it has none).
 - The rule that the schedule's fields fit its kind (a weekly item has a weekday and nothing else), held by a check constraint.
 
 **Out (later):**
@@ -47,4 +50,5 @@ As shared. **Never:** store the repeat text or the next due day.
 
 1. **Where does the readable repeat get written, here or in the front end?** It is display text. I'd send the structured schedule and the next due day, and let the front end word it, so copy stays in one place.
 2. **Bringing an aspiration back:** do the items its retiring turned off come back on? The front end says they stay off for now. Same answer as the goals question in `goals-targets`.
-3. **Turning an item off mid-week:** do its open tasks this week stay, or are they set aside like a paused goal's?
+
+Settled 2026-11-16: turning an item off sets its open tasks aside, like a paused goal's.

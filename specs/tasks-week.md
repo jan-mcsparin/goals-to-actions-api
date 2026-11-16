@@ -17,13 +17,14 @@ References: [`data-model.md`](../../docs/data-model.md#tasks) (tasks, task_weeks
 - The `tasks` table, with every column in the data model, including the ones only generated tasks use (recurring item, period start, number), so later slices add no columns. The link to `recurring_items` is added by that slice.
 - The `task_weeks` table: task, week, planned day, placed by hand, outcome.
 - Reads: `getDay` (any day; Today is a day), `getWeek`, `getBank`. Each task comes with what the screen shows: its goal's label, its time, how many times it has carried over.
+- `getWeek` and `getBank` take a week, because two can be open at once (ADR-009): the current week and, from Sunday evening, the next. Nothing opens a second week until `week-turnover`, but the reads and writes below are written for it from the start.
 - Writes, all of them things the person did:
-  - `addTask`: to the bank or straight onto a day; with or without a goal; a one-off goal's step is a task with that goal.
+  - `addTask`: to the bank or straight onto a day; with or without a goal; a one-off goal's step is a task with that goal. A task due in a week that is already open goes into that week's bank.
   - `updateTask`: title, due date, time of day.
-  - `checkOffTask` (with the moment and day the phone saw, and an optional value logged), `uncheckTask`.
+  - `checkOffTask` (with the moment and day the phone saw, and an optional value logged), `uncheckTask`. A row in a week that isn't the current one yet can be moved but not checked off (409).
   - `moveTaskToBank`, `placeTask` (onto a day, marked placed by hand; pulling a bank task to today is this), `swapTasks`.
   - `dropTask`.
-- Finishing what `goals-targets` left: pausing a goal sets its unfinished tasks aside for the week, and resuming returns its open tasks to this week's bank. A goal's read gains this week's progress, by count or by amount, and a one-off goal's "Step 3 of 6".
+- Finishing what `goals-targets` left: pausing a goal sets its unfinished tasks aside in every open week, and resuming returns its open tasks to the current week's bank. A goal's read gains this week's progress, by count or by amount, and a one-off goal's "Step 3 of 6". A task counts for the week of the row it was done in, not the date it was checked off.
 - The rules: a task has a goal or a recurring item or neither; at most one row per task per week and one row in play; a planned day inside its row's week; a task's state and its rows agree, changed in one transaction.
 - ADR-007's remaining check: how `numeric` (the value logged) is typed.
 
@@ -54,7 +55,8 @@ As shared. **Never:** change a task's planned day except in a route the person c
 
 ## Open questions
 
-1. **A one-off goal's steps and the week.** `flows.md` lists as open when an undated step enters a week. For this slice, a step with no date waits with no row until the person puts it somewhere. Is that right until the planner decides?
-2. **Adding a task dated in a later week:** it waits on the upcoming list with no row. Can the person also place it on a day in that week? The model allows it; the app doesn't offer it yet. I'd leave it out.
-3. **What exactly is a swap?** Trading a planned task with one from the bank, or two planned tasks trading days, or both. Confirmed against the front end in the plan.
-4. **Which week does a write belong to when the phone and the server disagree about the day** (a queued check-off sent after midnight)? The assumed convention is that the phone's stated day wins for a check-off.
+1. **Adding a task dated in a later week:** it waits on the upcoming list with no row. Can the person also place it on a day in that week? The model allows it; the app doesn't offer it yet. I'd leave it out.
+2. **What exactly is a swap?** Trading a planned task with one from the bank, or two planned tasks trading days, or both. Confirmed against the front end in the plan.
+3. **Which week does a write belong to when the phone and the server disagree about the day** (a queued check-off sent after midnight)? The assumed convention is that the phone's stated day wins for a check-off.
+
+Settled 2026-11-16: a one-off goal's step with no date waits with no row until the person pulls it in or dates it.

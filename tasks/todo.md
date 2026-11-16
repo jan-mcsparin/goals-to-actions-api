@@ -11,9 +11,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** The migration: the shared columns, `name`, `why`, `status`, `position`, `retired_on`, the check that ties status to position and retired day, the unique position per owner checked at the end of each statement, and both triggers.
 
 **Acceptance criteria:**
-- [ ] The database refuses two active aspirations of one owner in the same position, and allows a one-statement renumber that swaps two.
-- [ ] It refuses an active row with no position, a retired row with a position or no retired day, a blank name and an unknown status.
-- [ ] `bin/dbmate up`, `rollback`, `up` leaves `db/schema.sql` unchanged.
+- [x] The database refuses two active aspirations of one owner in the same position, and allows a one-statement renumber that swaps two.
+- [x] It refuses an active row with no position, a retired row with a position or no retired day, a blank name and an unknown status.
+- [x] `bin/dbmate up`, `rollback`, `up` leaves `db/schema.sql` unchanged.
 
 **Verify:** `uv run pytest tests/test_aspirations_table.py`; `git diff --stat db/schema.sql` empty after the round trip.
 

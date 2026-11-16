@@ -2,12 +2,36 @@
 # versions:
 #   sqlc v1.31.1
 # source: aspirations.sql
+import datetime
 from typing import Iterator, List, Optional
 import uuid
 
 import sqlalchemy
 
 from app.db import models
+
+
+BRING_BACK_ASPIRATION = """-- name: bring_back_aspiration \\:one
+update aspirations
+set status = 'active',
+  retired_on = null,
+  position = (
+    select coalesce(max(active.position), 0) + 1
+    from aspirations active
+    where active.user_id = :p2 and active.status = 'active' and active.deleted_at is null
+  )
+where aspirations.id = :p1
+  and aspirations.user_id = :p2
+  and aspirations.status = 'retired'
+  and aspirations.deleted_at is null
+returning id, user_id, name, why, status, position, retired_on, created_at, updated_at, deleted_at
+"""
+
+
+CLOSE_ASPIRATION_GAP = """-- name: close_aspiration_gap \\:exec
+update aspirations set position = position - 1
+where user_id = :p1 and status = 'active' and deleted_at is null and position > :p2
+"""
 
 
 CREATE_ASPIRATION = """-- name: create_aspiration \\:one
@@ -33,6 +57,13 @@ order by position nulls last, retired_on desc, name
 """
 
 
+RETIRE_ASPIRATION = """-- name: retire_aspiration \\:one
+update aspirations set status = 'retired', position = null, retired_on = :p3
+where id = :p1 and user_id = :p2 and status = 'active' and deleted_at is null
+returning id, user_id, name, why, status, position, retired_on, created_at, updated_at, deleted_at
+"""
+
+
 SET_ASPIRATION_POSITIONS = """-- name: set_aspiration_positions \\:exec
 update aspirations
 set position = new_order.position
@@ -55,6 +86,26 @@ returning id, user_id, name, why, status, position, retired_on, created_at, upda
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
+
+    def bring_back_aspiration(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Aspiration]:
+        row = self._conn.execute(sqlalchemy.text(BRING_BACK_ASPIRATION), {"p1": id, "p2": user_id}).first()
+        if row is None:
+            return None
+        return models.Aspiration(
+            id=row[0],
+            user_id=row[1],
+            name=row[2],
+            why=row[3],
+            status=row[4],
+            position=row[5],
+            retired_on=row[6],
+            created_at=row[7],
+            updated_at=row[8],
+            deleted_at=row[9],
+        )
+
+    def close_aspiration_gap(self, *, user_id: uuid.UUID, position: Optional[int]) -> None:
+        self._conn.execute(sqlalchemy.text(CLOSE_ASPIRATION_GAP), {"p1": user_id, "p2": position})
 
     def create_aspiration(self, *, id: uuid.UUID, user_id: uuid.UUID, name: str, why: Optional[str]) -> Optional[models.Aspiration]:
         row = self._conn.execute(sqlalchemy.text(CREATE_ASPIRATION), {
@@ -110,6 +161,23 @@ class Querier:
                 updated_at=row[8],
                 deleted_at=row[9],
             )
+
+    def retire_aspiration(self, *, id: uuid.UUID, user_id: uuid.UUID, retired_on: Optional[datetime.date]) -> Optional[models.Aspiration]:
+        row = self._conn.execute(sqlalchemy.text(RETIRE_ASPIRATION), {"p1": id, "p2": user_id, "p3": retired_on}).first()
+        if row is None:
+            return None
+        return models.Aspiration(
+            id=row[0],
+            user_id=row[1],
+            name=row[2],
+            why=row[3],
+            status=row[4],
+            position=row[5],
+            retired_on=row[6],
+            created_at=row[7],
+            updated_at=row[8],
+            deleted_at=row[9],
+        )
 
     def set_aspiration_positions(self, *, user_id: uuid.UUID, ids: List[uuid.UUID]) -> None:
         self._conn.execute(sqlalchemy.text(SET_ASPIRATION_POSITIONS), {"p1": user_id, "p2": ids})

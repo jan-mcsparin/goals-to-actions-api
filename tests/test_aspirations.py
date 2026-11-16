@@ -1,5 +1,7 @@
+from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 from sqlalchemy import Connection, text
@@ -362,3 +364,156 @@ def test_update_is_audited(client: TestClient, connection: Connection) -> None:
     client.patch(f"/aspirations/{write['id']}", json={"name": "Write daily"})
 
     assert audit_rows(connection, write["id"])[-1].action == "update aspiration"
+
+
+# retireAspiration
+
+FAR_EAST = "Pacific/Kiritimati"
+
+
+def retire(client: TestClient, aspiration_id: str | UUID, time_zone: str = FAR_EAST) -> Any:
+    return client.post(f"/aspirations/{aspiration_id}/retire", headers={"X-Time-Zone": time_zone})
+
+
+def bring_back(client: TestClient, aspiration_id: str | UUID) -> Any:
+    return client.post(f"/aspirations/{aspiration_id}/bring-back")
+
+
+def test_retire_empties_the_position_and_sets_the_day_in_the_phones_time_zone(
+    client: TestClient,
+) -> None:
+    fit = create(client, "Be fit")
+
+    response = retire(client, fit["id"], FAR_EAST)
+
+    assert response.status_code == 200
+    assert response.json() == fit | {
+        "status": "retired",
+        "position": None,
+        "retiredOn": datetime.now(ZoneInfo(FAR_EAST)).date().isoformat(),
+    }
+
+
+def test_the_retired_day_follows_the_time_zone(client: TestClient) -> None:
+    east = retire(client, create(client, "Be fit")["id"], "Pacific/Kiritimati").json()
+    west = retire(client, create(client, "Write")["id"], "Pacific/Pago_Pago").json()
+
+    assert east["retiredOn"] > west["retiredOn"]
+
+
+def test_retire_closes_the_gap_it_leaves(client: TestClient) -> None:
+    create(client, "Be fit")
+    friend = create(client, "Be a good friend")
+    create(client, "Write")
+    create(client, "Sail")
+
+    retire(client, friend["id"])
+
+    assert names_and_positions(client) == [
+        ("Be fit", 1),
+        ("Write", 2),
+        ("Sail", 3),
+        ("Be a good friend", None),
+    ]
+
+
+def test_retiring_twice_changes_nothing(client: TestClient, connection: Connection) -> None:
+    fit = create(client, "Be fit")
+    create(client, "Write")
+
+    first = retire(client, fit["id"], "Pacific/Pago_Pago")
+    second = retire(client, fit["id"], "Pacific/Kiritimati")
+
+    assert second.status_code == 200
+    assert second.json() == first.json()
+    assert names_and_positions(client) == [("Write", 1), ("Be fit", None)]
+    assert [row.action for row in audit_rows(connection, fit["id"])] == [
+        "create aspiration",
+        "retire aspiration",
+    ]
+
+
+def test_retire_needs_a_time_zone_it_knows(client: TestClient) -> None:
+    fit = create(client, "Be fit")
+
+    missing = client.post(f"/aspirations/{fit['id']}/retire")
+    unknown = retire(client, fit["id"], "Mars/Olympus_Mons")
+
+    assert missing.status_code == 422
+    assert unknown.status_code == 422
+    assert names_and_positions(client) == [("Be fit", 1)]
+
+
+def test_retire_of_an_unknown_or_another_users_aspiration_is_not_found(
+    client: TestClient, connection: Connection
+) -> None:
+    theirs = add_aspiration_for(connection, add_other_user(connection), "Be kind")
+
+    for aspiration_id in [uuid4(), theirs]:
+        assert retire(client, aspiration_id).status_code == 404
+    status = connection.execute(
+        text("select status from aspirations where id = :id"), {"id": theirs}
+    ).scalar_one()
+    assert status == "active"
+
+
+# bringBackAspiration
+
+
+def test_bring_back_makes_it_active_and_last(client: TestClient) -> None:
+    fit = create(client, "Be fit")
+    create(client, "Write")
+    create(client, "Sail")
+    retire(client, fit["id"])
+
+    response = bring_back(client, fit["id"])
+
+    assert response.status_code == 200
+    assert response.json() == fit | {"position": 3}
+    assert names_and_positions(client) == [("Write", 1), ("Sail", 2), ("Be fit", 3)]
+
+
+def test_bringing_back_the_only_aspiration_makes_it_first(client: TestClient) -> None:
+    fit = create(client, "Be fit")
+    retire(client, fit["id"])
+
+    assert bring_back(client, fit["id"]).json()["position"] == 1
+
+
+def test_bringing_back_an_active_aspiration_changes_nothing(
+    client: TestClient, connection: Connection
+) -> None:
+    fit = create(client, "Be fit")
+    create(client, "Write")
+
+    response = bring_back(client, fit["id"])
+
+    assert response.status_code == 200
+    assert response.json() == fit
+    assert names_and_positions(client) == [("Be fit", 1), ("Write", 2)]
+    assert len(audit_rows(connection, fit["id"])) == 1
+
+
+def test_bring_back_of_an_unknown_or_another_users_aspiration_is_not_found(
+    client: TestClient, connection: Connection
+) -> None:
+    theirs = add_aspiration_for(connection, add_other_user(connection), "Be kind")
+
+    for aspiration_id in [uuid4(), theirs]:
+        assert bring_back(client, aspiration_id).status_code == 404
+
+
+def test_retire_and_bring_back_are_audited(client: TestClient, connection: Connection) -> None:
+    fit = create(client, "Be fit")
+    write = create(client, "Write")
+
+    retire(client, fit["id"])
+    bring_back(client, fit["id"])
+
+    assert [row.action for row in audit_rows(connection, fit["id"])] == [
+        "create aspiration",
+        "retire aspiration",
+        "bring back aspiration",
+    ]
+    # Closing the gap is part of the retire.
+    assert audit_rows(connection, write["id"])[-1].action == "retire aspiration"

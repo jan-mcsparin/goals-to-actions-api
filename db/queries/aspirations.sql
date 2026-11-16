@@ -32,3 +32,31 @@ where aspirations.id = new_order.id
 update aspirations set name = $3, why = $4
 where id = $1 and user_id = $2 and deleted_at is null
 returning *;
+
+-- Changes nothing, and returns nothing, when it's already retired.
+-- name: RetireAspiration :one
+update aspirations set status = 'retired', position = null, retired_on = $3
+where id = $1 and user_id = $2 and status = 'active' and deleted_at is null
+returning *;
+
+-- Moves up the owner's active aspirations below a position that has just been left.
+-- name: CloseAspirationGap :exec
+update aspirations set position = position - 1
+where user_id = $1 and status = 'active' and deleted_at is null and position > $2;
+
+-- Goes last among the owner's active aspirations. Changes nothing, and returns nothing,
+-- when it's already active.
+-- name: BringBackAspiration :one
+update aspirations
+set status = 'active',
+  retired_on = null,
+  position = (
+    select coalesce(max(active.position), 0) + 1
+    from aspirations active
+    where active.user_id = $2 and active.status = 'active' and active.deleted_at is null
+  )
+where aspirations.id = $1
+  and aspirations.user_id = $2
+  and aspirations.status = 'retired'
+  and aspirations.deleted_at is null
+returning *;

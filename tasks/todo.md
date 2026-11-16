@@ -73,9 +73,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** The two actions, and the `today` dependency that reads the `X-Time-Zone` header.
 
 **Acceptance criteria:**
-- [ ] Retiring empties the position, sets the retired day to today in the header's time zone, and closes the gap so the rest are 1 to n. Retiring twice changes nothing and writes no audit row.
-- [ ] Bringing back makes it active and last, with no retired day. Bringing back an active one changes nothing.
-- [ ] A missing or unknown time zone on retire is 422; an unknown id or another user's is 404; the audit rows carry "retire aspiration" and "bring back aspiration".
+- [x] Retiring empties the position, sets the retired day to today in the header's time zone, and closes the gap so the rest are 1 to n. Retiring twice changes nothing and writes no audit row.
+- [x] Bringing back makes it active and last, with no retired day. Bringing back an active one changes nothing.
+- [x] A missing or unknown time zone on retire is 422; an unknown id or another user's is 404; the audit rows carry "retire aspiration" and "bring back aspiration".
 
 **Verify:** `uv run pytest tests/test_aspirations.py tests/test_time_zone.py`.
 

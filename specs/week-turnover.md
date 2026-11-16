@@ -29,7 +29,6 @@ References: [`data-model.md`](../../docs/data-model.md#task_weeks) (how a week e
 - **Two markers on the user:** `planned_through_week` (the latest week opened; already on `users`) and `closed_through_week` (the latest week closed; a column this slice adds). The current week is the one after `closed_through_week` or the phone's week, whichever is later. The week never goes backwards.
 - **Safe to run twice.** Generated tasks are unique per goal or item, period and number, and the two markers record how far opening and closing have got.
 - **A week nobody opened is skipped.** A week with no rows is never filled or closed after the fact. Coming back after three weeks closes the weeks that have rows, in order, and opens the current one; a hand-added task carries straight into it as one carry-over.
-- **Unplanned work for a building goal uses up an open session:** logging it checks off one of the week's open sessions, one in the bank first, otherwise the one planned latest. With none open it is an extra done task (4 of 3).
 - `getUpcoming`: open tasks with a later due date and no row yet.
 - "Still matter?": the read marks a task that has rolled over twice and hasn't been answered since; `answerStillMatters` takes keep, schedule (onto a day) or drop.
 - Changes mid-week that alter what the week should hold: a target raised or lowered, a goal created, an item added or its schedule changed.
@@ -74,7 +73,6 @@ As shared. **Always:** closing a week is one transaction, and so is opening one 
 
 1. **A target changed mid-week:** raising 3 to 4 adds a session; lowering 3 to 2 with all three still open removes which one? With next week already open, the change applies there too.
 2. **"Rolled over two weeks":** two rows with the outcome rolled over, counted since the last answer? Confirmed against front-end issue #35. A skipped week adds no row, so time away doesn't count towards it.
-3. **Which open session unplanned work uses.** The bank first, then the latest planned, is my default; it keeps the nearer days as they were.
-4. **A goal reached, ended or paused between the opening and the close:** its tasks in next week are set aside or dropped with the rest. Listed so the plan covers it.
+3. **A goal reached, ended or paused between the opening and the close:** its tasks in next week are set aside or dropped with the rest. Listed so the plan covers it.
 
 Settled 2026-11-16 (ADR-009): when turnover runs, and what happens to weeks nobody opened.

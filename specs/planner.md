@@ -63,7 +63,7 @@ This is why `task_weeks` needs no extra column: the planner only places tasks cr
 ### Left to other slices
 
 - **An undated step of a one-off goal** has no row until the person pulls it in or dates it, so the planner never sees it (`tasks-week`).
-- **Unplanned work for a building goal** uses up an open session (`week-turnover`).
+- **A task added by hand under a building goal** counts towards its target, and no session is removed to make up for it. A session left over stays where it is until the person moves it or it lapses.
 - **A new fixed-day item whose day is today** is put on today by the route that creates it, because the person just asked for it (`recurring-items`). It is not a planner write.
 
 ## Testing strategy

@@ -105,9 +105,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** Write down what the slice added and decided.
 
 **Acceptance criteria:**
-- [ ] `README.md` and `CLAUDE.md` cover the new files, "adding a route", the `openapi.json` command and the time zone header.
-- [ ] `specs/README.md` names the header in decision 9 and the rules-module and errors conventions; `specs/aspirations.md` is marked built with its open questions settled and the front-end criterion moved to #40.
-- [ ] Docs-repo PR: the parent `CLAUDE.md` says the first routes are in. A comment on front-end #40 lists where the contract differs from the hand-written types.
+- [x] `README.md` and `CLAUDE.md` cover the new files, "adding a route", the `openapi.json` command and the time zone header.
+- [x] `specs/README.md` names the header in decision 9 and the rules-module and errors conventions; `specs/aspirations.md` is marked built with its open questions settled and the front-end criterion moved to #40.
+- [x] Docs-repo PR: the parent `CLAUDE.md` says the first routes are in. A comment on front-end #40 lists where the contract differs from the hand-written types.
 
 **Verify:** the four checks; both PRs open and linked.
 

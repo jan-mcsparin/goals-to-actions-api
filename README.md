@@ -2,7 +2,7 @@
 
 API for Goals to Actions: Python, FastAPI and Postgres. Product docs live in the parent repo (`../docs/`); see `CLAUDE.md` for structure and rules.
 
-So far: the app, a health endpoint, the database (the `users` and `audit_log` tables), the generated query code, and the checks. Routes arrive slice by slice (`specs/`).
+So far: the database, the audit log, the generated query code, and the first routes, for aspirations (list, create, edit, reorder, retire, bring back). Routes arrive slice by slice (`specs/`).
 
 ## Install
 
@@ -28,6 +28,14 @@ uv run uvicorn app.main:app --reload   # http://localhost:8000
 - Health: <http://localhost:8000/health>
 - Interactive docs: <http://localhost:8000/docs>
 - OpenAPI schema, the contract with the front end: <http://localhost:8000/openapi.json>
+
+The schema is also committed as `openapi.json`, which the front end generates its types from. After any change to a route or an API model:
+
+```bash
+uv run python -m app.openapi   # rewrite openapi.json; a test fails while it's out of date
+```
+
+Routes that need to know what day it is (retiring an aspiration) read the phone's time zone from an `X-Time-Zone` header holding a name such as `America/Denver`. The names come from the system's time zone data; a host without it (a slim Linux container) will need the `tzdata` package, to be settled with hosting.
 
 ## Database
 

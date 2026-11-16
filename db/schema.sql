@@ -64,6 +64,26 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: aspirations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.aspirations (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    name text NOT NULL,
+    why text,
+    status text DEFAULT 'active'::text NOT NULL,
+    "position" integer,
+    retired_on date,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT aspirations_name_not_blank CHECK ((btrim(name) <> ''::text)),
+    CONSTRAINT aspirations_status_agrees CHECK ((((status = 'active'::text) AND ("position" IS NOT NULL) AND ("position" >= 1) AND (retired_on IS NULL)) OR ((status = 'retired'::text) AND ("position" IS NULL) AND (retired_on IS NOT NULL))))
+);
+
+
+--
 -- Name: audit_log; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -121,6 +141,22 @@ CREATE TABLE public.users (
 
 
 --
+-- Name: aspirations aspirations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.aspirations
+    ADD CONSTRAINT aspirations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: aspirations aspirations_position_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.aspirations
+    ADD CONSTRAINT aspirations_position_unique UNIQUE (user_id, "position") DEFERRABLE;
+
+
+--
 -- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -145,6 +181,20 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: aspirations aspirations_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER aspirations_audit AFTER INSERT OR DELETE OR UPDATE ON public.aspirations FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: aspirations aspirations_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER aspirations_set_updated_at BEFORE UPDATE ON public.aspirations FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: users users_audit; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -156,6 +206,14 @@ CREATE TRIGGER users_audit AFTER INSERT OR DELETE OR UPDATE ON public.users FOR 
 --
 
 CREATE TRIGGER users_set_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: aspirations aspirations_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.aspirations
+    ADD CONSTRAINT aspirations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 
 --
@@ -171,4 +229,5 @@ CREATE TRIGGER users_set_updated_at BEFORE UPDATE ON public.users FOR EACH ROW E
 
 INSERT INTO public.schema_migrations (version) VALUES
     ('20261114022739'),
-    ('20261114022856');
+    ('20261114022856'),
+    ('20261116195619');

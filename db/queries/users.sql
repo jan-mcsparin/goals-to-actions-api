@@ -17,3 +17,10 @@ returning id, intensity, time_zone, planned_through_week, created_at, updated_at
 update users set planned_through_week = $2
 where id = $1 and deleted_at is null
 returning id, intensity, time_zone, planned_through_week, created_at, updated_at;
+
+-- Taken before any write that renumbers the user's rows, so two such writes arriving
+-- together run one after the other.
+-- name: LockUser :exec
+select id from users
+where id = $1 and deleted_at is null
+for update;

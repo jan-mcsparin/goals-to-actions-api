@@ -1,6 +1,6 @@
 # Spec: Aspirations
 
-Status: draft 2026-11-13; finalised when its plan is written. Issue: [#4](https://github.com/jan-mcsparin/goals-to-actions-api/issues/4). Module `aspirations` in the [map](README.md). Depends on `database-foundation`.
+Status: built 2026-11-16. Issue: [#4](https://github.com/jan-mcsparin/goals-to-actions-api/issues/4). Module `aspirations` in the [map](README.md). Depends on `database-foundation`.
 
 ## Objective
 
@@ -39,13 +39,34 @@ As shared. **Ask first:** any field not in the data model.
 
 ## Success criteria
 
-- [ ] The six routes work as described and appear in the OpenAPI schema in camelCase.
-- [ ] The position rule holds after every route, and the database refuses two active aspirations in the same position.
-- [ ] Every write appears in the audit log with its action.
-- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
-- [ ] The four checks pass.
+- [x] The six routes work as described and appear in the OpenAPI schema in camelCase.
+- [x] The position rule holds after every route, and the database refuses two active aspirations in the same position.
+- [x] Every write appears in the audit log with its action.
+- [x] `openapi.json` is committed, with a test that fails when it's out of date. Regenerating the front end's types from it moved to the front end's issue #40, which builds the command that does it.
+- [x] The four checks pass.
 
-## Open questions
+## The contract, as built
 
-1. **How is position kept unique while a reorder is in progress?** A deferred constraint, or a rewrite in one statement. Settled in the plan once slice 1 shows what sqlc handles.
-2. **Does `listAspirations` carry counts** (goals, "2 of 3 on track") that the Aspirations tab shows? If so they arrive with `goals-targets`, and this slice returns the aspiration alone.
+| Operation | Route | Body |
+| --- | --- | --- |
+| `listAspirations` | `GET /aspirations` | |
+| `createAspiration` | `PUT /aspirations/{id}` | `name`, `why` (optional) |
+| `updateAspiration` | `PATCH /aspirations/{id}` | `name`, `why`; both sent every time |
+| `reorderAspirations` | `POST /aspirations/reorder` | `ids`: every active id, in the new order |
+| `retireAspiration` | `POST /aspirations/{id}/retire` | none; needs the `X-Time-Zone` header |
+| `bringBackAspiration` | `POST /aspirations/{id}/bring-back` | |
+
+An aspiration is `id`, `name`, `why`, `status`, `position`, `retiredOn`, `createdAt`. The list is `{ "aspirations": [...] }`: active by position, then retired with the newest first.
+
+## Settled
+
+1. **Position is unique per owner by a deferrable constraint, checked when each statement ends,** and a reorder is one statement that renumbers from the ids sent. sqlc handles the `uuid[]` parameter. Not checked at commit: the tests' rolled-back transactions would never check it. "No gaps" is kept by `app/aspirations/rules.py`.
+2. **`listAspirations` returns aspirations alone.** Goal counts join it in `goals-targets`; the list is wrapped in an object so they can.
+3. **A reorder that isn't exactly the active ids is 409,** as is a create whose id is already another user's row.
+4. **Writes that renumber lock the owner's `users` row first.** `tests/test_aspirations_lock.py` checks each one waits for it, on two real connections.
+5. **Input limits:** a name is at most 200 characters and a why 2,000; a reorder lists at most 500 ids. Text with a NUL character is refused (422), since Postgres can't store it.
+
+## Left for later
+
+- Retire takes no body. "Pause its work or keep it going" arrives with `goals-targets` and `recurring-items`.
+- Deleting an aspiration (`delete`) must empty its position and loosen the `aspirations_status_agrees` check to allow it.

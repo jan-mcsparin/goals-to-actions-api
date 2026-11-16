@@ -88,9 +88,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** One command writes the schema to a committed file; a test fails when the file doesn't match the app.
 
 **Acceptance criteria:**
-- [ ] `uv run python -m app.openapi` writes `openapi.json` at the repo root, and running it again changes nothing.
-- [ ] `tests/test_contract.py` fails when the file is out of date, with a message naming the command.
-- [ ] The file holds the six operations by their camelCase names, and `tests/test_contract.py` checks they are there.
+- [x] `uv run python -m app.openapi` writes `openapi.json` at the repo root, and running it again changes nothing.
+- [x] `tests/test_contract.py` fails when the file is out of date, with a message naming the command.
+- [x] The file holds the six operations by their camelCase names, and `tests/test_contract.py` checks they are there.
 
 **Verify:** `uv run pytest tests/test_contract.py`; change a model, see the test fail, regenerate, see it pass.
 

@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from app.main import app, operation_id
+from app.openapi import OPENAPI_FILE, schema_text
 
 CAMEL_CASE = re.compile(r"^[a-z][a-zA-Z0-9]*$")
 
@@ -58,3 +59,27 @@ def test_operation_names_are_camel_case_and_unique() -> None:
 
     ids = operation_ids(app.openapi())
     assert len(ids) == len(set(ids))
+
+
+def test_the_aspirations_operations_are_in_the_schema() -> None:
+    assert set(operation_ids(app.openapi())) >= {
+        "listAspirations",
+        "createAspiration",
+        "updateAspiration",
+        "reorderAspirations",
+        "retireAspiration",
+        "bringBackAspiration",
+    }
+
+
+def test_the_committed_schema_is_up_to_date() -> None:
+    assert OPENAPI_FILE.read_text() == schema_text(), (
+        "openapi.json is out of date. Run `uv run python -m app.openapi` and commit the result."
+    )
+
+
+def test_the_schema_says_which_errors_a_route_can_send() -> None:
+    paths = app.openapi()["paths"]
+
+    assert "404" in paths["/aspirations/{aspiration_id}/retire"]["post"]["responses"]
+    assert "409" in paths["/aspirations/reorder"]["post"]["responses"]

@@ -12,6 +12,7 @@ from app.aspirations.models import (
 from app.db import aspirations
 from app.dependencies import CurrentDatabase, CurrentUserId
 from app.errors import NotFound
+from app.schemas import NOT_ALLOWED, NOT_FOUND
 from app.time_zone import Today
 
 router = APIRouter(prefix="/aspirations", tags=["aspirations"])
@@ -24,7 +25,7 @@ def list_aspirations(database: CurrentDatabase, user_id: CurrentUserId) -> Aspir
     return AspirationList.from_rows(rows)
 
 
-@router.put("/{aspiration_id}")
+@router.put("/{aspiration_id}", responses=NOT_ALLOWED)
 def create_aspiration(
     aspiration_id: UUID, body: AspirationInput, database: CurrentDatabase, user_id: CurrentUserId
 ) -> Aspiration:
@@ -33,7 +34,7 @@ def create_aspiration(
     return Aspiration.from_row(row)
 
 
-@router.post("/reorder")
+@router.post("/reorder", responses=NOT_ALLOWED)
 def reorder_aspirations(
     body: AspirationOrder, database: CurrentDatabase, user_id: CurrentUserId
 ) -> AspirationList:
@@ -42,7 +43,7 @@ def reorder_aspirations(
     return AspirationList.from_rows(rows)
 
 
-@router.patch("/{aspiration_id}")
+@router.patch("/{aspiration_id}", responses=NOT_FOUND)
 def update_aspiration(
     aspiration_id: UUID, body: AspirationInput, database: CurrentDatabase, user_id: CurrentUserId
 ) -> Aspiration:
@@ -55,7 +56,7 @@ def update_aspiration(
     return Aspiration.from_row(row)
 
 
-@router.post("/{aspiration_id}/retire")
+@router.post("/{aspiration_id}/retire", responses=NOT_FOUND)
 def retire_aspiration(
     aspiration_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
 ) -> Aspiration:
@@ -64,7 +65,7 @@ def retire_aspiration(
     return Aspiration.from_row(row)
 
 
-@router.post("/{aspiration_id}/bring-back")
+@router.post("/{aspiration_id}/bring-back", responses=NOT_FOUND)
 def bring_back_aspiration(
     aspiration_id: UUID, database: CurrentDatabase, user_id: CurrentUserId
 ) -> Aspiration:

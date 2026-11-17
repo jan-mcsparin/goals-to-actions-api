@@ -116,6 +116,34 @@ ALTER TABLE public.audit_log ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 
 
 --
+-- Name: goals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.goals (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    aspiration_id uuid,
+    type text NOT NULL,
+    label text NOT NULL,
+    measurable_line text NOT NULL,
+    baseline text,
+    status text DEFAULT 'active'::text NOT NULL,
+    start_date date NOT NULL,
+    deadline date,
+    ended_on date,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT goals_deadline_not_before_start CHECK ((deadline >= start_date)),
+    CONSTRAINT goals_ended_on_agrees CHECK (((status = ANY (ARRAY['active'::text, 'paused'::text])) = (ended_on IS NULL))),
+    CONSTRAINT goals_label_not_blank CHECK ((btrim(label) <> ''::text)),
+    CONSTRAINT goals_measurable_line_not_blank CHECK ((btrim(measurable_line) <> ''::text)),
+    CONSTRAINT goals_status_check CHECK ((status = ANY (ARRAY['active'::text, 'paused'::text, 'reached'::text, 'ended'::text]))),
+    CONSTRAINT goals_type_check CHECK ((type = ANY (ARRAY['building'::text, 'quitting'::text, 'one_off'::text])))
+);
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -141,6 +169,14 @@ CREATE TABLE public.users (
 
 
 --
+-- Name: aspirations aspirations_id_owner; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.aspirations
+    ADD CONSTRAINT aspirations_id_owner UNIQUE (id, user_id);
+
+
+--
 -- Name: aspirations aspirations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -162,6 +198,22 @@ ALTER TABLE ONLY public.aspirations
 
 ALTER TABLE ONLY public.audit_log
     ADD CONSTRAINT audit_log_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: goals goals_id_owner_type; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.goals
+    ADD CONSTRAINT goals_id_owner_type UNIQUE (id, user_id, type);
+
+
+--
+-- Name: goals goals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.goals
+    ADD CONSTRAINT goals_pkey PRIMARY KEY (id);
 
 
 --
@@ -195,6 +247,20 @@ CREATE TRIGGER aspirations_set_updated_at BEFORE UPDATE ON public.aspirations FO
 
 
 --
+-- Name: goals goals_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER goals_audit AFTER INSERT OR DELETE OR UPDATE ON public.goals FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: goals goals_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER goals_set_updated_at BEFORE UPDATE ON public.goals FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: users users_audit; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -217,6 +283,22 @@ ALTER TABLE ONLY public.aspirations
 
 
 --
+-- Name: goals goals_aspiration_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.goals
+    ADD CONSTRAINT goals_aspiration_same_owner FOREIGN KEY (aspiration_id, user_id) REFERENCES public.aspirations(id, user_id);
+
+
+--
+-- Name: goals goals_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.goals
+    ADD CONSTRAINT goals_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -230,4 +312,5 @@ ALTER TABLE ONLY public.aspirations
 INSERT INTO public.schema_migrations (version) VALUES
     ('20261114022739'),
     ('20261114022856'),
-    ('20261116195619');
+    ('20261116195619'),
+    ('20261116230000');

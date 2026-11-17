@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import Field, StringConstraints
+from pydantic import AfterValidator, Field, StringConstraints
 
 from app.db import models as rows
 from app.goals.models import Goal
@@ -77,3 +77,22 @@ class MilestoneOrder(ApiModel):
     """Every milestone of the goal, first to be checked in first."""
 
     ids: Annotated[list[UUID], Field(max_length=500)]
+
+
+def empty_when_blank(text: str | None) -> str | None:
+    return text or None
+
+
+class NewCheckIn(ApiModel):
+    """A check-in against Next: the first milestone that isn't hit, or the goal's own line
+    (`milestoneId` empty) once every milestone is hit. Dated today where the phone is."""
+
+    goal_id: UUID
+    milestone_id: UUID | None
+    outcome: Literal["hit", "notYet"]
+    result: Annotated[
+        str | None,
+        StringConstraints(strip_whitespace=True, max_length=500),
+        NoNul,
+        AfterValidator(empty_when_blank),
+    ] = None

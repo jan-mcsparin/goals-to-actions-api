@@ -4,7 +4,13 @@ from fastapi import APIRouter
 
 from app.dependencies import CurrentDatabase, CurrentUserId
 from app.milestones import rules
-from app.milestones.models import GoalPage, MilestoneEdit, MilestoneOrder, NewMilestone
+from app.milestones.models import (
+    GoalPage,
+    MilestoneEdit,
+    MilestoneOrder,
+    NewCheckIn,
+    NewMilestone,
+)
 from app.milestones.page import goal_page
 from app.schemas import NOT_ALLOWED, NOT_FOUND
 from app.time_zone import Today
@@ -49,4 +55,17 @@ def reorder_milestones(
 ) -> GoalPage:
     with database.transaction(user_id, "reorder milestones") as connection:
         rules.reorder(connection, user_id, goal_id, body)
+        return goal_page(connection, user_id, goal_id, today)
+
+
+@router.put("/check-ins/{check_in_id}", responses=NOT_FOUND | NOT_ALLOWED)
+def check_in(
+    check_in_id: UUID,
+    body: NewCheckIn,
+    database: CurrentDatabase,
+    user_id: CurrentUserId,
+    today: Today,
+) -> GoalPage:
+    with database.transaction(user_id, "check in") as connection:
+        goal_id = rules.check_in(connection, user_id, check_in_id, body, today)
         return goal_page(connection, user_id, goal_id, today)

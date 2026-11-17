@@ -63,6 +63,12 @@ where milestones.id = new_order.id
 """
 
 
+SET_MILESTONE_STATUS = """-- name: set_milestone_status \\:exec
+update milestones set status = :p3
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 UPDATE_MILESTONE = """-- name: update_milestone \\:one
 update milestones
 set measurable_line = :p3, target_date = :p4,
@@ -141,6 +147,9 @@ class Querier:
 
     def set_milestone_positions(self, *, goal_id: uuid.UUID, user_id: uuid.UUID, ids: List[uuid.UUID]) -> None:
         self._conn.execute(sqlalchemy.text(SET_MILESTONE_POSITIONS), {"p1": goal_id, "p2": user_id, "p3": ids})
+
+    def set_milestone_status(self, *, id: uuid.UUID, user_id: uuid.UUID, status: str) -> None:
+        self._conn.execute(sqlalchemy.text(SET_MILESTONE_STATUS), {"p1": id, "p2": user_id, "p3": status})
 
     def update_milestone(self, *, id: uuid.UUID, user_id: uuid.UUID, measurable_line: str, target_date: Optional[datetime.date]) -> Optional[models.Milestone]:
         row = self._conn.execute(sqlalchemy.text(UPDATE_MILESTONE), {

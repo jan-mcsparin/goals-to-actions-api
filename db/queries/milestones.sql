@@ -39,3 +39,7 @@ where milestones.id = new_order.id
   and milestones.user_id = sqlc.arg(user_id)
   and milestones.deleted_at is null
   and milestones.position <> new_order.position;
+
+-- name: SetMilestoneStatus :exec
+update milestones set status = $3
+where id = $1 and user_id = $2 and deleted_at is null;

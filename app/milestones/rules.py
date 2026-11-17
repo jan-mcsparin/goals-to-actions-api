@@ -6,10 +6,10 @@ from uuid import UUID
 
 from sqlalchemy import Connection
 
-from app.db import goals, milestones, models
+from app.db import check_ins, goals, milestones, models
 from app.errors import NotAllowed, NotFound
 from app.goals.rules import lock_user
-from app.milestones.models import MilestoneEdit, MilestoneOrder, NewMilestone
+from app.milestones.models import MilestoneEdit, MilestoneOrder, NewCheckIn, NewMilestone
 
 
 def add(connection: Connection, user_id: UUID, milestone_id: UUID, new: NewMilestone) -> UUID:
@@ -70,6 +70,50 @@ def reorder(connection: Connection, user_id: UUID, goal_id: UUID, order: Milesto
     if len(order.ids) != len(current) or set(order.ids) != current:
         raise NotAllowed("The order must list every milestone of the goal once.")
     queries.set_milestone_positions(ids=order.ids, goal_id=goal_id, user_id=user_id)
+
+
+def check_in(
+    connection: Connection, user_id: UUID, check_in_id: UUID, new: NewCheckIn, today: date
+) -> UUID:
+    """Keeps the check-in and sets Next's status. A hit on the goal's own line marks the goal
+    reached, as "I reached it" does. Sent again, it changes nothing."""
+    lock_user(connection, user_id)
+    queries = check_ins.Querier(connection)
+    existing = queries.get_check_in(id=check_in_id, user_id=user_id)
+    if existing:
+        if existing.goal_id != new.goal_id:
+            raise NotAllowed("That id is already in use.")
+        return existing.goal_id
+    goal = goal_with_milestones(connection, user_id, new.goal_id)
+    if goal.status not in ("active", "paused"):
+        raise NotAllowed("Only an active or paused goal can be checked in.")
+    rows = milestones.Querier(connection).list_milestones(goal_id=goal.id, user_id=user_id)
+    next_up = next((row.id for row in rows if row.status != "hit"), None)
+    if new.milestone_id != next_up:
+        raise NotAllowed("Only Next can be checked in.")
+    outcome = "hit" if new.outcome == "hit" else "not_yet"
+    added = queries.add_check_in(
+        check_ins.AddCheckInParams(
+            id=check_in_id,
+            user_id=user_id,
+            goal_id=goal.id,
+            milestone_id=new.milestone_id,
+            outcome=outcome,
+            result=new.result,
+            checked_in_on=today,
+        )
+    )
+    if added is None:
+        raise NotAllowed("That id is already in use.")
+    if new.milestone_id is not None:
+        milestones.Querier(connection).set_milestone_status(
+            id=new.milestone_id, user_id=user_id, status=outcome
+        )
+    elif outcome == "hit":
+        goals.Querier(connection).set_goal_status(
+            id=goal.id, user_id=user_id, status="reached", ended_on=today
+        )
+    return goal.id
 
 
 def pushed_dates(

@@ -528,6 +528,55 @@
         "title": "MilestoneOrder",
         "type": "object"
       },
+      "NewCheckIn": {
+        "description": "A check-in against Next: the first milestone that isn't hit, or the goal's own line\n(`milestoneId` empty) once every milestone is hit. Dated today where the phone is.",
+        "properties": {
+          "goalId": {
+            "format": "uuid",
+            "title": "Goalid",
+            "type": "string"
+          },
+          "milestoneId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Milestoneid"
+          },
+          "outcome": {
+            "enum": [
+              "hit",
+              "notYet"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          }
+        },
+        "required": [
+          "goalId",
+          "milestoneId",
+          "outcome"
+        ],
+        "title": "NewCheckIn",
+        "type": "object"
+      },
       "NewGoal": {
         "description": "A goal as first made. A building goal comes with its first weekly target.",
         "properties": {
@@ -1146,6 +1195,88 @@
         "summary": "Retire Aspiration",
         "tags": [
           "aspirations"
+        ]
+      }
+    },
+    "/api/check-ins/{check_in_id}": {
+      "put": {
+        "operationId": "checkIn",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "check_in_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Check In Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewCheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check In",
+        "tags": [
+          "milestones"
         ]
       }
     },

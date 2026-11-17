@@ -6,7 +6,7 @@ from uuid import UUID
 
 from sqlalchemy import Connection
 
-from app.db import aspirations, models, users
+from app.db import aspirations, goals, models, users
 from app.errors import NotAllowed, NotFound
 
 
@@ -37,9 +37,11 @@ def reorder(connection: Connection, user_id: UUID, ids: list[UUID]) -> list[mode
 
 
 def retire(
-    connection: Connection, user_id: UUID, aspiration_id: UUID, today: date
+    connection: Connection, user_id: UUID, aspiration_id: UUID, today: date, pause_its_work: bool
 ) -> models.Aspiration:
-    """Retires the aspiration and moves up the ones below it. Sent again, it changes nothing."""
+    """Retires the aspiration, moves up the ones below it, and pauses its active goals if
+    asked. Sent again, it changes nothing. Setting the goals' tasks aside is added with
+    tasks."""
     users.Querier(connection).lock_user(id=user_id)
     queries = aspirations.Querier(connection)
     existing = queries.get_aspiration(id=aspiration_id, user_id=user_id)
@@ -49,6 +51,10 @@ def retire(
         return existing
     retired = queries.retire_aspiration(id=aspiration_id, user_id=user_id, retired_on=today)
     queries.close_aspiration_gap(user_id=user_id, position=existing.position)
+    if pause_its_work:
+        goals.Querier(connection).pause_aspiration_goals(
+            aspiration_id=aspiration_id, user_id=user_id
+        )
     return retired or existing
 
 

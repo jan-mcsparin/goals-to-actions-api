@@ -3,6 +3,7 @@ from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Connection, text
 
@@ -396,9 +397,16 @@ def test_update_is_audited(client: TestClient, connection: Connection) -> None:
 FAR_EAST = "Pacific/Kiritimati"
 
 
-def retire(client: TestClient, aspiration_id: str | UUID, time_zone: str = FAR_EAST) -> Any:
+def retire(
+    client: TestClient,
+    aspiration_id: str | UUID,
+    time_zone: str = FAR_EAST,
+    its_work: str = "keep",
+) -> Any:
     return client.post(
-        f"/api/aspirations/{aspiration_id}/retire", headers={"X-Time-Zone": time_zone}
+        f"/api/aspirations/{aspiration_id}/retire",
+        headers={"X-Time-Zone": time_zone},
+        json={"itsWork": its_work},
     )
 
 
@@ -463,7 +471,7 @@ def test_retiring_twice_changes_nothing(client: TestClient, connection: Connecti
 def test_retire_needs_a_time_zone_it_knows(client: TestClient) -> None:
     fit = create(client, "Be fit")
 
-    missing = client.post(f"/api/aspirations/{fit['id']}/retire")
+    missing = client.post(f"/api/aspirations/{fit['id']}/retire", json={"itsWork": "keep"})
     unknown = retire(client, fit["id"], "Mars/Olympus_Mons")
 
     assert missing.status_code == 422
@@ -548,3 +556,87 @@ def test_retire_and_bring_back_are_audited(client: TestClient, connection: Conne
     ]
     # Closing the gap is part of the retire.
     assert audit_rows(connection, write["id"])[-1].action == "retire aspiration"
+
+
+# Retiring with its work paused
+
+
+def goal_under(client: TestClient, aspiration_id: str | None, label: str) -> Any:
+    response = client.put(
+        f"/api/goals/{uuid4()}",
+        headers={"X-Time-Zone": FAR_EAST},
+        json={
+            "type": "quitting",
+            "label": label,
+            "measurableLine": "90 days",
+            "aspirationId": aspiration_id,
+        },
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def statuses(client: TestClient) -> dict[str, str]:
+    goals = client.get("/api/goals", headers={"X-Time-Zone": FAR_EAST}).json()["goals"]
+    return {goal["label"]: goal["status"] for goal in goals}
+
+
+def test_retire_with_its_work_paused_pauses_its_active_goals(client: TestClient) -> None:
+    fit = create(client, "Be fit")
+    write = create(client, "Write")
+    goal_under(client, fit["id"], "Run")
+    ended = goal_under(client, fit["id"], "Swim")
+    client.post(f"/api/goals/{ended['id']}/end", headers={"X-Time-Zone": FAR_EAST})
+    goal_under(client, write["id"], "Journal")
+    goal_under(client, None, "No sugar")
+
+    response = retire(client, fit["id"], its_work="pause")
+
+    assert response.status_code == 200, response.text
+    assert statuses(client) == {
+        "Run": "paused",
+        "Swim": "ended",
+        "Journal": "active",
+        "No sugar": "active",
+    }
+
+
+def test_retire_keeping_its_work_going_changes_no_goal(client: TestClient) -> None:
+    fit = create(client, "Be fit")
+    goal_under(client, fit["id"], "Run")
+
+    retire(client, fit["id"], its_work="keep")
+
+    assert statuses(client) == {"Run": "active"}
+
+
+def test_retiring_again_changes_no_goal(client: TestClient) -> None:
+    fit = create(client, "Be fit")
+    goal_under(client, fit["id"], "Run")
+    retire(client, fit["id"], its_work="keep")
+
+    again = retire(client, fit["id"], its_work="pause")
+
+    assert again.status_code == 200
+    assert statuses(client) == {"Run": "active"}
+
+
+def test_bringing_back_resumes_none_of_its_goals(client: TestClient) -> None:
+    fit = create(client, "Be fit")
+    goal_under(client, fit["id"], "Run")
+    retire(client, fit["id"], its_work="pause")
+
+    bring_back(client, fit["id"])
+
+    assert statuses(client) == {"Run": "paused"}
+
+
+@pytest.mark.parametrize("body", [None, {}, {"itsWork": "forget"}])
+def test_retire_needs_to_know_what_happens_to_its_work(client: TestClient, body: Any) -> None:
+    fit = create(client, "Be fit")
+
+    response = client.post(
+        f"/api/aspirations/{fit['id']}/retire", headers={"X-Time-Zone": FAR_EAST}, json=body
+    )
+
+    assert response.status_code == 422

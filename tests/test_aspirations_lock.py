@@ -1,6 +1,6 @@
-"""Writes that renumber a user's aspirations wait for that user's row, so two arriving
-together run one after the other. Needs two real connections, so it uses the engine; the
-write under test is rolled back, so nothing is kept."""
+"""Writes that take the user lock (renumbering aspirations, writing goals) wait for that
+user's row, so two arriving together run one after the other. Needs two real connections,
+so it uses the engine; the write under test is rolled back, so nothing is kept."""
 
 from collections.abc import Callable
 from datetime import date
@@ -14,6 +14,10 @@ from app.aspirations import rules
 from app.config import FIXED_USER_ID
 from app.database import Database
 from app.errors import NotFound
+from app.goals import rules as goal_rules
+from app.goals.models import GoalEdit, NewGoal, WeeklyTargetInput
+
+NEW_GOAL = NewGoal(type="oneOff", label="Move house", measurable_line="Keys handed in")
 
 
 class RollBack(Exception):
@@ -23,8 +27,24 @@ class RollBack(Exception):
 WRITES: dict[str, Callable[[Connection], object]] = {
     "create": lambda tx: rules.create(tx, FIXED_USER_ID, uuid4(), "Be fit", None),
     "reorder": lambda tx: rules.reorder(tx, FIXED_USER_ID, []),
-    "retire": lambda tx: rules.retire(tx, FIXED_USER_ID, uuid4(), date(2026, 11, 16)),
+    "retire": lambda tx: rules.retire(tx, FIXED_USER_ID, uuid4(), date(2026, 11, 16), True),
     "bring back": lambda tx: rules.bring_back(tx, FIXED_USER_ID, uuid4()),
+    "create goal": lambda tx: goal_rules.create(
+        tx, FIXED_USER_ID, uuid4(), NEW_GOAL, date(2026, 11, 16)
+    ),
+    "update goal": lambda tx: goal_rules.update(
+        tx, FIXED_USER_ID, uuid4(), GoalEdit(label="Move", measurable_line="Keys handed in")
+    ),
+    "set weekly target": lambda tx: goal_rules.set_weekly_target(
+        tx,
+        FIXED_USER_ID,
+        uuid4(),
+        WeeklyTargetInput(kind="count", sessions=3, unit="runs"),
+        date(2026, 11, 16),
+    ),
+    "change goal status": lambda tx: goal_rules.change_status(
+        tx, FIXED_USER_ID, uuid4(), goal_rules.PAUSE, date(2026, 11, 16)
+    ),
 }
 
 

@@ -52,3 +52,10 @@ class AspirationOrder(ApiModel):
     """Every active aspiration's id, first priority first."""
 
     ids: Annotated[list[UUID], Field(max_length=500)]
+
+
+class Retirement(ApiModel):
+    """What happens to the aspiration's work: its active goals pause, or keep going without
+    an aspiration. Recurring items join "pause" when they're built."""
+
+    its_work: Literal["pause", "keep"]

@@ -1,90 +1,94 @@
-# Implementation Plan: Aspirations (#4)
+# Implementation Plan: Goals and weekly targets (#5)
 
-Spec: [`../specs/aspirations.md`](../specs/aspirations.md). Tasks: [`todo.md`](todo.md).
+Spec: [`../specs/goals-targets.md`](../specs/goals-targets.md). Tasks: [`todo.md`](todo.md).
 
 ## Overview
 
-The `aspirations` table and six routes: list, create, edit, reorder, retire, bring back. It is the first route through the whole stack, so it also adds what every later slice reuses: a test client on the rolled-back connection, the 404 and 409 errors, the time zone header, and a committed `openapi.json` with a test that fails when it's out of date.
+The `goals` and `weekly_targets` tables, the goal routes (list, read, create, edit), the weekly target, the six status changes, and retiring an aspiration with its goals paused. Setting a goal's tasks aside and bringing them back is left to `tasks-week` (shared decision 5): here a status change changes the goal row only.
 
-One PR, `aspirations` (closes #4), plus a small docs-repo PR linked from it.
+One PR, `goals-targets` (closes #5), plus a small docs-repo PR if `data-model.md` or `flows.md` need a line.
 
 ## The contract
 
 | Operation | Route | Body | Returns |
 | --- | --- | --- | --- |
-| `listAspirations` | `GET /aspirations` | | `{ "aspirations": [...] }`: active by position, then retired, newest retirement first |
-| `createAspiration` | `PUT /aspirations/{id}` | `name`, `why` (optional) | the aspiration; goes last among the active |
-| `updateAspiration` | `PATCH /aspirations/{id}` | `name`, `why` | the aspiration |
-| `reorderAspirations` | `POST /aspirations/reorder` | `ids`: every active id, in the new order | the same shape as the list |
-| `retireAspiration` | `POST /aspirations/{id}/retire` | | the aspiration |
-| `bringBackAspiration` | `POST /aspirations/{id}/bring-back` | | the aspiration; goes last |
+| `listGoals` | `GET /api/goals` | | `{ "goals": [...] }`: under active aspirations by position, then under retired ones, then those with none; within each, by when made |
+| `getGoal` | `GET /api/goals/{id}` | | the goal |
+| `createGoal` | `PUT /api/goals/{id}` | `type`, `label`, `measurableLine`, `baseline`, `aspirationId`, `startDate`, `deadline`, `weeklyTarget` (building only, and required there) | the goal |
+| `updateGoal` | `PATCH /api/goals/{id}` | `label`, `measurableLine`, `baseline`, `aspirationId`, `deadline`, sent whole like `updateAspiration` | the goal |
+| `setWeeklyTarget` | `PUT /api/goals/{id}/weekly-target` | `kind`, `sessions`, `amount`, `unit` | the goal |
+| `pauseGoal`, `resumeGoal`, `endGoal`, `markGoalReached`, `reopenGoal`, `goAgain` | `POST /api/goals/{id}/pause` and so on | | the goal |
+| `retireAspiration` | `POST /api/aspirations/{id}/retire` | gains `itsWork`: `pause` or `keep` | the aspiration |
 
-An aspiration in JSON: `id`, `name`, `why`, `status` (`active` or `retired`), `position`, `retiredOn`, `createdAt`. `why`, `position` and `retiredOn` are `null` when empty.
+A goal in JSON: `id`, `aspirationId`, `type` (`building`, `quitting`, `oneOff`), `label`, `measurableLine`, `baseline`, `status`, `startDate`, `deadline`, `endedOn`, `slipped`, `weeklyTarget`, `createdAt`. `weeklyTarget` is the latest row (`kind`, `sessions`, `amount`, `unit`, `effectiveFrom`), so a change waiting for next week shows as one with `effectiveFrom` after this week; `null` for the other types.
 
-- **The list is wrapped in an object** so goal counts can join it in `goals-targets` without changing its shape (open question 2: this slice returns aspirations alone).
-- **`updateAspiration` sends both fields every time.** `why: null` empties it. It works on a retired aspiration too.
-- **A name is trimmed and can't be blank** (422). An empty `why` is stored as empty, not `""`.
-- **Repeats change nothing** (decisions 6 and 7): the same create returns the row as it is, even if the body differs; retiring a retired aspiration and bringing back an active one return it unchanged and write no audit row.
-- **Errors** (decision 10): 404 for an id that doesn't exist or is someone else's; 409 for a reorder whose ids aren't exactly the active ones (one missing, one repeated, one retired or unknown), and for a create whose id is already another user's row; 422 for a body that doesn't validate.
-- **Retire needs today's date in the phone's time zone** (decision 9), so this slice names the header: `X-Time-Zone`, an IANA name such as `America/Denver`. Only routes that need the day read it; there, a missing or unknown zone is 422.
-- **Retire takes no body yet.** "Pause its work or keep it going" arrives with `goals-targets` and `recurring-items`.
+- **Reads need `X-Time-Zone`**, because `slipped` (active, with a deadline before today) is worked out on the server. Every request sends the header anyway (decision 9).
+- **`startDate` is optional on create** and defaults to today. It isn't editable afterwards.
+- **A changed `aspirationId` must be an active aspiration of the same owner** (409 otherwise). Leaving a goal under its retired aspiration is fine.
+- **Where the front end's hand-written types differ, the API follows `data-model.md` and #40 adapts:** the weekly target's `kind` and `sessions`, `endedOn` (not `endedAt`), and reopen and go again as their own routes (the mock folds them into `resumeGoal`).
 
-Where the front end's hand-written types differ, the API follows `data-model.md` and #40 adapts: `position` (not `priority`), `retiredOn` as a day (not `retiredAt` as a moment), a reorder of all ids (not move up or down).
+### Status changes
+
+| Route | Allowed from | Sent again (already in the end state) | Otherwise |
+| --- | --- | --- | --- |
+| pause | active | returns it unchanged | 409 |
+| resume | paused | returns it unchanged | 409 |
+| end, mark reached | active, paused | returns it unchanged | 409 |
+| reopen | reached | returns it unchanged | 409 |
+| go again | ended | returns it unchanged | 409 |
+
+`endedOn` is today on end and reached, and cleared by reopen and go again. Resume, reopen and go again work under a retired aspiration (`flows.md`, decided Nov 10). Bringing an aspiration back resumes none of its goals (`flows.md` already says so, which settles open question 2).
+
+### The weekly target's week
+
+A change takes effect in the phone's week, or in the next week once that week is open (`planned_through_week` is later than the phone's week). That column exists but nothing sets it until `week-turnover`, which also adds `closed_through_week` and so finishes the "current week" rule. Here it's one function in `app/weeks.py`, tested by setting `planned_through_week` directly. A second change in the same week replaces the first. A building goal's first target is created with the goal, by the same rule.
 
 ## Architecture decisions
 
-- **Position is unique per owner by a constraint checked at the end of each statement** (`unique (user_id, position) deferrable initially immediate`). That settles open question 1: a reorder or a gap-closing update is one statement that renumbers several rows, which a plain unique index can refuse partway through. Not `initially deferred`: that checks only at commit, so a broken write would fail far from its cause, and the tests' rolled-back transactions would never check it at all.
-- **A check constraint ties the columns together:** active means a position of 1 or more and no retired day; retired means no position and a retired day. "No gaps" can't be a constraint, so the rules module keeps it and tests check it after every route.
-- **Deleted rows:** ADR-007 says unique rules ignore deleted rows through partial indexes, and a partial index can't be deferrable. The `delete` slice will empty a deleted aspiration's position (and loosen the check to allow it), which gets the same result. Noted in the migration.
-- **Writes that change positions lock the owner's `users` row first** (`select ... for update`). Two creates arriving together, as an offline queue can send them, then take positions one after the other instead of one failing on the unique rule.
-- **A folder per slice, as the pattern for later slices** (settled with Jan 2026-11-16). Shared modules stay at the top of `app/`.
-  - `app/aspirations/routes.py`: the router. Thin.
-  - `app/aspirations/models.py`: the request and response models.
-  - `app/aspirations/rules.py`: create, reorder, retire and bring back, each several queries in one transaction. No FastAPI imports.
-  - `app/errors.py`: `NotFound` and `NotAllowed`, raised by rules modules; `main.py` turns them into 404 and 409.
-- **The database files stay organised by table, not by slice.** Migrations are one time-ordered folder, which dbmate needs. Queries are one file per table in `db/queries/`, generated into one module per table in `app/db/`, because later slices read and write earlier slices' tables.
-- **Tests stay flat** (`tests/test_aspirations.py`) until one slice's tests get long.
-  - `app/time_zone.py`: the `today` dependency reading `X-Time-Zone`, using the standard library's `zoneinfo`.
-  - `app/openapi.py`: `uv run python -m app.openapi` writes `openapi.json` at the repo root.
-- **Generated row models don't leave the API.** Each query returns the same columns, and one function maps a row to the hand-written `Aspiration`.
-- **Tests go through a `client` fixture** that overrides `get_database` with the rolled-back `database` fixture. "Someone else's row" is tested with a second user inserted by the test.
+- **"Never points at another owner's row" is a foreign key on two columns.** `aspirations` gains `unique (id, user_id)`, and `goals (aspiration_id, user_id)` references it. This is the first table that points at another, so it sets the pattern.
+- **"Weekly targets only on building goals" is a foreign key too.** `goals` gets `unique (id, user_id, type)`; `weekly_targets` carries `goal_type text not null default 'building' check (goal_type = 'building')` and references `goals (id, user_id, type)`. A goal's type can't change, so the copy never goes stale.
+- **Check constraints:** a status from the four; `ended_on` set exactly when reached or ended; a deadline on or after the start date; the type from the three; a label and line that aren't blank; `effective_from` a Monday; sessions from 1 to 14; an amount above 0 on an amount target and empty on a count; `unique (goal_id, effective_from)`.
+- **`app/goals/` follows `app/aspirations/`:** `routes.py`, `models.py`, `rules.py`. Status changes are one rules function driven by the table above, not six copies.
+- **Create input is one model with a validator** (`weeklyTarget` required for building, refused otherwise), not a union on `type`, so the generated types stay flat.
+- **Writes lock the owner's `users` row,** as aspirations do, so a target change and a goal create sent together don't race.
 - **No new dependency.**
 
 ## Dependency graph
 
 ```
-1 the table and its constraints
-      │
-      ▼
-2 list + create (router, models, client fixture, owner lock)
-      │
-      ├──▶ 3 reorder          ◄── checkpoint: sqlc and array parameters
-      ├──▶ 4 edit (404)
-      └──▶ 5 retire + bring back (time zone header)
-                  │
-                  ▼
-            6 openapi.json and its test
-                  │
-                  ▼
-            7 docs, spec marked built, note on front-end #40
+1 goals table ──► 3 create + get + list ──► 4 update
+      │                  ▲         │
+      ▼                  │         ├──► 6 status changes ──► 7 retire with its work paused
+2 weekly_targets ── (app/weeks.py) ┘
+                         └──► 5 set weekly target
+                                                      all ──► 8 docs and contract
 ```
 
-Built in number order. Reorder comes third because it carries the one tool risk.
+## Task list
 
-## Risks
+See [`todo.md`](todo.md).
 
-| Risk | If it happens |
-| --- | --- |
-| sqlc or the Python plugin can't take a `uuid[]` parameter with `unnest ... with ordinality` | Reorder sets each position with one small query in a loop, with `set constraints ... deferred` for that transaction. Stays inside the slice; recorded for ADR-007. |
-| `zoneinfo` finds no time zone data on some host | It works on macOS. A Linux container may need the `tzdata` package, which is a dependency question for hosting, not now. Noted in the README. |
-| The locked `users` row makes writes queue | Intended, and one user's volume is tiny. |
+- [x] 1: The goals table
+- [x] 2: The weekly_targets table
+- [x] 3: Create, read and list goals
+- [x] 4: Edit a goal
+- [x] 5: Set the weekly target
+- [x] **Checkpoint A:** goals can be made, read, edited and given a new target; checks pass
+- [x] 6: The six status changes
+- [x] 7: Retiring an aspiration pauses its goals
+- [x] 8: Docs and the contract
+- [x] **Checkpoint B:** every spec criterion met; checks pass; PR opened
 
-## Checkpoints
+## Risks and mitigations
 
-- **After task 1:** migration goes up, down and up with `schema.sql` unchanged.
-- **After task 3:** report whether the one-statement reorder generated cleanly or the fallback was used.
-- **After task 6:** every spec criterion but the docs and the front end's is met; the four checks pass.
+| Risk | Impact | Mitigation |
+| --- | --- | --- |
+| The target-week rule is half-built until `week-turnover` adds `closed_through_week` | Medium | One function, one place; `week-turnover`'s spec already says it finishes the rule |
+| Composite foreign keys get in the way of `delete` (slice 10) | Low | Delete sets `deleted_at` and never removes rows, so the keys hold |
+| `retireAspiration` needs a body it didn't have | Low | The front end isn't wired yet (#40); its mock already takes `itsWork` |
 
-## Decision for Jan
+## Decisions to confirm
 
-The spec's criterion "the front end's types are regenerated from the new schema and its mock client compiles against them" can't be met inside this slice: the command that generates the types is the first thing front-end #40 builds, and it needs a new front-end dependency. Recommended: this slice delivers `openapi.json`, the criterion moves to #40, and the spec says so. Approving the plan approves that.
+1. **The status-change table above** (spec open question 1). In particular: a paused goal can be ended or marked reached, and an ended goal can't be marked reached without going again first.
+2. **`retireAspiration` requires `itsWork`** (`pause` or `keep`), the name the front end's mock already uses. It's required, not defaulted: retire isn't queueable, and the sheet always asks. Recurring items join `pause` in `recurring-items`.
+3. **The front end's criterion moves to #40 again,** as with aspirations: there is no type generator in the front end until #40 builds it.

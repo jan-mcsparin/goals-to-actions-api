@@ -1,6 +1,6 @@
 # Spec: Goals and weekly targets
 
-Status: draft 2026-11-13; finalised when its plan is written. Issue: [#5](https://github.com/jan-mcsparin/goals-to-actions-api/issues/5). Module `goals-targets` in the [map](README.md). Depends on `aspirations`.
+Status: built 2026-11-16. Issue: [#5](https://github.com/jan-mcsparin/goals-to-actions-api/issues/5). Module `goals-targets` in the [map](README.md). Depends on `aspirations`.
 
 ## Objective
 
@@ -44,16 +44,51 @@ As shared. **Never:** infer a goal's type; add a "missed" status or a hard-deadl
 
 ## Success criteria
 
-- [ ] All three goal types can be created, read, edited and taken through every status change the flows allow.
-- [ ] Weekly target history is kept per week.
-- [ ] Retiring an aspiration can pause its goals.
-- [ ] The rules above are refused by the database or the route, each with a test.
-- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
-- [ ] The four checks pass.
+- [x] All three goal types can be created, read, edited and taken through every status change the flows allow.
+- [x] Weekly target history is kept per week.
+- [x] Retiring an aspiration can pause its goals.
+- [x] The rules above are refused by the database or the route, each with a test.
+- [x] Regenerating the front end's types moved to the front end's issue #40, as with aspirations: the command that does it is the first thing #40 builds.
+- [x] The four checks pass.
 
-## Open questions
+## The contract, as built
 
-1. **Which status changes are allowed from which?** The table (for example, can a paused goal be marked reached?) is written out from `flows.md` in the plan and confirmed then.
-2. **Does bringing an aspiration back resume the goals its retiring paused?** Nothing stored says which goals were paused that way; only the audit log knows, and nothing may read it. So either all its paused goals resume, or none do and the person resumes them. I'd say none.
+| Operation | Route | Body |
+| --- | --- | --- |
+| `listGoals` | `GET /api/goals` | |
+| `getGoal` | `GET /api/goals/{id}` | |
+| `createGoal` | `PUT /api/goals/{id}` | `type`, `label`, `measurableLine`, `baseline`, `aspirationId`, `startDate` (today when left out), `deadline`, `weeklyTarget` (building goals only, and required there) |
+| `updateGoal` | `PATCH /api/goals/{id}` | `label`, `measurableLine`, `baseline`, `aspirationId`, `deadline`; sent whole every time |
+| `setWeeklyTarget` | `PUT /api/goals/{id}/weekly-target` | `kind` (`count` or `amount`), `sessions`, `amount` (amount targets only), `unit` |
+| `pauseGoal`, `resumeGoal`, `endGoal`, `markGoalReached`, `reopenGoal`, `goAgain` | `POST /api/goals/{id}/pause`, `/resume`, `/end`, `/mark-reached`, `/reopen`, `/go-again` | |
+| `retireAspiration` | `POST /api/aspirations/{id}/retire` | gains `itsWork`: `pause` or `keep`, required |
 
-Settled 2026-11-16: a target change takes effect this week until next week opens on Sunday evening, and from next week after that.
+Every goal route needs the `X-Time-Zone` header and returns the goal: `id`, `aspirationId`, `type` (`building`, `quitting`, `oneOff`), `label`, `measurableLine`, `baseline`, `status`, `startDate`, `deadline`, `endedOn`, `slipped`, `weeklyTarget`, `createdAt`. `weeklyTarget` is the latest row (`kind`, `sessions`, `amount`, `unit`, `effectiveFrom`), so a change waiting for next week shows with an `effectiveFrom` after this week; it is `null` for quitting and one-off goals. The list is `{ "goals": [...] }`: under active aspirations by priority, then under retired ones, then those with none; within each, oldest first.
+
+## Settled
+
+1. **Status changes:**
+
+   | Route | Allowed from | Sent again | Otherwise |
+   | --- | --- | --- | --- |
+   | pause | active | returns it unchanged | 409 |
+   | resume | paused | returns it unchanged | 409 |
+   | end, mark reached | active, paused | returns it unchanged | 409 |
+   | reopen | reached | returns it unchanged | 409 |
+   | go again | ended | returns it unchanged | 409 |
+
+   End and mark reached set `endedOn` to today; coming back clears it. Resume, reopen and go again work under a retired aspiration.
+2. **Bringing an aspiration back resumes none of its goals,** as `flows.md` already said.
+3. **The database refuses what it can:** a goal under another owner's aspiration, and a target on a goal that isn't building or isn't the owner's, by foreign keys on two and three columns; a deadline before the start, `endedOn` out of step with the status, a target week that isn't a Monday, one target row per goal per week, sessions from 1 to 14, and an amount only on an amount target.
+4. **A goal goes under an active aspiration** (409 otherwise), and can stay under one that has since retired.
+5. **A deadline before the start date** is a 422 when both are in the body, and a 409 when the start date is stored or defaulted to today.
+6. **The week a target change takes effect** is `app/weeks.py`'s `target_week`: the phone's week, or next week once `planned_through_week` is later. The same target again writes nothing.
+7. **Every goal write takes the user lock,** and `tests/test_aspirations_lock.py` checks each one.
+8. **Input limits:** a label is at most 200 characters, a measurable line and a baseline 500, a unit 100; an amount is above 0 and at most 1,000,000.
+
+## Left for later
+
+- Setting a goal's tasks aside on pause, end and reached, and returning them on resume, reopen and go again (`tasks-week`).
+- "The current week" after a wrap-up, when `week-turnover` adds `closed_through_week` to `target_week`.
+- Pausing an aspiration's recurring items on retire (`recurring-items`).
+- `listAspirations` still returns aspirations alone. The Aspirations tab and an aspiration's page can draw their goals from `listGoals`; whether either needs a combined read is settled when the front end wires them.

@@ -53,7 +53,7 @@ As shared. **Ask first:** any field not in the data model.
 | `createAspiration` | `PUT /aspirations/{id}` | `name`, `why` (optional) |
 | `updateAspiration` | `PATCH /aspirations/{id}` | `name`, `why`; both sent every time |
 | `reorderAspirations` | `POST /aspirations/reorder` | `ids`: every active id, in the new order |
-| `retireAspiration` | `POST /aspirations/{id}/retire` | none; needs the `X-Time-Zone` header |
+| `retireAspiration` | `POST /aspirations/{id}/retire` | `itsWork` (`pause` or `keep`), added by `goals-targets`; needs the `X-Time-Zone` header |
 | `bringBackAspiration` | `POST /aspirations/{id}/bring-back` | |
 
 An aspiration is `id`, `name`, `why`, `status`, `position`, `retiredOn`, `createdAt`. The list is `{ "aspirations": [...] }`: active by position, then retired with the newest first.
@@ -68,5 +68,5 @@ An aspiration is `id`, `name`, `why`, `status`, `position`, `retiredOn`, `create
 
 ## Left for later
 
-- Retire takes no body. "Pause its work or keep it going" arrives with `goals-targets` and `recurring-items`.
+- Retire's "pause its work" pauses its goals since `goals-targets`; its recurring items join with `recurring-items`.
 - Deleting an aspiration (`delete`) must empty its position and loosen the `aspirations_status_agrees` check to allow it.

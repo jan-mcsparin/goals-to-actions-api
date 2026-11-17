@@ -53,16 +53,16 @@ One PR, `milestones-check-ins` (closes #6).
 
 See [`todo.md`](todo.md).
 
-- [ ] 1: The milestones table
-- [ ] 2: The check_ins table
-- [ ] 3: Add a milestone, and the goal's page
-- [ ] 4: Edit a milestone, with dates pushed out
-- [ ] **Checkpoint A:** milestones can be added and edited; the goal's page reads them; checks pass
-- [ ] 5: Reorder milestones
-- [ ] 6: Check in
-- [ ] 7: Keep a "not yet"
-- [ ] 8: Docs and the contract
-- [ ] **Checkpoint B:** every spec criterion met; checks pass; PR opened
+- [x] 1: The milestones table
+- [x] 2: The check_ins table
+- [x] 3: Add a milestone, and the goal's page
+- [x] 4: Edit a milestone, with dates pushed out
+- [x] **Checkpoint A:** milestones can be added and edited; the goal's page reads them; checks pass
+- [x] 5: Reorder milestones
+- [x] 6: Check in
+- [x] 7: Keep a "not yet"
+- [x] 8: Docs and the contract
+- [x] **Checkpoint B:** every spec criterion met; checks pass; PR opened
 
 ## Risks and mitigations
 

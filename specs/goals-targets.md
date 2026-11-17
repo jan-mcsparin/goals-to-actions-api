@@ -56,7 +56,7 @@ As shared. **Never:** infer a goal's type; add a "missed" status or a hard-deadl
 | Operation | Route | Body |
 | --- | --- | --- |
 | `listGoals` | `GET /api/goals` | |
-| `getGoal` | `GET /api/goals/{id}` | |
+| `getGoal` | `GET /api/goals/{id}` | (returns the goal's page since `milestones-check-ins`) |
 | `createGoal` | `PUT /api/goals/{id}` | `type`, `label`, `measurableLine`, `baseline`, `aspirationId`, `startDate` (today when left out), `deadline`, `weeklyTarget` (building goals only, and required there) |
 | `updateGoal` | `PATCH /api/goals/{id}` | `label`, `measurableLine`, `baseline`, `aspirationId`, `deadline`; sent whole every time |
 | `setWeeklyTarget` | `PUT /api/goals/{id}/weekly-target` | `kind` (`count` or `amount`), `sessions`, `amount` (amount targets only), `unit` |

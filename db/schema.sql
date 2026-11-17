@@ -169,6 +169,32 @@ CREATE TABLE public.users (
 
 
 --
+-- Name: weekly_targets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.weekly_targets (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    goal_id uuid NOT NULL,
+    goal_type text DEFAULT 'building'::text NOT NULL,
+    kind text NOT NULL,
+    sessions integer NOT NULL,
+    amount numeric,
+    unit text NOT NULL,
+    effective_from date NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT weekly_targets_amount_agrees CHECK ((((kind = 'amount'::text) = (amount IS NOT NULL)) AND (amount > (0)::numeric))),
+    CONSTRAINT weekly_targets_goal_type_check CHECK ((goal_type = 'building'::text)),
+    CONSTRAINT weekly_targets_kind_check CHECK ((kind = ANY (ARRAY['count'::text, 'amount'::text]))),
+    CONSTRAINT weekly_targets_sessions_check CHECK (((sessions >= 1) AND (sessions <= 14))),
+    CONSTRAINT weekly_targets_unit_not_blank CHECK ((btrim(unit) <> ''::text)),
+    CONSTRAINT weekly_targets_week_is_a_monday CHECK ((EXTRACT(isodow FROM effective_from) = (1)::numeric))
+);
+
+
+--
 -- Name: aspirations aspirations_id_owner; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -233,6 +259,22 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: weekly_targets weekly_targets_one_per_week; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_targets
+    ADD CONSTRAINT weekly_targets_one_per_week UNIQUE (goal_id, effective_from);
+
+
+--
+-- Name: weekly_targets weekly_targets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_targets
+    ADD CONSTRAINT weekly_targets_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: aspirations aspirations_audit; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -275,6 +317,20 @@ CREATE TRIGGER users_set_updated_at BEFORE UPDATE ON public.users FOR EACH ROW E
 
 
 --
+-- Name: weekly_targets weekly_targets_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER weekly_targets_audit AFTER INSERT OR DELETE OR UPDATE ON public.weekly_targets FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: weekly_targets weekly_targets_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER weekly_targets_set_updated_at BEFORE UPDATE ON public.weekly_targets FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: aspirations aspirations_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -299,6 +355,22 @@ ALTER TABLE ONLY public.goals
 
 
 --
+-- Name: weekly_targets weekly_targets_building_goal_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_targets
+    ADD CONSTRAINT weekly_targets_building_goal_same_owner FOREIGN KEY (goal_id, user_id, goal_type) REFERENCES public.goals(id, user_id, type);
+
+
+--
+-- Name: weekly_targets weekly_targets_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_targets
+    ADD CONSTRAINT weekly_targets_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -313,4 +385,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261114022739'),
     ('20261114022856'),
     ('20261116195619'),
-    ('20261116230000');
+    ('20261116230000'),
+    ('20261116230100');

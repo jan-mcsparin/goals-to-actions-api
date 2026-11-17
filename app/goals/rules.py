@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import Connection
 
-from app.db import aspirations, goals, models, users, weekly_targets
+from app.db import aspirations, goals, milestones, models, users, weekly_targets
 from app.errors import NotAllowed, NotFound
 from app.goals.models import TYPE_IN_DATABASE, GoalEdit, NewGoal, WeeklyTargetInput
 from app.weeks import target_week
@@ -64,6 +64,11 @@ def update(
         check_aspiration(connection, user_id, edit.aspiration_id)
     if edit.deadline is not None and edit.deadline < goal.start_date:
         raise NotAllowed("A deadline can't be before the start date.")
+    if edit.deadline is not None and any(
+        row.target_date is not None and row.target_date > edit.deadline
+        for row in milestones.Querier(connection).list_milestones(goal_id=goal_id, user_id=user_id)
+    ):
+        raise NotAllowed("A deadline can't be before a milestone's date.")
     updated = queries.update_goal(
         goals.UpdateGoalParams(
             id=goal_id,

@@ -45,6 +45,21 @@ order by position
 """
 
 
+SET_MILESTONE_DATE = """-- name: set_milestone_date \\:exec
+update milestones set target_date = :p3
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
+UPDATE_MILESTONE = """-- name: update_milestone \\:one
+update milestones
+set measurable_line = :p3, target_date = :p4,
+  status = case when status = 'not_yet' then 'upcoming' else status end
+where id = :p1 and user_id = :p2 and deleted_at is null
+returning id, user_id, goal_id, goal_type, position, measurable_line, target_date, status, created_at, updated_at, deleted_at
+"""
+
+
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
@@ -108,3 +123,29 @@ class Querier:
                 updated_at=row[9],
                 deleted_at=row[10],
             )
+
+    def set_milestone_date(self, *, id: uuid.UUID, user_id: uuid.UUID, target_date: Optional[datetime.date]) -> None:
+        self._conn.execute(sqlalchemy.text(SET_MILESTONE_DATE), {"p1": id, "p2": user_id, "p3": target_date})
+
+    def update_milestone(self, *, id: uuid.UUID, user_id: uuid.UUID, measurable_line: str, target_date: Optional[datetime.date]) -> Optional[models.Milestone]:
+        row = self._conn.execute(sqlalchemy.text(UPDATE_MILESTONE), {
+            "p1": id,
+            "p2": user_id,
+            "p3": measurable_line,
+            "p4": target_date,
+        }).first()
+        if row is None:
+            return None
+        return models.Milestone(
+            id=row[0],
+            user_id=row[1],
+            goal_id=row[2],
+            goal_type=row[3],
+            position=row[4],
+            measurable_line=row[5],
+            target_date=row[6],
+            status=row[7],
+            created_at=row[8],
+            updated_at=row[9],
+            deleted_at=row[10],
+        )

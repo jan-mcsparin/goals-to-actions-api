@@ -64,3 +64,10 @@ class NewMilestone(ApiModel):
     goal_id: UUID
     measurable_line: Line
     target_date: date | None = None
+
+
+class MilestoneEdit(ApiModel):
+    """Sent whole. Moving or adjusting a "not yet" is an edit: it makes it upcoming again."""
+
+    measurable_line: Line
+    target_date: date | None = None

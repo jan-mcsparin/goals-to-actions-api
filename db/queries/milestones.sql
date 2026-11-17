@@ -16,3 +16,15 @@ from milestones
 where goal_id = sqlc.arg(goal_id) and deleted_at is null
 on conflict (id) do nothing
 returning *;
+
+-- A "not yet" edited (moved or adjusted) is upcoming again; a hit one stays hit.
+-- name: UpdateMilestone :one
+update milestones
+set measurable_line = $3, target_date = $4,
+  status = case when status = 'not_yet' then 'upcoming' else status end
+where id = $1 and user_id = $2 and deleted_at is null
+returning *;
+
+-- name: SetMilestoneDate :exec
+update milestones set target_date = $3
+where id = $1 and user_id = $2 and deleted_at is null;

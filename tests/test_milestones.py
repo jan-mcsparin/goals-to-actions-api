@@ -151,3 +151,128 @@ def test_a_line_that_breaks_the_rules_is_refused(goals_client: TestClient, line:
     goal = create_goal(goals_client, lifting())
 
     assert add_milestone(goals_client, goal["id"], line).status_code == 422
+
+
+# updateMilestone
+
+
+def update_milestone(
+    client: TestClient, milestone_id: str, line: str, target_date: str | None
+) -> Any:
+    return client.patch(
+        f"/api/milestones/{milestone_id}",
+        json={"measurableLine": line, "targetDate": target_date},
+    )
+
+
+def dates(goal_page: Any) -> list[str | None]:
+    return [m["targetDate"] for m in goal_page["milestones"]]
+
+
+def goal_with_dates(client: TestClient, *offsets: int | None, deadline: int = 90) -> Any:
+    goal = create_goal(client, lifting(deadline=day(deadline)))
+    for number, offset in enumerate(offsets, start=1):
+        add_milestone(client, goal["id"], f"M{number}", None if offset is None else day(offset))
+    return page(client, goal["id"])
+
+
+def test_update_changes_the_line_and_date(goals_client: TestClient) -> None:
+    before = goal_with_dates(goals_client, 10)
+    milestone = before["milestones"][0]
+
+    response = update_milestone(goals_client, milestone["id"], " Bench 160 ", day(12))
+
+    assert response.status_code == 200, response.text
+    assert response.json()["milestones"] == [
+        milestone | {"measurableLine": "Bench 160", "targetDate": day(12)}
+    ]
+
+
+def test_moving_a_date_later_pushes_later_dated_milestones_out(goals_client: TestClient) -> None:
+    before = goal_with_dates(goals_client, 10, 20, None, 30, deadline=90)
+    first, second = before["milestones"][0], before["milestones"][1]
+
+    after = update_milestone(goals_client, second["id"], "M2", day(25)).json()
+
+    assert dates(after) == [day(10), day(25), None, day(35)]
+    assert first == after["milestones"][0]
+
+
+def test_pushed_dates_stop_at_the_deadline(goals_client: TestClient) -> None:
+    before = goal_with_dates(goals_client, 10, 50, 58, deadline=60)
+
+    after = update_milestone(goals_client, before["milestones"][0]["id"], "M1", day(20)).json()
+
+    assert dates(after) == [day(20), day(60), day(60)]
+
+
+def test_moving_a_date_earlier_or_setting_one_moves_nothing_else(
+    goals_client: TestClient,
+) -> None:
+    before = goal_with_dates(goals_client, 20, None, 30)
+
+    earlier = update_milestone(goals_client, before["milestones"][0]["id"], "M1", day(5)).json()
+    dated = update_milestone(goals_client, before["milestones"][1]["id"], "M2", day(25)).json()
+
+    assert dates(earlier) == [day(5), None, day(30)]
+    assert dates(dated) == [day(5), day(25), day(30)]
+
+
+def test_editing_a_not_yet_milestone_makes_it_upcoming(
+    goals_client: TestClient, connection: Connection
+) -> None:
+    before = goal_with_dates(goals_client, 10, 20)
+    not_yet, hit = before["milestones"]
+    connection.execute(
+        text("update milestones set status = 'not_yet' where id = :id"), {"id": not_yet["id"]}
+    )
+    connection.execute(
+        text("update milestones set status = 'hit' where id = :id"), {"id": hit["id"]}
+    )
+
+    update_milestone(goals_client, not_yet["id"], "M1", day(15))
+    after = update_milestone(goals_client, hit["id"], "M2 fixed", day(20)).json()
+
+    assert [m["status"] for m in after["milestones"]] == ["upcoming", "hit"]
+    assert connection.execute(text("select count(*) from check_ins")).scalar() == 0
+
+
+def test_a_date_outside_the_goal_is_not_allowed(goals_client: TestClient) -> None:
+    before = goal_with_dates(goals_client, 10, deadline=60)
+    milestone_id = before["milestones"][0]["id"]
+
+    assert update_milestone(goals_client, milestone_id, "M1", day(61)).status_code == 409
+    assert update_milestone(goals_client, milestone_id, "M1", day(-1)).status_code == 409
+
+
+def test_update_of_another_users_milestone_is_not_found(
+    goals_client: TestClient, connection: Connection
+) -> None:
+    other_user = add_other_user(connection)
+    theirs = add_goal_for(connection, other_user)
+    connection.execute(text("update goals set type = 'building' where id = :id"), {"id": theirs})
+    their_milestone = uuid4()
+    connection.execute(
+        text(
+            "insert into milestones (id, user_id, goal_id, goal_type, position, measurable_line)"
+            " values (:id, :user_id, :goal_id, 'building', 1, 'Theirs')"
+        ),
+        {"id": their_milestone, "user_id": other_user, "goal_id": theirs},
+    )
+
+    assert update_milestone(goals_client, str(their_milestone), "Mine", None).status_code == 404
+    assert update_milestone(goals_client, str(uuid4()), "Mine", None).status_code == 404
+
+
+def test_a_goals_deadline_cannot_move_before_a_milestones_date(
+    goals_client: TestClient,
+) -> None:
+    before = goal_with_dates(goals_client, 30, deadline=60)
+    goal = before["goal"]
+    body = {"label": goal["label"], "measurableLine": goal["measurableLine"]}
+
+    too_early = goals_client.patch(f"/api/goals/{goal['id']}", json=body | {"deadline": day(29)})
+    on_it = goals_client.patch(f"/api/goals/{goal['id']}", json=body | {"deadline": day(30)})
+
+    assert too_early.status_code == 409
+    assert on_it.status_code == 200

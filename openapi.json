@@ -481,6 +481,34 @@
         "title": "Milestone",
         "type": "object"
       },
+      "MilestoneEdit": {
+        "description": "Sent whole. Moving or adjusting a \"not yet\" is an edit: it makes it upcoming again.",
+        "properties": {
+          "measurableLine": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Measurableline",
+            "type": "string"
+          },
+          "targetDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetdate"
+          }
+        },
+        "required": [
+          "measurableLine"
+        ],
+        "title": "MilestoneEdit",
+        "type": "object"
+      },
       "NewGoal": {
         "description": "A goal as first made. A building goal comes with its first weekly target.",
         "properties": {
@@ -1903,6 +1931,87 @@
       }
     },
     "/api/milestones/{milestone_id}": {
+      "patch": {
+        "description": "Also how a \"not yet\" is moved (a new date) or adjusted (a new line).",
+        "operationId": "updateMilestone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "milestone_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Milestone Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MilestoneEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Milestone",
+        "tags": [
+          "milestones"
+        ]
+      },
       "put": {
         "operationId": "addMilestone",
         "parameters": [

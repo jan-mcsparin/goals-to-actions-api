@@ -27,7 +27,7 @@ class RollBack(Exception):
 WRITES: dict[str, Callable[[Connection], object]] = {
     "create": lambda tx: rules.create(tx, FIXED_USER_ID, uuid4(), "Be fit", None),
     "reorder": lambda tx: rules.reorder(tx, FIXED_USER_ID, []),
-    "retire": lambda tx: rules.retire(tx, FIXED_USER_ID, uuid4(), date(2026, 11, 16)),
+    "retire": lambda tx: rules.retire(tx, FIXED_USER_ID, uuid4(), date(2026, 11, 16), True),
     "bring back": lambda tx: rules.bring_back(tx, FIXED_USER_ID, uuid4()),
     "create goal": lambda tx: goal_rules.create(
         tx, FIXED_USER_ID, uuid4(), NEW_GOAL, date(2026, 11, 16)

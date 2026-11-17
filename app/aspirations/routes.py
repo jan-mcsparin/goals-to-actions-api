@@ -8,6 +8,7 @@ from app.aspirations.models import (
     AspirationInput,
     AspirationList,
     AspirationOrder,
+    Retirement,
 )
 from app.db import aspirations
 from app.dependencies import CurrentDatabase, CurrentUserId
@@ -58,10 +59,14 @@ def update_aspiration(
 
 @router.post("/{aspiration_id}/retire", responses=NOT_FOUND)
 def retire_aspiration(
-    aspiration_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+    aspiration_id: UUID,
+    body: Retirement,
+    database: CurrentDatabase,
+    user_id: CurrentUserId,
+    today: Today,
 ) -> Aspiration:
     with database.transaction(user_id, "retire aspiration") as connection:
-        row = rules.retire(connection, user_id, aspiration_id, today)
+        row = rules.retire(connection, user_id, aspiration_id, today, body.its_work == "pause")
     return Aspiration.from_row(row)
 
 

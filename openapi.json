@@ -469,6 +469,24 @@
         "title": "NewGoal",
         "type": "object"
       },
+      "Retirement": {
+        "description": "What happens to the aspiration's work: its active goals pause, or keep going without\nan aspiration. Recurring items join \"pause\" when they're built.",
+        "properties": {
+          "itsWork": {
+            "enum": [
+              "pause",
+              "keep"
+            ],
+            "title": "Itswork",
+            "type": "string"
+          }
+        },
+        "required": [
+          "itsWork"
+        ],
+        "title": "Retirement",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -880,6 +898,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Retirement"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {

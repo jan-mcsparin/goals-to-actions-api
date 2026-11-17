@@ -1,116 +1,136 @@
-# Tasks: Aspirations (#4)
+# Tasks: Goals and weekly targets (#5)
 
-Plan: [`plan.md`](plan.md). Spec: [`../specs/aspirations.md`](../specs/aspirations.md).
+Plan: [`plan.md`](plan.md). Spec: [`../specs/goals-targets.md`](../specs/goals-targets.md).
 
 Every task: write the tests first, run the four checks (`uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`), then one commit.
 
-# PR: `aspirations` (closes #4)
+# PR: `goals-targets` (closes #5)
 
-### Task 1: The aspirations table
+### Task 1: The goals table
 
-**Description:** The migration: the shared columns, `name`, `why`, `status`, `position`, `retired_on`, the check that ties status to position and retired day, the unique position per owner checked at the end of each statement, and both triggers.
+**Description:** The migration: the shared columns, aspiration, type, label, measurable line, baseline, status, start date, deadline, ended on; the checks; `unique (id, user_id)` on aspirations and the two-column foreign key to it; `unique (id, user_id, type)` for weekly targets to point at; both triggers.
 
 **Acceptance criteria:**
-- [x] The database refuses two active aspirations of one owner in the same position, and allows a one-statement renumber that swaps two.
-- [x] It refuses an active row with no position, a retired row with a position or no retired day, a blank name and an unknown status.
-- [x] `bin/dbmate up`, `rollback`, `up` leaves `db/schema.sql` unchanged.
+- [ ] The database refuses an unknown type or status, a blank label or line, a deadline before the start date, and `ended_on` that doesn't match the status.
+- [ ] It refuses a goal under another owner's aspiration.
+- [ ] `bin/dbmate up`, `rollback`, `up` leaves `db/schema.sql` unchanged.
 
-**Verify:** `uv run pytest tests/test_aspirations_table.py`; `git diff --stat db/schema.sql` empty after the round trip.
+**Verify:** `uv run pytest tests/test_goals_table.py`; `git diff --stat db/schema.sql` empty after the round trip.
 
 **Dependencies:** none.
 
-**Files:** `db/migrations/<ts>_aspirations.sql`, `db/schema.sql`, `tests/test_aspirations_table.py`.
+**Files:** `db/migrations/<ts>_goals.sql`, `db/schema.sql`, `tests/test_goals_table.py`.
 
-### Task 2: List and create
+### Task 2: The weekly_targets table
 
-**Description:** The first routes and the pieces every later route uses: the queries and generated code, the router and models, the `client` fixture, and the owner lock.
+**Description:** The migration: the shared columns, goal, the fixed `goal_type`, kind, sessions, amount, unit, effective from; the checks; the foreign key to `goals (id, user_id, type)`; both triggers.
 
 **Acceptance criteria:**
-- [x] `PUT /aspirations/{id}` creates an aspiration last among the active; the same call again returns the row as it is and makes no second row or audit row.
-- [x] `GET /aspirations` returns the active ones by position, then the retired ones; never another user's.
-- [x] A blank name is 422; an id that is another user's row is 409; the create's audit row carries the user and "create aspiration".
+- [ ] The database refuses a target on a quitting or one-off goal, or on another owner's goal.
+- [ ] It refuses a second row for one goal and week, an `effective_from` that isn't a Monday, sessions outside 1 to 14, and an amount that doesn't match the kind.
+- [ ] Up, rollback, up leaves `db/schema.sql` unchanged.
 
-**Verify:** `uv run pytest tests/test_aspirations.py tests/test_contract.py`.
+**Verify:** `uv run pytest tests/test_weekly_targets_table.py`.
 
 **Dependencies:** 1.
 
-**Files:** `db/queries/aspirations.sql`, `app/db/` (generated), `app/aspirations/` (`routes.py`, `models.py`, `rules.py`), `app/errors.py`, `app/main.py`, `tests/conftest.py`, `tests/test_aspirations.py`.
+**Files:** `db/migrations/<ts>_weekly_targets.sql`, `db/schema.sql`, `tests/test_weekly_targets_table.py`.
 
-### Task 3: Reorder
+### Task 3: Create, read and list goals
 
-**Description:** `POST /aspirations/reorder` renumbers the active aspirations from the ids sent, in one statement if sqlc allows.
+**Description:** The goals and weekly-target queries and their generated code; `app/weeks.py` (Monday of a day; the week a target change takes effect); `app/goals/` with `createGoal`, `getGoal` and `listGoals`; a building goal created with its first target.
 
 **Acceptance criteria:**
-- [x] The active aspirations come back in the order sent, numbered 1 to n; retired ones are untouched.
-- [x] A list that leaves out, repeats or adds an id (retired, unknown or another user's) is 409 and changes nothing.
-- [x] Sending the same order twice is fine; the audit rows carry "reorder aspirations".
+- [ ] `PUT /api/goals/{id}` creates each of the three types; the same call again returns the goal as it is; a building goal without a target, or another type with one, is a 422; another user's aspiration is a 404; an id already another user's is a 409.
+- [ ] `GET /api/goals/{id}` and `GET /api/goals` return the goal with its latest target and `slipped`, in the plan's order, never another user's.
+- [ ] The first target takes effect this week, or next week when `planned_through_week` is later than the phone's week.
+
+**Verify:** `uv run pytest tests/test_goals.py tests/test_weeks.py`.
+
+**Dependencies:** 1, 2.
+
+**Files:** `db/queries/goals.sql`, `db/queries/weekly_targets.sql`, `app/db/*` (generated), `app/weeks.py`, `app/goals/{routes,models,rules}.py`, `app/main.py`, `tests/test_goals.py`, `tests/test_weeks.py`.
+
+### Task 4: Edit a goal
+
+**Description:** `updateGoal`: label, line, baseline, aspiration and deadline, sent whole.
+
+**Acceptance criteria:**
+- [ ] The fields change; a deadline pushed back clears `slipped`; one before the start date is a 422 (the database refuses it too).
+- [ ] Moving to an active aspiration works; to a retired one is a 409; to another user's is a 404; keeping a retired aspiration is fine.
+- [ ] Another user's goal is a 404.
+
+**Verify:** `uv run pytest tests/test_goals.py`.
+
+**Dependencies:** 3.
+
+**Files:** `db/queries/goals.sql`, `app/db/goals.py`, `app/goals/*`, `tests/test_goals.py`.
+
+### Task 5: Set the weekly target
+
+**Description:** `setWeeklyTarget`, count or amount, in the week the plan's rule gives.
+
+**Acceptance criteria:**
+- [ ] A change this week replaces this week's row; once next week is open it adds a row for next week, and this week's row is as it was.
+- [ ] Last week's row is still there after a change.
+- [ ] A quitting or one-off goal is a 409; a body that doesn't match its kind is a 422.
+
+**Verify:** `uv run pytest tests/test_goals.py`.
+
+**Dependencies:** 3.
+
+**Files:** `db/queries/weekly_targets.sql`, `app/db/weekly_targets.py`, `app/goals/*`, `tests/test_goals.py`.
+
+## Checkpoint A
+
+- [ ] The four checks pass.
+- [ ] `openapi.json` regenerated; the contract tests list the new operations.
+
+### Task 6: The six status changes
+
+**Description:** Pause, resume, end, mark reached, reopen and go again, driven by the plan's table.
+
+**Acceptance criteria:**
+- [ ] Each allowed change works and sets or clears `endedOn`; each refused one is a 409; each repeat returns the goal unchanged and writes no audit row.
+- [ ] Resume, reopen and go again work under a retired aspiration.
+- [ ] Go again keeps the goal's target as it was.
+
+**Verify:** `uv run pytest tests/test_goal_status.py`.
+
+**Dependencies:** 3.
+
+**Files:** `db/queries/goals.sql`, `app/db/goals.py`, `app/goals/*`, `tests/test_goal_status.py`.
+
+### Task 7: Retiring an aspiration pauses its goals
+
+**Description:** `retireAspiration` takes `itsWork`. With `pause`, its active goals are paused in the same transaction.
+
+**Acceptance criteria:**
+- [ ] `pause` pauses its active goals and leaves its other goals and other aspirations' goals as they were; `keep` changes no goal.
+- [ ] Retiring again changes nothing; bringing it back resumes no goal.
+- [ ] A body without `itsWork` is a 422.
 
 **Verify:** `uv run pytest tests/test_aspirations.py`.
 
-**Dependencies:** 2.
+**Dependencies:** 6.
 
-**Files:** `db/queries/aspirations.sql`, `app/db/` (generated), `app/aspirations/` (`routes.py`, `models.py`, `rules.py`), `tests/test_aspirations.py`.
+**Files:** `app/aspirations/{routes,models,rules}.py`, `db/queries/goals.sql`, `app/db/goals.py`, `tests/test_aspirations.py`.
 
-**Found:** sqlc and the Python plugin take a `uuid[]` parameter (`List[uuid.UUID]`) and `unnest ... with ordinality`, so the reorder is one statement. No fallback needed.
+### Task 8: Docs and the contract
 
-### Task 4: Edit
-
-**Description:** `PATCH /aspirations/{id}` sets name and why.
+**Description:** `openapi.json`; the spec marked built with its open questions settled; the front-end criterion moved to #40 with a note there listing where its types differ; `CLAUDE.md`'s layout; `data-model.md` or `flows.md` only if a line no longer holds.
 
 **Acceptance criteria:**
-- [x] Name and why change; `why: null` empties it; position and status don't move; it works on a retired aspiration.
-- [x] An unknown id or another user's is 404, in FastAPI's `{"detail": ...}` shape; a blank name is 422.
-- [x] The audit row carries "update aspiration".
+- [ ] `openapi.json` is up to date, and the contract tests name the new operations.
+- [ ] The spec and docs say what was built.
 
-**Verify:** `uv run pytest tests/test_aspirations.py`.
+**Verify:** the four checks.
 
-**Dependencies:** 2.
+**Dependencies:** 1 to 7.
 
-**Files:** `db/queries/aspirations.sql`, `app/db/` (generated), `app/aspirations/routes.py`, `app/aspirations/models.py`, `tests/test_aspirations.py`.
+**Files:** `openapi.json`, `specs/goals-targets.md`, `specs/README.md`, `CLAUDE.md`, `tests/test_contract.py`.
 
-### Task 5: Retire and bring back
+## Checkpoint B
 
-**Description:** The two actions, and the `today` dependency that reads the `X-Time-Zone` header.
-
-**Acceptance criteria:**
-- [x] Retiring empties the position, sets the retired day to today in the header's time zone, and closes the gap so the rest are 1 to n. Retiring twice changes nothing and writes no audit row.
-- [x] Bringing back makes it active and last, with no retired day. Bringing back an active one changes nothing.
-- [x] A missing or unknown time zone on retire is 422; an unknown id or another user's is 404; the audit rows carry "retire aspiration" and "bring back aspiration".
-
-**Verify:** `uv run pytest tests/test_aspirations.py tests/test_time_zone.py`.
-
-**Dependencies:** 2.
-
-**Files:** `db/queries/aspirations.sql`, `app/db/` (generated), `app/time_zone.py`, `app/aspirations/` (`routes.py`, `models.py`, `rules.py`), `tests/test_aspirations.py`, `tests/test_time_zone.py`.
-
-### Task 6: openapi.json
-
-**Description:** One command writes the schema to a committed file; a test fails when the file doesn't match the app.
-
-**Acceptance criteria:**
-- [x] `uv run python -m app.openapi` writes `openapi.json` at the repo root, and running it again changes nothing.
-- [x] `tests/test_contract.py` fails when the file is out of date, with a message naming the command.
-- [x] The file holds the six operations by their camelCase names, and `tests/test_contract.py` checks they are there.
-
-**Verify:** `uv run pytest tests/test_contract.py`; change a model, see the test fail, regenerate, see it pass.
-
-**Dependencies:** 2 to 5.
-
-**Files:** `app/openapi.py`, `openapi.json`, `tests/test_contract.py`.
-
-**Checkpoint:** every spec criterion but the docs and the front end's is met; the four checks pass.
-
-### Task 7: Docs
-
-**Description:** Write down what the slice added and decided.
-
-**Acceptance criteria:**
-- [x] `README.md` and `CLAUDE.md` cover the new files, "adding a route", the `openapi.json` command and the time zone header.
-- [x] `specs/README.md` names the header in decision 9 and the rules-module and errors conventions; `specs/aspirations.md` is marked built with its open questions settled and the front-end criterion moved to #40.
-- [x] Docs-repo PR: the parent `CLAUDE.md` says the first routes are in. A comment on front-end #40 lists where the contract differs from the hand-written types.
-
-**Verify:** the four checks; both PRs open and linked.
-
-**Dependencies:** 1 to 6.
-
-**Files:** `README.md`, `CLAUDE.md`, `specs/README.md`, `specs/aspirations.md`, `tasks/todo.md`; `../CLAUDE.md` (docs repo).
+- [ ] Every spec success criterion met, or moved to #40 by agreement.
+- [ ] The four checks pass; PR opened.

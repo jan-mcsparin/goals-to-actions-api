@@ -17,7 +17,7 @@ from app.errors import NotFound
 from app.goals import rules as goal_rules
 from app.goals.models import GoalEdit, NewGoal, WeeklyTargetInput
 from app.milestones import rules as milestone_rules
-from app.milestones.models import MilestoneEdit, NewMilestone
+from app.milestones.models import MilestoneEdit, MilestoneOrder, NewMilestone
 
 NEW_GOAL = NewGoal(type="oneOff", label="Move house", measurable_line="Keys handed in")
 
@@ -52,6 +52,9 @@ WRITES: dict[str, Callable[[Connection], object]] = {
     ),
     "update milestone": lambda tx: milestone_rules.update(
         tx, FIXED_USER_ID, uuid4(), MilestoneEdit(measurable_line="Bench 155")
+    ),
+    "reorder milestones": lambda tx: milestone_rules.reorder(
+        tx, FIXED_USER_ID, uuid4(), MilestoneOrder(ids=[])
     ),
 }
 

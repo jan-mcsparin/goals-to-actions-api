@@ -71,3 +71,9 @@ class MilestoneEdit(ApiModel):
 
     measurable_line: Line
     target_date: date | None = None
+
+
+class MilestoneOrder(ApiModel):
+    """Every milestone of the goal, first to be checked in first."""
+
+    ids: Annotated[list[UUID], Field(max_length=500)]

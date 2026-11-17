@@ -276,3 +276,42 @@ def test_a_goals_deadline_cannot_move_before_a_milestones_date(
 
     assert too_early.status_code == 409
     assert on_it.status_code == 200
+
+
+# reorderMilestones
+
+
+def reorder(client: TestClient, goal_id: str, ids: list[str]) -> Any:
+    return client.post(f"/api/goals/{goal_id}/milestones/reorder", json={"ids": ids})
+
+
+def test_reorder_puts_the_milestones_in_the_order_given(goals_client: TestClient) -> None:
+    before = goal_with_dates(goals_client, None, None, None)
+    first, second, third = (m["id"] for m in before["milestones"])
+
+    response = reorder(goals_client, before["goal"]["id"], [third, first, second])
+
+    assert response.status_code == 200, response.text
+    assert lines(response.json()) == [(1, "M3"), (2, "M1"), (3, "M2")]
+
+
+@pytest.mark.parametrize("which", ["missing", "repeated", "unknown"])
+def test_reorder_must_name_each_milestone_once(goals_client: TestClient, which: str) -> None:
+    before = goal_with_dates(goals_client, None, None)
+    first, second = (m["id"] for m in before["milestones"])
+    ids = {
+        "missing": [first],
+        "repeated": [first, second, first],
+        "unknown": [first, str(uuid4())],
+    }[which]
+
+    assert reorder(goals_client, before["goal"]["id"], ids).status_code == 409
+    assert lines(page(goals_client, before["goal"]["id"])) == [(1, "M1"), (2, "M2")]
+
+
+def test_reorder_of_another_users_goal_is_not_found(
+    goals_client: TestClient, connection: Connection
+) -> None:
+    theirs = add_goal_for(connection, add_other_user(connection))
+
+    assert reorder(goals_client, str(theirs), []).status_code == 404

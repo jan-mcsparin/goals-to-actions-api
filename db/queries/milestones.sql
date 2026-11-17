@@ -28,3 +28,14 @@ returning *;
 -- name: SetMilestoneDate :exec
 update milestones set target_date = $3
 where id = $1 and user_id = $2 and deleted_at is null;
+
+-- Numbers the goal's milestones in the order of the ids given.
+-- name: SetMilestonePositions :exec
+update milestones
+set position = new_order.position
+from unnest(sqlc.arg(ids)::uuid[]) with ordinality as new_order (id, position)
+where milestones.id = new_order.id
+  and milestones.goal_id = sqlc.arg(goal_id)
+  and milestones.user_id = sqlc.arg(user_id)
+  and milestones.deleted_at is null
+  and milestones.position <> new_order.position;

@@ -4,7 +4,7 @@
 # source: milestones.sql
 import datetime
 import pydantic
-from typing import Iterator, Optional
+from typing import Iterator, List, Optional
 import uuid
 
 import sqlalchemy
@@ -48,6 +48,18 @@ order by position
 SET_MILESTONE_DATE = """-- name: set_milestone_date \\:exec
 update milestones set target_date = :p3
 where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
+SET_MILESTONE_POSITIONS = """-- name: set_milestone_positions \\:exec
+update milestones
+set position = new_order.position
+from unnest(:p3\\:\\:uuid[]) with ordinality as new_order (id, position)
+where milestones.id = new_order.id
+  and milestones.goal_id = :p1
+  and milestones.user_id = :p2
+  and milestones.deleted_at is null
+  and milestones.position <> new_order.position
 """
 
 
@@ -126,6 +138,9 @@ class Querier:
 
     def set_milestone_date(self, *, id: uuid.UUID, user_id: uuid.UUID, target_date: Optional[datetime.date]) -> None:
         self._conn.execute(sqlalchemy.text(SET_MILESTONE_DATE), {"p1": id, "p2": user_id, "p3": target_date})
+
+    def set_milestone_positions(self, *, goal_id: uuid.UUID, user_id: uuid.UUID, ids: List[uuid.UUID]) -> None:
+        self._conn.execute(sqlalchemy.text(SET_MILESTONE_POSITIONS), {"p1": goal_id, "p2": user_id, "p3": ids})
 
     def update_milestone(self, *, id: uuid.UUID, user_id: uuid.UUID, measurable_line: str, target_date: Optional[datetime.date]) -> Optional[models.Milestone]:
         row = self._conn.execute(sqlalchemy.text(UPDATE_MILESTONE), {

@@ -9,7 +9,7 @@ from sqlalchemy import Connection
 from app.db import goals, milestones, models
 from app.errors import NotAllowed, NotFound
 from app.goals.rules import lock_user
-from app.milestones.models import MilestoneEdit, NewMilestone
+from app.milestones.models import MilestoneEdit, MilestoneOrder, NewMilestone
 
 
 def add(connection: Connection, user_id: UUID, milestone_id: UUID, new: NewMilestone) -> UUID:
@@ -58,6 +58,18 @@ def update(connection: Connection, user_id: UUID, milestone_id: UUID, edit: Mile
         target_date=edit.target_date,
     )
     return goal.id
+
+
+def reorder(connection: Connection, user_id: UUID, goal_id: UUID, order: MilestoneOrder) -> None:
+    """Puts the goal's milestones in the order given, which must name each of them once."""
+    lock_user(connection, user_id)
+    if goals.Querier(connection).get_goal(id=goal_id, user_id=user_id) is None:
+        raise NotFound
+    queries = milestones.Querier(connection)
+    current = {row.id for row in queries.list_milestones(goal_id=goal_id, user_id=user_id)}
+    if len(order.ids) != len(current) or set(order.ids) != current:
+        raise NotAllowed("The order must list every milestone of the goal once.")
+    queries.set_milestone_positions(ids=order.ids, goal_id=goal_id, user_id=user_id)
 
 
 def pushed_dates(

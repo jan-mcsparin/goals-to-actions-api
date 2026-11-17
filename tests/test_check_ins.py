@@ -43,18 +43,17 @@ def goal_with_milestones(client: TestClient, count: int, **changes: Any) -> Any:
     return page(client, goal["id"])
 
 
-def history(connection: Connection) -> list[tuple[str | None, str, str | None]]:
+def history(connection: Connection) -> set[tuple[str | None, str, str | None]]:
+    """The check-ins kept, dated today. A set: one test is one transaction, so every row has
+    the same created_at and there's no order to read."""
     rows = connection.execute(
-        text(
-            "select milestone_id, outcome, result, checked_in_on from check_ins"
-            " order by created_at, id"
-        )
+        text("select milestone_id, outcome, result, checked_in_on from check_ins")
     )
-    return [
+    return {
         (row.milestone_id and str(row.milestone_id), row.outcome, row.result)
         for row in rows
         if row.checked_in_on == today()
-    ]
+    }
 
 
 def statuses(goal_page: Any) -> list[str]:
@@ -74,7 +73,7 @@ def test_a_hit_on_next_marks_it_hit_and_moves_next_on(
     assert statuses(after) == ["hit", "upcoming"]
     assert after["progress"] == {"hit": 1, "of": 3}
     assert after["latest"] == {"result": "155", "checkedInOn": today().isoformat()}
-    assert history(connection) == [(first, "hit", "155")]
+    assert history(connection) == {(first, "hit", "155")}
     assert check_in(goals_client, before["goal"]["id"], second).status_code == 200
 
 
@@ -91,7 +90,7 @@ def test_a_not_yet_stays_next_and_every_check_in_is_kept(
 
     assert statuses(not_yet) == ["notYet", "upcoming"]
     assert passed_over.status_code == 409
-    assert history(connection) == [(first, "not_yet", "140"), (first, "hit", "155")]
+    assert history(connection) == {(first, "not_yet", "140"), (first, "hit", "155")}
 
 
 def test_a_hit_on_the_goals_own_line_marks_it_reached(goals_client: TestClient) -> None:
@@ -115,7 +114,7 @@ def test_a_not_yet_on_the_goals_own_line_only_adds_to_the_history(
 
     assert after["goal"] == goal
     assert after["progress"] == {"hit": 0, "of": 1}
-    assert history(connection) == [(None, "not_yet", "Day 40")]
+    assert history(connection) == {(None, "not_yet", "Day 40")}
 
 
 def test_the_goals_own_line_is_next_only_once_every_milestone_is_hit(

@@ -78,6 +78,20 @@ def update(
     return updated, latest_target(connection, user_id, goal_id)
 
 
+def set_weekly_target(
+    connection: Connection, user_id: UUID, goal_id: UUID, target: WeeklyTargetInput, today: date
+) -> tuple[models.Goal, models.WeeklyTarget]:
+    """Sets a building goal's target, this week or from next week once it's open."""
+    owner = lock_user(connection, user_id)
+    goal = goals.Querier(connection).get_goal(id=goal_id, user_id=user_id)
+    if goal is None:
+        raise NotFound
+    if goal.type != "building":
+        raise NotAllowed("Only a building goal has a weekly target.")
+    week = target_week(today, owner.planned_through_week)
+    return goal, set_target(connection, user_id, goal_id, target, week)
+
+
 def lock_user(connection: Connection, user_id: UUID) -> users.GetUserRow:
     """Writes to a user's goals run one at a time."""
     queries = users.Querier(connection)

@@ -6,7 +6,7 @@ from app.db import goals, weekly_targets
 from app.dependencies import CurrentDatabase, CurrentUserId
 from app.errors import NotFound
 from app.goals import rules
-from app.goals.models import Goal, GoalEdit, GoalList, NewGoal
+from app.goals.models import Goal, GoalEdit, GoalList, NewGoal, WeeklyTargetInput
 from app.schemas import NOT_ALLOWED, NOT_FOUND
 from app.time_zone import Today
 
@@ -51,4 +51,17 @@ def update_goal(
 ) -> Goal:
     with database.transaction(user_id, "update goal") as connection:
         row, target = rules.update(connection, user_id, goal_id, body)
+    return Goal.from_row(row, target, today)
+
+
+@router.put("/{goal_id}/weekly-target", responses=NOT_FOUND | NOT_ALLOWED)
+def set_weekly_target(
+    goal_id: UUID,
+    body: WeeklyTargetInput,
+    database: CurrentDatabase,
+    user_id: CurrentUserId,
+    today: Today,
+) -> Goal:
+    with database.transaction(user_id, "set weekly target") as connection:
+        row, target = rules.set_weekly_target(connection, user_id, goal_id, body, today)
     return Goal.from_row(row, target, today)

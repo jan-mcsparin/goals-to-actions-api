@@ -15,7 +15,7 @@ from app.config import FIXED_USER_ID
 from app.database import Database
 from app.errors import NotFound
 from app.goals import rules as goal_rules
-from app.goals.models import GoalEdit, NewGoal
+from app.goals.models import GoalEdit, NewGoal, WeeklyTargetInput
 
 NEW_GOAL = NewGoal(type="oneOff", label="Move house", measurable_line="Keys handed in")
 
@@ -34,6 +34,13 @@ WRITES: dict[str, Callable[[Connection], object]] = {
     ),
     "update goal": lambda tx: goal_rules.update(
         tx, FIXED_USER_ID, uuid4(), GoalEdit(label="Move", measurable_line="Keys handed in")
+    ),
+    "set weekly target": lambda tx: goal_rules.set_weekly_target(
+        tx,
+        FIXED_USER_ID,
+        uuid4(),
+        WeeklyTargetInput(kind="count", sessions=3, unit="runs"),
+        date(2026, 11, 16),
     ),
 }
 

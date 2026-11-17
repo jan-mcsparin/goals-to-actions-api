@@ -394,3 +394,122 @@ def test_update_is_audited(goals_client: TestClient, connection: Connection) -> 
         "create goal",
         "update goal",
     ]
+
+
+# setWeeklyTarget
+
+
+def set_target(client: TestClient, goal_id: str, body: dict[str, Any]) -> Any:
+    return client.put(f"/api/goals/{goal_id}/weekly-target", json=body)
+
+
+FOUR_RUNS = {"kind": "amount", "sessions": 4, "amount": 25, "unit": "miles"}
+
+
+def target_rows(connection: Connection, goal_id: str) -> list[tuple[date, int]]:
+    rows = connection.execute(
+        text(
+            "select effective_from, sessions from weekly_targets where goal_id = :goal_id"
+            " order by effective_from"
+        ),
+        {"goal_id": goal_id},
+    )
+    return [(row.effective_from, row.sessions) for row in rows]
+
+
+def test_a_change_this_week_replaces_this_weeks_target(
+    goals_client: TestClient, connection: Connection
+) -> None:
+    goal = create_goal(goals_client, lifting())
+
+    response = set_target(goals_client, goal["id"], FOUR_RUNS)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["weeklyTarget"] == {
+        "kind": "amount",
+        "sessions": 4,
+        "amount": 25,
+        "unit": "miles",
+        "effectiveFrom": week_of(today()).isoformat(),
+    }
+    assert target_rows(connection, goal["id"]) == [(week_of(today()), 4)]
+
+
+def test_once_next_week_is_open_a_change_starts_next_week(
+    goals_client: TestClient, connection: Connection
+) -> None:
+    goal = create_goal(goals_client, lifting())
+    next_week = week_of(today()) + timedelta(weeks=1)
+    connection.execute(
+        text("update users set planned_through_week = :week where id = :id"),
+        {"week": next_week, "id": FIXED_USER_ID},
+    )
+
+    changed = set_target(goals_client, goal["id"], FOUR_RUNS).json()
+
+    assert changed["weeklyTarget"]["effectiveFrom"] == next_week.isoformat()
+    assert target_rows(connection, goal["id"]) == [(week_of(today()), 3), (next_week, 4)]
+
+
+def test_last_weeks_target_is_kept(goals_client: TestClient, connection: Connection) -> None:
+    goal = create_goal(goals_client, lifting())
+    last_week = week_of(today()) - timedelta(weeks=1)
+    connection.execute(
+        text("update weekly_targets set effective_from = :week where goal_id = :goal_id"),
+        {"week": last_week, "goal_id": goal["id"]},
+    )
+
+    set_target(goals_client, goal["id"], FOUR_RUNS)
+
+    assert target_rows(connection, goal["id"]) == [(last_week, 3), (week_of(today()), 4)]
+
+
+def test_the_same_target_again_changes_nothing(
+    goals_client: TestClient, connection: Connection
+) -> None:
+    goal = create_goal(goals_client, lifting())
+    first = set_target(goals_client, goal["id"], FOUR_RUNS).json()
+
+    again = set_target(goals_client, goal["id"], FOUR_RUNS).json()
+
+    assert again == first
+    actions = connection.execute(
+        text(
+            "select action from audit_log where row_id in"
+            " (select id from weekly_targets where goal_id = :goal_id) order by id"
+        ),
+        {"goal_id": goal["id"]},
+    ).scalars()
+    assert list(actions) == ["create goal", "set weekly target"]
+
+
+@pytest.mark.parametrize("goal_type", ["quitting", "oneOff"])
+def test_only_a_building_goal_has_a_target(goals_client: TestClient, goal_type: str) -> None:
+    goal = create_goal(goals_client, no_sugar(type=goal_type))
+
+    assert set_target(goals_client, goal["id"], FOUR_RUNS).status_code == 409
+
+
+def test_a_target_for_another_users_goal_is_not_found(
+    goals_client: TestClient, connection: Connection
+) -> None:
+    theirs = add_goal_for(connection, add_other_user(connection))
+
+    assert set_target(goals_client, str(theirs), FOUR_RUNS).status_code == 404
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"kind": "amount", "sessions": 4, "unit": "miles"},
+        {"kind": "count", "sessions": 4, "amount": 5, "unit": "runs"},
+        {"kind": "count", "sessions": 15, "unit": "runs"},
+        {"kind": "count", "sessions": 3, "unit": ""},
+    ],
+)
+def test_a_target_that_breaks_the_rules_is_refused(
+    goals_client: TestClient, body: dict[str, Any]
+) -> None:
+    goal = create_goal(goals_client, lifting())
+
+    assert set_target(goals_client, goal["id"], body).status_code == 422

@@ -209,3 +209,47 @@ def test_a_check_in_that_breaks_the_rules_is_refused(
     response = goals_client.put(f"/api/check-ins/{uuid4()}", json=request)
 
     assert response.status_code == 422
+
+
+# keepMilestone
+
+
+def keep(client: TestClient, milestone_id: str) -> Any:
+    return client.post(f"/api/milestones/{milestone_id}/keep")
+
+
+def test_keep_puts_a_not_yet_back_to_upcoming_and_leaves_the_history(
+    goals_client: TestClient, connection: Connection
+) -> None:
+    before = goal_with_milestones(goals_client, 1)
+    first = before["milestones"][0]
+    check_in(goals_client, before["goal"]["id"], first["id"], "notYet", "140")
+
+    response = keep(goals_client, first["id"])
+
+    assert response.status_code == 200, response.text
+    assert response.json()["milestones"] == [first]
+    assert history(connection) == {(first["id"], "not_yet", "140")}
+
+
+def test_keep_on_an_upcoming_milestone_changes_nothing(
+    goals_client: TestClient, connection: Connection
+) -> None:
+    before = goal_with_milestones(goals_client, 1)
+    first = before["milestones"][0]
+    audited = connection.execute(text("select count(*) from audit_log")).scalar()
+
+    assert keep(goals_client, first["id"]).json() == before
+    assert connection.execute(text("select count(*) from audit_log")).scalar() == audited
+
+
+def test_keep_on_a_hit_milestone_is_not_allowed(goals_client: TestClient) -> None:
+    before = goal_with_milestones(goals_client, 1)
+    first = before["milestones"][0]["id"]
+    check_in(goals_client, before["goal"]["id"], first)
+
+    assert keep(goals_client, first).status_code == 409
+
+
+def test_keep_of_an_unknown_milestone_is_not_found(goals_client: TestClient) -> None:
+    assert keep(goals_client, str(uuid4())).status_code == 404

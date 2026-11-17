@@ -116,6 +116,21 @@ def check_in(
     return goal.id
 
 
+def keep(connection: Connection, user_id: UUID, milestone_id: UUID) -> UUID:
+    """After a "not yet", keeps the milestone as it is and makes it upcoming again. Moving or
+    adjusting it is an edit. Sent again, it changes nothing."""
+    lock_user(connection, user_id)
+    queries = milestones.Querier(connection)
+    milestone = queries.get_milestone(id=milestone_id, user_id=user_id)
+    if milestone is None:
+        raise NotFound
+    if milestone.status == "hit":
+        raise NotAllowed("A milestone that's hit has nothing to keep.")
+    if milestone.status == "not_yet":
+        queries.set_milestone_status(id=milestone_id, user_id=user_id, status="upcoming")
+    return milestone.goal_id
+
+
 def pushed_dates(
     rows: list[models.Milestone],
     moved: models.Milestone,

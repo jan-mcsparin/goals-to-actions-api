@@ -69,3 +69,13 @@ def check_in(
     with database.transaction(user_id, "check in") as connection:
         goal_id = rules.check_in(connection, user_id, check_in_id, body, today)
         return goal_page(connection, user_id, goal_id, today)
+
+
+@router.post("/milestones/{milestone_id}/keep", responses=NOT_FOUND | NOT_ALLOWED)
+def keep_milestone(
+    milestone_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> GoalPage:
+    """After a "not yet": keep the date and the line, and make it upcoming again."""
+    with database.transaction(user_id, "keep milestone") as connection:
+        goal_id = rules.keep(connection, user_id, milestone_id)
+        return goal_page(connection, user_id, goal_id, today)

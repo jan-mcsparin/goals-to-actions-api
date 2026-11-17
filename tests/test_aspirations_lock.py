@@ -63,6 +63,7 @@ WRITES: dict[str, Callable[[Connection], object]] = {
         NewCheckIn(goal_id=uuid4(), milestone_id=None, outcome="hit"),
         date(2026, 11, 16),
     ),
+    "keep milestone": lambda tx: milestone_rules.keep(tx, FIXED_USER_ID, uuid4()),
 }
 
 

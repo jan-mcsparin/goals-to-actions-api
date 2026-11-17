@@ -116,6 +116,25 @@ ALTER TABLE public.audit_log ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 
 
 --
+-- Name: check_ins; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.check_ins (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    goal_id uuid NOT NULL,
+    milestone_id uuid,
+    outcome text NOT NULL,
+    result text,
+    checked_in_on date NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT check_ins_outcome_check CHECK ((outcome = ANY (ARRAY['hit'::text, 'not_yet'::text])))
+);
+
+
+--
 -- Name: goals; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -250,6 +269,22 @@ ALTER TABLE ONLY public.audit_log
 
 
 --
+-- Name: check_ins check_ins_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.check_ins
+    ADD CONSTRAINT check_ins_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: goals goals_id_owner; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.goals
+    ADD CONSTRAINT goals_id_owner UNIQUE (id, user_id);
+
+
+--
 -- Name: goals goals_id_owner_type; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -336,6 +371,20 @@ CREATE TRIGGER aspirations_set_updated_at BEFORE UPDATE ON public.aspirations FO
 
 
 --
+-- Name: check_ins check_ins_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER check_ins_audit AFTER INSERT OR DELETE OR UPDATE ON public.check_ins FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: check_ins check_ins_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER check_ins_set_updated_at BEFORE UPDATE ON public.check_ins FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: goals goals_audit; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -397,6 +446,30 @@ CREATE TRIGGER weekly_targets_set_updated_at BEFORE UPDATE ON public.weekly_targ
 
 ALTER TABLE ONLY public.aspirations
     ADD CONSTRAINT aspirations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: check_ins check_ins_goal_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.check_ins
+    ADD CONSTRAINT check_ins_goal_same_owner FOREIGN KEY (goal_id, user_id) REFERENCES public.goals(id, user_id);
+
+
+--
+-- Name: check_ins check_ins_milestone_of_goal; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.check_ins
+    ADD CONSTRAINT check_ins_milestone_of_goal FOREIGN KEY (milestone_id, goal_id) REFERENCES public.milestones(id, goal_id);
+
+
+--
+-- Name: check_ins check_ins_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.check_ins
+    ADD CONSTRAINT check_ins_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 
 --
@@ -464,4 +537,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261116195619'),
     ('20261116230000'),
     ('20261116230100'),
-    ('20261117000000');
+    ('20261117000000'),
+    ('20261117000100');

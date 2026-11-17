@@ -72,6 +72,17 @@ def test_the_aspirations_operations_are_in_the_schema() -> None:
     }
 
 
+def test_every_route_is_served_under_api() -> None:
+    outside = [path for path in app.openapi()["paths"] if not path.startswith("/api/")]
+
+    assert outside == []
+
+
+def test_the_schema_and_docs_are_served_under_api() -> None:
+    assert app.openapi_url == "/api/openapi.json"
+    assert app.docs_url == "/api/docs"
+
+
 def test_the_committed_schema_is_up_to_date() -> None:
     assert OPENAPI_FILE.read_text() == schema_text(), (
         "openapi.json is out of date. Run `uv run python -m app.openapi` and commit the result."
@@ -81,5 +92,5 @@ def test_the_committed_schema_is_up_to_date() -> None:
 def test_the_schema_says_which_errors_a_route_can_send() -> None:
     paths = app.openapi()["paths"]
 
-    assert "404" in paths["/aspirations/{aspiration_id}/retire"]["post"]["responses"]
-    assert "409" in paths["/aspirations/reorder"]["post"]["responses"]
+    assert "404" in paths["/api/aspirations/{aspiration_id}/retire"]["post"]["responses"]
+    assert "409" in paths["/api/aspirations/reorder"]["post"]["responses"]

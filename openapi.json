@@ -224,7 +224,7 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/aspirations": {
+    "/api/aspirations": {
       "get": {
         "operationId": "listAspirations",
         "responses": {
@@ -245,7 +245,7 @@
         ]
       }
     },
-    "/aspirations/reorder": {
+    "/api/aspirations/reorder": {
       "post": {
         "operationId": "reorderAspirations",
         "requestBody": {
@@ -296,7 +296,7 @@
         ]
       }
     },
-    "/aspirations/{aspiration_id}": {
+    "/api/aspirations/{aspiration_id}": {
       "patch": {
         "operationId": "updateAspiration",
         "parameters": [
@@ -420,7 +420,7 @@
         ]
       }
     },
-    "/aspirations/{aspiration_id}/bring-back": {
+    "/api/aspirations/{aspiration_id}/bring-back": {
       "post": {
         "operationId": "bringBackAspiration",
         "parameters": [
@@ -473,7 +473,7 @@
         ]
       }
     },
-    "/aspirations/{aspiration_id}/retire": {
+    "/api/aspirations/{aspiration_id}/retire": {
       "post": {
         "operationId": "retireAspiration",
         "parameters": [
@@ -535,7 +535,7 @@
         ]
       }
     },
-    "/health": {
+    "/api/health": {
       "get": {
         "operationId": "health",
         "responses": {

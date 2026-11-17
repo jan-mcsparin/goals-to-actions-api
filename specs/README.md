@@ -68,7 +68,7 @@ Settled 2026-11-16 (ADR-010):
 
 Settled 2026-11-16 (ADR-011):
 
-16. **The API serves its routes under `/api`,** locally as well as hosted, so a request looks the same through the dev proxy and through CloudFront. The routes built so far have no prefix yet; issue #20 adds it.
+16. **The API serves its routes under `/api`,** locally as well as hosted, so a request looks the same through the dev proxy and through CloudFront. Slice routers carry their own prefix (`/aspirations`); `main.py` adds `/api` to all of them, and a contract test fails for any route outside it.
 17. **Hosted, each running copy of the API holds one database connection** and checks it before use. Locally the default pool stays.
 
 ## Shared conventions

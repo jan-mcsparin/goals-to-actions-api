@@ -10,14 +10,14 @@ from app.config import FIXED_USER_ID
 
 
 def create(client: TestClient, name: str, why: str | None = None) -> dict[str, Any]:
-    response = client.put(f"/aspirations/{uuid4()}", json={"name": name, "why": why})
+    response = client.put(f"/api/aspirations/{uuid4()}", json={"name": name, "why": why})
     assert response.status_code == 200, response.text
     aspiration: dict[str, Any] = response.json()
     return aspiration
 
 
 def listed(client: TestClient) -> list[dict[str, Any]]:
-    response = client.get("/aspirations")
+    response = client.get("/api/aspirations")
     assert response.status_code == 200, response.text
     aspirations: list[dict[str, Any]] = response.json()["aspirations"]
     return aspirations
@@ -60,7 +60,8 @@ def test_create_returns_the_aspiration_first_in_priority(client: TestClient) -> 
     aspiration_id = str(uuid4())
 
     response = client.put(
-        f"/aspirations/{aspiration_id}", json={"name": "Be fit", "why": "To keep up with the kids"}
+        f"/api/aspirations/{aspiration_id}",
+        json={"name": "Be fit", "why": "To keep up with the kids"},
     )
 
     assert response.status_code == 200
@@ -85,7 +86,7 @@ def test_a_new_aspiration_goes_last(client: TestClient) -> None:
 
 
 def test_why_is_optional(client: TestClient) -> None:
-    response = client.put(f"/aspirations/{uuid4()}", json={"name": "Be fit"})
+    response = client.put(f"/api/aspirations/{uuid4()}", json={"name": "Be fit"})
 
     assert response.json()["why"] is None
 
@@ -98,7 +99,7 @@ def test_name_and_why_are_trimmed_and_a_blank_why_is_empty(client: TestClient) -
 
 
 def test_a_blank_name_is_refused(client: TestClient) -> None:
-    response = client.put(f"/aspirations/{uuid4()}", json={"name": "   "})
+    response = client.put(f"/api/aspirations/{uuid4()}", json={"name": "   "})
 
     assert response.status_code == 422
     assert listed(client) == []
@@ -106,16 +107,16 @@ def test_a_blank_name_is_refused(client: TestClient) -> None:
 
 def test_text_postgres_cannot_hold_is_refused(client: TestClient) -> None:
     for body in [{"name": "Be\u0000fit"}, {"name": "Be fit", "why": "Because\u0000"}]:
-        response = client.put(f"/aspirations/{uuid4()}", json=body)
+        response = client.put(f"/api/aspirations/{uuid4()}", json=body)
 
         assert response.status_code == 422
     assert listed(client) == []
 
 
 def test_name_and_why_have_a_longest_length(client: TestClient) -> None:
-    fits = client.put(f"/aspirations/{uuid4()}", json={"name": "n" * 200, "why": "w" * 2000})
-    long_name = client.put(f"/aspirations/{uuid4()}", json={"name": "n" * 201})
-    long_why = client.put(f"/aspirations/{uuid4()}", json={"name": "Be fit", "why": "w" * 2001})
+    fits = client.put(f"/api/aspirations/{uuid4()}", json={"name": "n" * 200, "why": "w" * 2000})
+    long_name = client.put(f"/api/aspirations/{uuid4()}", json={"name": "n" * 201})
+    long_why = client.put(f"/api/aspirations/{uuid4()}", json={"name": "Be fit", "why": "w" * 2001})
 
     assert fits.status_code == 200
     assert long_name.status_code == 422
@@ -129,8 +130,8 @@ def test_the_same_create_twice_makes_one_aspiration(
     aspiration_id = uuid4()
     body = {"name": "Be fit", "why": None}
 
-    first = client.put(f"/aspirations/{aspiration_id}", json=body)
-    second = client.put(f"/aspirations/{aspiration_id}", json=body)
+    first = client.put(f"/api/aspirations/{aspiration_id}", json=body)
+    second = client.put(f"/api/aspirations/{aspiration_id}", json=body)
 
     assert second.status_code == 200
     assert second.json() == first.json()
@@ -140,9 +141,9 @@ def test_the_same_create_twice_makes_one_aspiration(
 
 def test_a_repeated_create_returns_the_row_as_it_is(client: TestClient) -> None:
     aspiration_id = uuid4()
-    client.put(f"/aspirations/{aspiration_id}", json={"name": "Be fit"})
+    client.put(f"/api/aspirations/{aspiration_id}", json={"name": "Be fit"})
 
-    again = client.put(f"/aspirations/{aspiration_id}", json={"name": "Be fitter"})
+    again = client.put(f"/api/aspirations/{aspiration_id}", json={"name": "Be fitter"})
 
     assert again.json()["name"] == "Be fit"
 
@@ -152,7 +153,7 @@ def test_create_with_another_users_id_is_refused(
 ) -> None:
     theirs = add_aspiration_for(connection, add_other_user(connection), "Be kind")
 
-    response = client.put(f"/aspirations/{theirs}", json={"name": "Be fit"})
+    response = client.put(f"/api/aspirations/{theirs}", json={"name": "Be fit"})
 
     assert response.status_code == 409
     assert response.json() == {"detail": "That id is already in use."}
@@ -219,7 +220,7 @@ def test_list_leaves_out_other_users_and_deleted_aspirations(
 
 
 def reorder(client: TestClient, ids: list[str]) -> Any:
-    return client.post("/aspirations/reorder", json={"ids": ids})
+    return client.post("/api/aspirations/reorder", json={"ids": ids})
 
 
 def test_reorder_numbers_the_active_aspirations_in_the_order_sent(client: TestClient) -> None:
@@ -323,7 +324,8 @@ def test_update_changes_name_and_why_and_nothing_else(client: TestClient) -> Non
     write = create(client, "Write", "I have things to say")
 
     response = client.patch(
-        f"/aspirations/{write['id']}", json={"name": " Write daily ", "why": "It clears my head"}
+        f"/api/aspirations/{write['id']}",
+        json={"name": " Write daily ", "why": "It clears my head"},
     )
 
     assert response.status_code == 200
@@ -334,7 +336,7 @@ def test_update_changes_name_and_why_and_nothing_else(client: TestClient) -> Non
 def test_update_with_no_why_empties_it(client: TestClient) -> None:
     write = create(client, "Write", "I have things to say")
 
-    response = client.patch(f"/aspirations/{write['id']}", json={"name": "Write", "why": None})
+    response = client.patch(f"/api/aspirations/{write['id']}", json={"name": "Write", "why": None})
 
     assert response.json()["why"] is None
 
@@ -349,7 +351,7 @@ def test_update_works_on_a_retired_aspiration(client: TestClient, connection: Co
         {"id": retired, "user_id": FIXED_USER_ID},
     )
 
-    response = client.patch(f"/aspirations/{retired}", json={"name": "Sail the coast"})
+    response = client.patch(f"/api/aspirations/{retired}", json={"name": "Sail the coast"})
 
     assert response.status_code == 200
     assert response.json()["name"] == "Sail the coast"
@@ -362,7 +364,7 @@ def test_update_of_an_unknown_or_another_users_aspiration_is_not_found(
     theirs = add_aspiration_for(connection, add_other_user(connection), "Be kind")
 
     for aspiration_id in [uuid4(), theirs]:
-        response = client.patch(f"/aspirations/{aspiration_id}", json={"name": "Mine now"})
+        response = client.patch(f"/api/aspirations/{aspiration_id}", json={"name": "Mine now"})
 
         assert response.status_code == 404
         assert response.json() == {"detail": "Not Found"}
@@ -375,7 +377,7 @@ def test_update_of_an_unknown_or_another_users_aspiration_is_not_found(
 def test_update_refuses_a_blank_name(client: TestClient) -> None:
     write = create(client, "Write")
 
-    response = client.patch(f"/aspirations/{write['id']}", json={"name": ""})
+    response = client.patch(f"/api/aspirations/{write['id']}", json={"name": ""})
 
     assert response.status_code == 422
     assert names_and_positions(client) == [("Write", 1)]
@@ -384,7 +386,7 @@ def test_update_refuses_a_blank_name(client: TestClient) -> None:
 def test_update_is_audited(client: TestClient, connection: Connection) -> None:
     write = create(client, "Write")
 
-    client.patch(f"/aspirations/{write['id']}", json={"name": "Write daily"})
+    client.patch(f"/api/aspirations/{write['id']}", json={"name": "Write daily"})
 
     assert audit_rows(connection, write["id"])[-1].action == "update aspiration"
 
@@ -395,11 +397,13 @@ FAR_EAST = "Pacific/Kiritimati"
 
 
 def retire(client: TestClient, aspiration_id: str | UUID, time_zone: str = FAR_EAST) -> Any:
-    return client.post(f"/aspirations/{aspiration_id}/retire", headers={"X-Time-Zone": time_zone})
+    return client.post(
+        f"/api/aspirations/{aspiration_id}/retire", headers={"X-Time-Zone": time_zone}
+    )
 
 
 def bring_back(client: TestClient, aspiration_id: str | UUID) -> Any:
-    return client.post(f"/aspirations/{aspiration_id}/bring-back")
+    return client.post(f"/api/aspirations/{aspiration_id}/bring-back")
 
 
 def test_retire_empties_the_position_and_sets_the_day_in_the_phones_time_zone(
@@ -459,7 +463,7 @@ def test_retiring_twice_changes_nothing(client: TestClient, connection: Connecti
 def test_retire_needs_a_time_zone_it_knows(client: TestClient) -> None:
     fit = create(client, "Be fit")
 
-    missing = client.post(f"/aspirations/{fit['id']}/retire")
+    missing = client.post(f"/api/aspirations/{fit['id']}/retire")
     unknown = retire(client, fit["id"], "Mars/Olympus_Mons")
 
     assert missing.status_code == 422

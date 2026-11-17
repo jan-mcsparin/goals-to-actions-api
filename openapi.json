@@ -149,6 +149,148 @@
         "title": "ErrorMessage",
         "type": "object"
       },
+      "Goal": {
+        "properties": {
+          "aspirationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aspirationid"
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline"
+          },
+          "endedOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endedon"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "measurableLine": {
+            "title": "Measurableline",
+            "type": "string"
+          },
+          "slipped": {
+            "description": "Active, with its deadline before today.",
+            "title": "Slipped",
+            "type": "boolean"
+          },
+          "startDate": {
+            "format": "date",
+            "title": "Startdate",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "paused",
+              "reached",
+              "ended"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "building",
+              "quitting",
+              "oneOff"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "weeklyTarget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeeklyTarget"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The latest target. Its effectiveFrom is after this week when a change waits for next week. Empty for quitting and one-off goals."
+          }
+        },
+        "required": [
+          "id",
+          "aspirationId",
+          "type",
+          "label",
+          "measurableLine",
+          "baseline",
+          "status",
+          "startDate",
+          "deadline",
+          "endedOn",
+          "slipped",
+          "weeklyTarget",
+          "createdAt"
+        ],
+        "title": "Goal",
+        "type": "object"
+      },
+      "GoalList": {
+        "properties": {
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/Goal"
+            },
+            "title": "Goals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "goals"
+        ],
+        "title": "GoalList",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -174,6 +316,98 @@
           "status"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "NewGoal": {
+        "description": "A goal as first made. A building goal comes with its first weekly target.",
+        "properties": {
+          "aspirationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aspirationid"
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline"
+          },
+          "label": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "measurableLine": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Measurableline",
+            "type": "string"
+          },
+          "startDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Today when left out.",
+            "title": "Startdate"
+          },
+          "type": {
+            "enum": [
+              "building",
+              "quitting",
+              "oneOff"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "weeklyTarget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeeklyTargetInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "label",
+          "measurableLine"
+        ],
+        "title": "NewGoal",
         "type": "object"
       },
       "ValidationError": {
@@ -214,6 +448,96 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "WeeklyTarget": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "effectiveFrom": {
+            "format": "date",
+            "title": "Effectivefrom",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "count",
+              "amount"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "sessions",
+          "amount",
+          "unit",
+          "effectiveFrom"
+        ],
+        "title": "WeeklyTarget",
+        "type": "object"
+      },
+      "WeeklyTargetInput": {
+        "description": "A count (\"3 lifting sessions\") or an amount (\"25 miles over 4 runs\").",
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "kind": {
+            "enum": [
+              "count",
+              "amount"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "sessions": {
+            "maximum": 14.0,
+            "minimum": 1.0,
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "unit": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "sessions",
+          "unit"
+        ],
+        "title": "WeeklyTargetInput",
         "type": "object"
       }
     }
@@ -532,6 +856,190 @@
         "summary": "Retire Aspiration",
         "tags": [
           "aspirations"
+        ]
+      }
+    },
+    "/api/goals": {
+      "get": {
+        "operationId": "listGoals",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Goals",
+        "tags": [
+          "goals"
+        ]
+      }
+    },
+    "/api/goals/{goal_id}": {
+      "get": {
+        "operationId": "getGoal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Goal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Goal",
+        "tags": [
+          "goals"
+        ]
+      },
+      "put": {
+        "operationId": "createGoal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewGoal"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Goal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Goal",
+        "tags": [
+          "goals"
         ]
       }
     },

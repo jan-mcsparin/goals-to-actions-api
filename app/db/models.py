@@ -2,6 +2,7 @@
 # versions:
 #   sqlc v1.31.1
 import datetime
+import decimal
 import pydantic
 from typing import Any, Optional
 import uuid
@@ -32,11 +33,43 @@ class AuditLog(pydantic.BaseModel):
     changed_at: datetime.datetime
 
 
+class Goal(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    aspiration_id: Optional[uuid.UUID]
+    type: str
+    label: str
+    measurable_line: str
+    baseline: Optional[str]
+    status: str
+    start_date: datetime.date
+    deadline: Optional[datetime.date]
+    ended_on: Optional[datetime.date]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+
+
 class User(pydantic.BaseModel):
     id: uuid.UUID
     intensity: str
     time_zone: Optional[str]
     planned_through_week: Optional[datetime.date]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+
+
+class WeeklyTarget(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    goal_id: uuid.UUID
+    goal_type: str
+    kind: str
+    sessions: int
+    amount: Optional[decimal.Decimal]
+    unit: str
+    effective_from: datetime.date
     created_at: datetime.datetime
     updated_at: datetime.datetime
     deleted_at: Optional[datetime.datetime]

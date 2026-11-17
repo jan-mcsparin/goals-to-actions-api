@@ -21,7 +21,7 @@ References: [`data-model.md`](../../docs/data-model.md#task_weeks) (how a week e
   - recurring tasks due in that week, by schedule kind;
   - open tasks whose due date falls in the week and have no row yet.
 - **Carry-overs arrive at the close,** not at the opening: a task can have only one row in play, so it can't be in next week while this week still holds it. They are handed to the planner as new arrivals.
-- **One step brings the week up to date,** before any route that needs the day, read or write. Reads are read-only, so it runs in its own write transaction, with its own audit action (`open week`, `close week`), and does nothing when nothing is due.
+- **One step brings the week up to date,** before any route that needs the day, read or write. Reads are read-only, so it runs in its own write transaction, with its own audit action (`open week`, `close week`), and does nothing when nothing is due. It takes the user lock first: opening the app sends several requests at once, and hosted they run on separate copies of the API (ADR-011), so two must not open or close the same week together.
 - **When each runs** (ADR-009), with no job:
   - opening: the first request at or after 6 p.m. on Sunday, by the phone's time zone. The hour is one constant;
   - closing: the first request on Monday or later;
@@ -62,6 +62,7 @@ Most of this slice is set-based SQL with dates, so most tests are at that level,
 - opened on Sunday evening, then closed on Monday: the carry-overs arrive then;
 - never opened on Sunday evening: one request on Monday closes, opens and drafts;
 - wrapping up on Sunday evening, twice, and before next week is open;
+- two requests arriving together when a week is due to open: one opens it, the other waits and finds nothing to do;
 - the phone's week behind the current week after a wrap-up or a flight west.
 
 ## Boundaries

@@ -16,6 +16,8 @@ from app.database import Database
 from app.errors import NotFound
 from app.goals import rules as goal_rules
 from app.goals.models import GoalEdit, NewGoal, WeeklyTargetInput
+from app.milestones import rules as milestone_rules
+from app.milestones.models import NewMilestone
 
 NEW_GOAL = NewGoal(type="oneOff", label="Move house", measurable_line="Keys handed in")
 
@@ -44,6 +46,9 @@ WRITES: dict[str, Callable[[Connection], object]] = {
     ),
     "change goal status": lambda tx: goal_rules.change_status(
         tx, FIXED_USER_ID, uuid4(), goal_rules.PAUSE, date(2026, 11, 16)
+    ),
+    "add milestone": lambda tx: milestone_rules.add(
+        tx, FIXED_USER_ID, uuid4(), NewMilestone(goal_id=uuid4(), measurable_line="Bench 155")
     ),
 }
 

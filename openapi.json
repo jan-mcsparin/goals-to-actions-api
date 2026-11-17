@@ -350,6 +350,43 @@
         "title": "GoalList",
         "type": "object"
       },
+      "GoalPage": {
+        "description": "Everything a goal's page reads.",
+        "properties": {
+          "goal": {
+            "$ref": "#/components/schemas/Goal"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LatestResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "milestones": {
+            "description": "In the order they're checked in.",
+            "items": {
+              "$ref": "#/components/schemas/Milestone"
+            },
+            "title": "Milestones",
+            "type": "array"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/Progress"
+          }
+        },
+        "required": [
+          "goal",
+          "milestones",
+          "progress",
+          "latest"
+        ],
+        "title": "GoalPage",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -375,6 +412,73 @@
           "status"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "LatestResult": {
+        "description": "The goal's most recent check-in with a result, shown as \"Latest\".",
+        "properties": {
+          "checkedInOn": {
+            "format": "date",
+            "title": "Checkedinon",
+            "type": "string"
+          },
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result",
+          "checkedInOn"
+        ],
+        "title": "LatestResult",
+        "type": "object"
+      },
+      "Milestone": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "measurableLine": {
+            "title": "Measurableline",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "upcoming",
+              "hit",
+              "notYet"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "targetDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetdate"
+          }
+        },
+        "required": [
+          "id",
+          "position",
+          "measurableLine",
+          "targetDate",
+          "status"
+        ],
+        "title": "Milestone",
         "type": "object"
       },
       "NewGoal": {
@@ -467,6 +571,58 @@
           "measurableLine"
         ],
         "title": "NewGoal",
+        "type": "object"
+      },
+      "NewMilestone": {
+        "properties": {
+          "goalId": {
+            "format": "uuid",
+            "title": "Goalid",
+            "type": "string"
+          },
+          "measurableLine": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Measurableline",
+            "type": "string"
+          },
+          "targetDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetdate"
+          }
+        },
+        "required": [
+          "goalId",
+          "measurableLine"
+        ],
+        "title": "NewMilestone",
+        "type": "object"
+      },
+      "Progress": {
+        "description": "\"2 of 6\": the goal's milestones plus one for the goal, which counts once reached.",
+        "properties": {
+          "hit": {
+            "title": "Hit",
+            "type": "integer"
+          },
+          "of": {
+            "title": "Of",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hit",
+          "of"
+        ],
+        "title": "Progress",
         "type": "object"
       },
       "Retirement": {
@@ -990,6 +1146,7 @@
     },
     "/api/goals/{goal_id}": {
       "get": {
+        "description": "The goal's page: the goal, its milestones, progress and latest result.",
         "operationId": "getGoal",
         "parameters": [
           {
@@ -1017,7 +1174,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Goal"
+                  "$ref": "#/components/schemas/GoalPage"
                 }
               }
             },
@@ -1743,6 +1900,88 @@
           }
         },
         "summary": "Health"
+      }
+    },
+    "/api/milestones/{milestone_id}": {
+      "put": {
+        "operationId": "addMilestone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "milestone_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Milestone Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewMilestone"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Milestone",
+        "tags": [
+          "milestones"
+        ]
       }
     }
   }

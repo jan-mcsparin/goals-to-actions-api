@@ -213,7 +213,7 @@ def test_get_returns_the_goal(goals_client: TestClient) -> None:
 
     response = goals_client.get(f"/api/goals/{goal['id']}")
 
-    assert response.json() == goal
+    assert response.json()["goal"] == goal
 
 
 def test_get_of_another_users_goal_or_an_unknown_id_is_not_found(

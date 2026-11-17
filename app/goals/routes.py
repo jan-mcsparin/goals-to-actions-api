@@ -5,9 +5,10 @@ from fastapi import APIRouter
 
 from app.db import goals, weekly_targets
 from app.dependencies import CurrentDatabase, CurrentUserId
-from app.errors import NotFound
 from app.goals import rules
 from app.goals.models import Goal, GoalEdit, GoalList, NewGoal, WeeklyTargetInput
+from app.milestones.models import GoalPage
+from app.milestones.page import goal_page
 from app.schemas import NOT_ALLOWED, NOT_FOUND
 from app.time_zone import Today
 
@@ -28,13 +29,10 @@ def list_goals(database: CurrentDatabase, user_id: CurrentUserId, today: Today) 
 @router.get("/{goal_id}", responses=NOT_FOUND)
 def get_goal(
     goal_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
-) -> Goal:
+) -> GoalPage:
+    """The goal's page: the goal, its milestones, progress and latest result."""
     with database.read() as connection:
-        row = goals.Querier(connection).get_goal(id=goal_id, user_id=user_id)
-        if row is None:
-            raise NotFound
-        target = rules.latest_target(connection, user_id, goal_id)
-    return Goal.from_row(row, target, today)
+        return goal_page(connection, user_id, goal_id, today)
 
 
 @router.put("/{goal_id}", responses=NOT_FOUND | NOT_ALLOWED)

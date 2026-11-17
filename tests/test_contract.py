@@ -72,6 +72,22 @@ def test_the_aspirations_operations_are_in_the_schema() -> None:
     }
 
 
+def test_the_goals_operations_are_in_the_schema() -> None:
+    assert set(operation_ids(app.openapi())) >= {
+        "listGoals",
+        "getGoal",
+        "createGoal",
+        "updateGoal",
+        "setWeeklyTarget",
+        "pauseGoal",
+        "resumeGoal",
+        "endGoal",
+        "markGoalReached",
+        "reopenGoal",
+        "goAgain",
+    }
+
+
 def test_every_route_is_served_under_api() -> None:
     outside = [path for path in app.openapi()["paths"] if not path.startswith("/api/")]
 

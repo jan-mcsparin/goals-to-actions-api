@@ -68,16 +68,16 @@ A change takes effect in the phone's week, or in the next week once that week is
 
 See [`todo.md`](todo.md).
 
-- [ ] 1: The goals table
-- [ ] 2: The weekly_targets table
-- [ ] 3: Create, read and list goals
-- [ ] 4: Edit a goal
-- [ ] 5: Set the weekly target
-- [ ] **Checkpoint A:** goals can be made, read, edited and given a new target; checks pass
-- [ ] 6: The six status changes
-- [ ] 7: Retiring an aspiration pauses its goals
-- [ ] 8: Docs and the contract
-- [ ] **Checkpoint B:** every spec criterion met; checks pass; PR opened
+- [x] 1: The goals table
+- [x] 2: The weekly_targets table
+- [x] 3: Create, read and list goals
+- [x] 4: Edit a goal
+- [x] 5: Set the weekly target
+- [x] **Checkpoint A:** goals can be made, read, edited and given a new target; checks pass
+- [x] 6: The six status changes
+- [x] 7: Retiring an aspiration pauses its goals
+- [x] 8: Docs and the contract
+- [x] **Checkpoint B:** every spec criterion met; checks pass; PR opened
 
 ## Risks and mitigations
 

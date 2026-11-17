@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter
@@ -65,3 +66,61 @@ def set_weekly_target(
     with database.transaction(user_id, "set weekly target") as connection:
         row, target = rules.set_weekly_target(connection, user_id, goal_id, body, today)
     return Goal.from_row(row, target, today)
+
+
+def change_status(
+    database: CurrentDatabase,
+    user_id: UUID,
+    goal_id: UUID,
+    change: rules.StatusChange,
+    action: str,
+    today: date,
+) -> Goal:
+    with database.transaction(user_id, action) as connection:
+        row, target = rules.change_status(connection, user_id, goal_id, change, today)
+    return Goal.from_row(row, target, today)
+
+
+@router.post("/{goal_id}/pause", responses=NOT_FOUND | NOT_ALLOWED)
+def pause_goal(
+    goal_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> Goal:
+    return change_status(database, user_id, goal_id, rules.PAUSE, "pause goal", today)
+
+
+@router.post("/{goal_id}/resume", responses=NOT_FOUND | NOT_ALLOWED)
+def resume_goal(
+    goal_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> Goal:
+    return change_status(database, user_id, goal_id, rules.RESUME, "resume goal", today)
+
+
+@router.post("/{goal_id}/end", responses=NOT_FOUND | NOT_ALLOWED)
+def end_goal(
+    goal_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> Goal:
+    """Not reached: "End it for now"."""
+    return change_status(database, user_id, goal_id, rules.END, "end goal", today)
+
+
+@router.post("/{goal_id}/mark-reached", responses=NOT_FOUND | NOT_ALLOWED)
+def mark_goal_reached(
+    goal_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> Goal:
+    return change_status(database, user_id, goal_id, rules.MARK_REACHED, "mark goal reached", today)
+
+
+@router.post("/{goal_id}/reopen", responses=NOT_FOUND | NOT_ALLOWED)
+def reopen_goal(
+    goal_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> Goal:
+    """A reached goal, active again: it was reached by mistake."""
+    return change_status(database, user_id, goal_id, rules.REOPEN, "reopen goal", today)
+
+
+@router.post("/{goal_id}/go-again", responses=NOT_FOUND | NOT_ALLOWED)
+def go_again(
+    goal_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> Goal:
+    """An ended goal, active again with its target and history as they were."""
+    return change_status(database, user_id, goal_id, rules.GO_AGAIN, "go again", today)

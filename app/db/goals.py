@@ -48,6 +48,13 @@ order by goals.aspiration_id is null, aspirations.position nulls last,
 """
 
 
+SET_GOAL_STATUS = """-- name: set_goal_status \\:one
+update goals set status = :p3, ended_on = :p4
+where id = :p1 and user_id = :p2 and deleted_at is null
+returning id, user_id, aspiration_id, type, label, measurable_line, baseline, status, start_date, deadline, ended_on, created_at, updated_at, deleted_at
+"""
+
+
 UPDATE_GOAL = """-- name: update_goal \\:one
 update goals
 set label = :p3, measurable_line = :p4, baseline = :p5, aspiration_id = :p6, deadline = :p7
@@ -141,6 +148,32 @@ class Querier:
                 updated_at=row[12],
                 deleted_at=row[13],
             )
+
+    def set_goal_status(self, *, id: uuid.UUID, user_id: uuid.UUID, status: str, ended_on: Optional[datetime.date]) -> Optional[models.Goal]:
+        row = self._conn.execute(sqlalchemy.text(SET_GOAL_STATUS), {
+            "p1": id,
+            "p2": user_id,
+            "p3": status,
+            "p4": ended_on,
+        }).first()
+        if row is None:
+            return None
+        return models.Goal(
+            id=row[0],
+            user_id=row[1],
+            aspiration_id=row[2],
+            type=row[3],
+            label=row[4],
+            measurable_line=row[5],
+            baseline=row[6],
+            status=row[7],
+            start_date=row[8],
+            deadline=row[9],
+            ended_on=row[10],
+            created_at=row[11],
+            updated_at=row[12],
+            deleted_at=row[13],
+        )
 
     def update_goal(self, arg: UpdateGoalParams) -> Optional[models.Goal]:
         row = self._conn.execute(sqlalchemy.text(UPDATE_GOAL), {

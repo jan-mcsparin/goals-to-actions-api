@@ -24,3 +24,8 @@ update goals
 set label = $3, measurable_line = $4, baseline = $5, aspiration_id = $6, deadline = $7
 where id = $1 and user_id = $2 and deleted_at is null
 returning *;
+
+-- name: SetGoalStatus :one
+update goals set status = $3, ended_on = $4
+where id = $1 and user_id = $2 and deleted_at is null
+returning *;

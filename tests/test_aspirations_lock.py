@@ -42,6 +42,9 @@ WRITES: dict[str, Callable[[Connection], object]] = {
         WeeklyTargetInput(kind="count", sessions=3, unit="runs"),
         date(2026, 11, 16),
     ),
+    "change goal status": lambda tx: goal_rules.change_status(
+        tx, FIXED_USER_ID, uuid4(), goal_rules.PAUSE, date(2026, 11, 16)
+    ),
 }
 
 

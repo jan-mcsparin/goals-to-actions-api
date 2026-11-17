@@ -1,6 +1,7 @@
 """Goals: the writes that need more than one query. Each runs inside the caller's
 transaction."""
 
+from dataclasses import dataclass
 from datetime import date
 from uuid import UUID, uuid4
 
@@ -90,6 +91,43 @@ def set_weekly_target(
         raise NotAllowed("Only a building goal has a weekly target.")
     week = target_week(today, owner.planned_through_week)
     return goal, set_target(connection, user_id, goal_id, target, week)
+
+
+@dataclass(frozen=True)
+class StatusChange:
+    allowed_from: frozenset[str]
+    to: str
+
+
+# What each status change is allowed from, and the status it leaves. Sent again, a change
+# whose goal is already in that status returns it unchanged.
+PAUSE = StatusChange(frozenset({"active"}), "paused")
+RESUME = StatusChange(frozenset({"paused"}), "active")
+END = StatusChange(frozenset({"active", "paused"}), "ended")
+MARK_REACHED = StatusChange(frozenset({"active", "paused"}), "reached")
+REOPEN = StatusChange(frozenset({"reached"}), "active")
+GO_AGAIN = StatusChange(frozenset({"ended"}), "active")
+
+
+def change_status(
+    connection: Connection, user_id: UUID, goal_id: UUID, change: StatusChange, today: date
+) -> tuple[models.Goal, models.WeeklyTarget | None]:
+    """Moves the goal to the change's status. Reached and ended set the end day; coming back
+    clears it. Setting the goal's tasks aside, and returning them, is added with tasks."""
+    lock_user(connection, user_id)
+    queries = goals.Querier(connection)
+    goal = queries.get_goal(id=goal_id, user_id=user_id)
+    if goal is None:
+        raise NotFound
+    if goal.status != change.to:
+        if goal.status not in change.allowed_from:
+            raise NotAllowed(f"A goal that is {goal.status} can't be made {change.to}.")
+        ended_on = today if change.to in ("reached", "ended") else None
+        goal = queries.set_goal_status(
+            id=goal_id, user_id=user_id, status=change.to, ended_on=ended_on
+        )
+        assert goal is not None
+    return goal, latest_target(connection, user_id, goal_id)
 
 
 def lock_user(connection: Connection, user_id: UUID) -> users.GetUserRow:

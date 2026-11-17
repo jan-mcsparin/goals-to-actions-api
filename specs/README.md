@@ -4,7 +4,7 @@ The map of the API work: twelve slices, what each depends on, the order they're 
 
 **A spec written up front is a draft.** It gives the picture and lists what is still open. It is finalised when its plan is written (`../tasks/plan.md`, `../tasks/todo.md`), just before it's built, because earlier slices change later ones. Only [`database-foundation`](database-foundation.md) is written in full so far.
 
-What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product-rules.md`](../../docs/product-rules.md), [`flows.md`](../../docs/flows.md), and ADRs [003](../../docs/adr/0003-fastapi-postgres.md) to [009](../../docs/adr/0009-week-opens-sunday-drafted-once.md).
+What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product-rules.md`](../../docs/product-rules.md), [`flows.md`](../../docs/flows.md), and ADRs [003](../../docs/adr/0003-fastapi-postgres.md) to [010](../../docs/adr/0010-week-document-and-replayed-queue.md).
 
 ## Capability map
 
@@ -14,7 +14,7 @@ What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product
 | 2 | [`aspirations`](aspirations.md) | #4 | Create, edit, priority order, retire and bring back | `aspirations` | 1 |
 | 3 | [`goals-targets`](goals-targets.md) | #5 | The three goal types, count and amount targets, pause, resume, end, reached, reopen, go again | `goals`, `weekly_targets` | 2 |
 | 4 | [`milestones-check-ins`](milestones-check-ins.md) | #6 | Ordered milestones, check-in records, "not yet" follow-ups | `milestones`, `check_ins` | 3 |
-| 5 | [`tasks-week`](tasks-week.md) | #7 | Tasks and their week records; reading a day, the week and the bank; add, check off, back to bank, pull, swap, place | `tasks`, `task_weeks` | 3 |
+| 5 | [`tasks-week`](tasks-week.md) | #7 | Tasks and their week records; the week read; add, check off, back to bank, pull, swap, place | `tasks`, `task_weeks` | 3 |
 | 6 | [`recurring-items`](recurring-items.md) | #8 | Structured schedules, create and edit, on and off | `recurring_items` | 3, 5 |
 | 7 | [`week-turnover`](week-turnover.md) | #9 | Opening a week on Sunday evening and filling its bank, closing it with rollover and lapse, wrapping up by hand, the upcoming list, "Still matter?" | — (one column on `users`) | 5, 6 |
 | 8 | [`planner`](planner.md) | #10 | Drafting the week onto days, once: maintenance first, the intensity cap, never a hand-placed task, never today after the first draft | — | 7 |
@@ -58,7 +58,13 @@ Settled with Jan on 2026-11-13, and used from slice 2 on. The front end's client
 8. **Two devices changing the same row: the last write wins.** No version numbers or conflict responses.
 9. **The phone sends its time zone name with every request,** in the `X-Time-Zone` header (`America/Denver`). Routes that need the day refuse a request without one (422). "Today" and "this week" are worked out from it on the server. A check-off also carries the moment and the day as the phone saw them (`data-model.md`).
 10. **Errors use FastAPI's shape** (`{"detail": ...}`): 404 for a row that doesn't exist or belongs to someone else, 409 for a change the rules don't allow (resuming a goal that isn't paused), 422 for a body that doesn't validate.
-11. **Reads return whole screens' worth, not rows to stitch.** A day's plan comes back with each task's goal label, not a list of ids to look up. Lists aren't paged at one user's volume.
+11. **Reads return whole screens' worth, not rows to stitch.** The week comes back with each task's goal label, not a list of ids to look up. Lists aren't paged at one user's volume.
+
+Settled 2026-11-16 (ADR-010):
+
+13. **The week is the only plan read.** The phone stores it as one document and draws Today, a day and the bank from it.
+14. **A write the phone may queue states its end result, and its request body only changes by addition.** A plan edit also names its week. The queueable writes are listed in `tasks-week` and `quitting-goals`; every other write needs a connection.
+15. **A queued write that no longer applies gets a 404 or a 409, never a 500,** so the phone can drop it. A create is never refused over where it goes.
 
 ## Shared conventions
 

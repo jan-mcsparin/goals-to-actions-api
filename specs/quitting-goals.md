@@ -13,9 +13,10 @@ References: [`data-model.md`](../../docs/data-model.md#quit_days) (quit_days, ur
 **In:**
 
 - The `quit_days` table (goal, day, held) and the `urge_ratings` table (goal, rated on, level: low, some, strong). One row per goal per day in each.
-- Routes: `answerQuitDay` (yes or no for a day; answering again replaces it), `clearQuitDay` (back to unknown), `rateUrge`, `clearUrgeRating`.
+- Routes: `answerQuitDay` (yes or no for a day; answering again replaces it), `clearQuitDay` (back to unknown), `rateUrge`, `clearUrgeRating`. All four are queueable writes (ADR-010): each names its day and states its end result.
+- The week read (`tasks-week`) gains each active quitting goal's answers and urge ratings for that week's days, so the phone can show and answer them offline.
 - The goal's read gains the record: recent days as held, not held or unknown, the current run of held days, and recent urge levels. All worked out, none stored.
-- The rules: only on quitting goals; no day before the goal's start date or after today.
+- The rules: only on quitting goals; any day from the goal's start date to today, so an answer given offline still lands when it is sent days later.
 
 **Out (later):**
 
@@ -41,5 +42,6 @@ As shared. **Never:** a response that words an unanswered day, or a "no", as fai
 ## Open questions
 
 1. **Does an unknown day end a run of held days,** pause it, or count as neither? "Silence isn't a slip" suggests the run continues across it, counting only answered days.
-2. **Can a past day be answered?** Yesterday, surely; any day since the start?
-3. **Where the daily answer sits on screen** is still open on front-end issue #37. It may add the quitting goals' state to the day's read.
+2. **Where the daily answer sits on screen** is still open on front-end issue #37.
+
+Settled 2026-11-16 (ADR-010): any day from the goal's start to today can be answered, and the week read carries the quitting goals' state.

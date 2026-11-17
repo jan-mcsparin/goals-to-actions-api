@@ -144,6 +144,29 @@ CREATE TABLE public.goals (
 
 
 --
+-- Name: milestones; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.milestones (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    goal_id uuid NOT NULL,
+    goal_type text NOT NULL,
+    "position" integer NOT NULL,
+    measurable_line text NOT NULL,
+    target_date date,
+    status text DEFAULT 'upcoming'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT milestones_goal_type_check CHECK ((goal_type = ANY (ARRAY['building'::text, 'quitting'::text]))),
+    CONSTRAINT milestones_measurable_line_not_blank CHECK ((btrim(measurable_line) <> ''::text)),
+    CONSTRAINT milestones_position_check CHECK (("position" >= 1)),
+    CONSTRAINT milestones_status_check CHECK ((status = ANY (ARRAY['upcoming'::text, 'hit'::text, 'not_yet'::text])))
+);
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -243,6 +266,30 @@ ALTER TABLE ONLY public.goals
 
 
 --
+-- Name: milestones milestones_id_goal; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.milestones
+    ADD CONSTRAINT milestones_id_goal UNIQUE (id, goal_id);
+
+
+--
+-- Name: milestones milestones_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.milestones
+    ADD CONSTRAINT milestones_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: milestones milestones_position_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.milestones
+    ADD CONSTRAINT milestones_position_unique UNIQUE (goal_id, "position") DEFERRABLE;
+
+
+--
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -303,6 +350,20 @@ CREATE TRIGGER goals_set_updated_at BEFORE UPDATE ON public.goals FOR EACH ROW E
 
 
 --
+-- Name: milestones milestones_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER milestones_audit AFTER INSERT OR DELETE OR UPDATE ON public.milestones FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: milestones milestones_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER milestones_set_updated_at BEFORE UPDATE ON public.milestones FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: users users_audit; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -355,6 +416,22 @@ ALTER TABLE ONLY public.goals
 
 
 --
+-- Name: milestones milestones_goal_has_milestones_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.milestones
+    ADD CONSTRAINT milestones_goal_has_milestones_same_owner FOREIGN KEY (goal_id, user_id, goal_type) REFERENCES public.goals(id, user_id, type);
+
+
+--
+-- Name: milestones milestones_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.milestones
+    ADD CONSTRAINT milestones_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: weekly_targets weekly_targets_building_goal_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -386,4 +463,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261114022856'),
     ('20261116195619'),
     ('20261116230000'),
-    ('20261116230100');
+    ('20261116230100'),
+    ('20261117000000');

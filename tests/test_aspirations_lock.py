@@ -15,7 +15,7 @@ from app.config import FIXED_USER_ID
 from app.database import Database
 from app.errors import NotFound
 from app.goals import rules as goal_rules
-from app.goals.models import NewGoal
+from app.goals.models import GoalEdit, NewGoal
 
 NEW_GOAL = NewGoal(type="oneOff", label="Move house", measurable_line="Keys handed in")
 
@@ -31,6 +31,9 @@ WRITES: dict[str, Callable[[Connection], object]] = {
     "bring back": lambda tx: rules.bring_back(tx, FIXED_USER_ID, uuid4()),
     "create goal": lambda tx: goal_rules.create(
         tx, FIXED_USER_ID, uuid4(), NEW_GOAL, date(2026, 11, 16)
+    ),
+    "update goal": lambda tx: goal_rules.update(
+        tx, FIXED_USER_ID, uuid4(), GoalEdit(label="Move", measurable_line="Keys handed in")
     ),
 }
 

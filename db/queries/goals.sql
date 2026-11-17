@@ -18,3 +18,9 @@ insert into goals (
 ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 on conflict (id) do nothing
 returning *;
+
+-- name: UpdateGoal :one
+update goals
+set label = $3, measurable_line = $4, baseline = $5, aspiration_id = $6, deadline = $7
+where id = $1 and user_id = $2 and deleted_at is null
+returning *;

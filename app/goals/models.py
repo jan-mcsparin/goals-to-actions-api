@@ -134,3 +134,13 @@ class NewGoal(ApiModel):
         if self.start_date and self.deadline and self.deadline < self.start_date:
             raise ValueError("A deadline can't be before the start date.")
         return self
+
+
+class GoalEdit(ApiModel):
+    """Sent whole on every edit. A goal's type and start date don't change."""
+
+    label: Label
+    measurable_line: Line
+    baseline: Baseline = None
+    aspiration_id: UUID | None = None
+    deadline: date | None = None

@@ -270,3 +270,127 @@ def test_list_orders_goals_by_their_aspirations(
         no_aspiration["label"],
     ]
     assert listed[0] == under_first
+
+
+# updateGoal
+
+
+def edit(**changes: Any) -> dict[str, Any]:
+    return {
+        "label": "Be stronger",
+        "measurableLine": "Deadlift 2x bodyweight",
+        "baseline": None,
+        "aspirationId": None,
+        "deadline": None,
+    } | changes
+
+
+def update_goal(client: TestClient, goal_id: str, body: dict[str, Any]) -> Any:
+    return client.patch(f"/api/goals/{goal_id}", json=body)
+
+
+def test_update_changes_the_fields_sent(goals_client: TestClient) -> None:
+    aspiration = create_aspiration(goals_client, "Be fit")
+    goal = create_goal(goals_client, lifting(baseline="1x"))
+    deadline = (today() + timedelta(days=60)).isoformat()
+
+    response = update_goal(
+        goals_client,
+        goal["id"],
+        edit(baseline=" 1.2x ", aspirationId=aspiration["id"], deadline=deadline),
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == goal | {
+        "label": "Be stronger",
+        "measurableLine": "Deadlift 2x bodyweight",
+        "baseline": "1.2x",
+        "aspirationId": aspiration["id"],
+        "deadline": deadline,
+    }
+
+
+def test_pushing_a_slipped_deadline_back_clears_it(goals_client: TestClient) -> None:
+    start = (today() - timedelta(days=30)).isoformat()
+    goal = create_goal(
+        goals_client, no_sugar(startDate=start, deadline=(today() - timedelta(days=1)).isoformat())
+    )
+
+    pushed = update_goal(
+        goals_client, goal["id"], edit(deadline=(today() + timedelta(days=7)).isoformat())
+    ).json()
+
+    assert (goal["slipped"], pushed["slipped"]) == (True, False)
+
+
+def test_a_deadline_before_the_start_date_is_not_allowed(goals_client: TestClient) -> None:
+    goal = create_goal(goals_client, no_sugar(startDate="2026-11-01"))
+
+    response = update_goal(goals_client, goal["id"], edit(deadline="2026-10-31"))
+
+    assert response.status_code == 409
+
+
+def test_a_goal_can_move_between_active_aspirations_or_to_none(goals_client: TestClient) -> None:
+    first = create_aspiration(goals_client, "First")
+    second = create_aspiration(goals_client, "Second")
+    goal = create_goal(goals_client, lifting(aspirationId=first["id"]))
+
+    moved = update_goal(goals_client, goal["id"], edit(aspirationId=second["id"])).json()
+    loose = update_goal(goals_client, goal["id"], edit()).json()
+
+    assert (moved["aspirationId"], loose["aspirationId"]) == (second["id"], None)
+
+
+def test_moving_to_a_retired_aspiration_is_not_allowed(goals_client: TestClient) -> None:
+    retired = create_aspiration(goals_client, "Sail")
+    goals_client.post(f"/api/aspirations/{retired['id']}/retire", json={"itsWork": "keep"})
+    goal = create_goal(goals_client, lifting())
+
+    response = update_goal(goals_client, goal["id"], edit(aspirationId=retired["id"]))
+
+    assert response.status_code == 409
+
+
+def test_a_goal_can_stay_under_its_retired_aspiration(goals_client: TestClient) -> None:
+    aspiration = create_aspiration(goals_client, "Sail")
+    goal = create_goal(goals_client, lifting(aspirationId=aspiration["id"]))
+    goals_client.post(f"/api/aspirations/{aspiration['id']}/retire", json={"itsWork": "keep"})
+
+    response = update_goal(goals_client, goal["id"], edit(aspirationId=aspiration["id"]))
+
+    assert response.status_code == 200, response.text
+
+
+def test_update_of_another_users_goal_or_aspiration_is_not_found(
+    goals_client: TestClient, connection: Connection
+) -> None:
+    other_user = add_other_user(connection)
+    their_goal = add_goal_for(connection, other_user)
+    their_aspiration = add_aspiration_for(connection, other_user, "Theirs")
+    mine = create_goal(goals_client, lifting())
+
+    assert update_goal(goals_client, str(their_goal), edit()).status_code == 404
+    assert update_goal(goals_client, str(uuid4()), edit()).status_code == 404
+    response = update_goal(goals_client, mine["id"], edit(aspirationId=str(their_aspiration)))
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize("changes", [{"label": ""}, {"measurableLine": " "}, {"label": None}])
+def test_an_edit_that_breaks_the_rules_is_refused(
+    goals_client: TestClient, changes: dict[str, Any]
+) -> None:
+    goal = create_goal(goals_client, lifting())
+
+    assert update_goal(goals_client, goal["id"], edit(**changes)).status_code == 422
+
+
+def test_update_is_audited(goals_client: TestClient, connection: Connection) -> None:
+    goal = create_goal(goals_client, lifting())
+
+    update_goal(goals_client, goal["id"], edit())
+
+    assert [row.action for row in audit_rows(connection, goal["id"])] == [
+        "create goal",
+        "update goal",
+    ]

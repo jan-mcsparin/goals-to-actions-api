@@ -8,7 +8,7 @@ from sqlalchemy import Connection
 
 from app.db import aspirations, goals, models, users, weekly_targets
 from app.errors import NotAllowed, NotFound
-from app.goals.models import TYPE_IN_DATABASE, NewGoal, WeeklyTargetInput
+from app.goals.models import TYPE_IN_DATABASE, GoalEdit, NewGoal, WeeklyTargetInput
 from app.weeks import target_week
 
 
@@ -47,6 +47,35 @@ def create(
         week = target_week(today, owner.planned_through_week)
         target = set_target(connection, user_id, goal_id, new.weekly_target, week)
     return created, target
+
+
+def update(
+    connection: Connection, user_id: UUID, goal_id: UUID, edit: GoalEdit
+) -> tuple[models.Goal, models.WeeklyTarget | None]:
+    """Changes what the person typed. A goal can stay under its retired aspiration, but can't
+    be moved under one."""
+    lock_user(connection, user_id)
+    queries = goals.Querier(connection)
+    goal = queries.get_goal(id=goal_id, user_id=user_id)
+    if goal is None:
+        raise NotFound
+    if edit.aspiration_id is not None and edit.aspiration_id != goal.aspiration_id:
+        check_aspiration(connection, user_id, edit.aspiration_id)
+    if edit.deadline is not None and edit.deadline < goal.start_date:
+        raise NotAllowed("A deadline can't be before the start date.")
+    updated = queries.update_goal(
+        goals.UpdateGoalParams(
+            id=goal_id,
+            user_id=user_id,
+            label=edit.label,
+            measurable_line=edit.measurable_line,
+            baseline=edit.baseline,
+            aspiration_id=edit.aspiration_id,
+            deadline=edit.deadline,
+        )
+    )
+    assert updated is not None
+    return updated, latest_target(connection, user_id, goal_id)
 
 
 def lock_user(connection: Connection, user_id: UUID) -> users.GetUserRow:

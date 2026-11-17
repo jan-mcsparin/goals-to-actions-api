@@ -48,6 +48,24 @@ order by goals.aspiration_id is null, aspirations.position nulls last,
 """
 
 
+UPDATE_GOAL = """-- name: update_goal \\:one
+update goals
+set label = :p3, measurable_line = :p4, baseline = :p5, aspiration_id = :p6, deadline = :p7
+where id = :p1 and user_id = :p2 and deleted_at is null
+returning id, user_id, aspiration_id, type, label, measurable_line, baseline, status, start_date, deadline, ended_on, created_at, updated_at, deleted_at
+"""
+
+
+class UpdateGoalParams(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    label: str
+    measurable_line: str
+    baseline: Optional[str]
+    aspiration_id: Optional[uuid.UUID]
+    deadline: Optional[datetime.date]
+
+
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
@@ -123,3 +141,32 @@ class Querier:
                 updated_at=row[12],
                 deleted_at=row[13],
             )
+
+    def update_goal(self, arg: UpdateGoalParams) -> Optional[models.Goal]:
+        row = self._conn.execute(sqlalchemy.text(UPDATE_GOAL), {
+            "p1": arg.id,
+            "p2": arg.user_id,
+            "p3": arg.label,
+            "p4": arg.measurable_line,
+            "p5": arg.baseline,
+            "p6": arg.aspiration_id,
+            "p7": arg.deadline,
+        }).first()
+        if row is None:
+            return None
+        return models.Goal(
+            id=row[0],
+            user_id=row[1],
+            aspiration_id=row[2],
+            type=row[3],
+            label=row[4],
+            measurable_line=row[5],
+            baseline=row[6],
+            status=row[7],
+            start_date=row[8],
+            deadline=row[9],
+            ended_on=row[10],
+            created_at=row[11],
+            updated_at=row[12],
+            deleted_at=row[13],
+        )

@@ -4,7 +4,7 @@ The map of the API work: twelve slices, what each depends on, the order they're 
 
 **A spec written up front is a draft.** It gives the picture and lists what is still open. It is finalised when its plan is written (`../tasks/plan.md`, `../tasks/todo.md`), just before it's built, because earlier slices change later ones. Only [`database-foundation`](database-foundation.md) is written in full so far.
 
-What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product-rules.md`](../../docs/product-rules.md), [`flows.md`](../../docs/flows.md), and ADRs [003](../../docs/adr/0003-fastapi-postgres.md) to [010](../../docs/adr/0010-week-document-and-replayed-queue.md).
+What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product-rules.md`](../../docs/product-rules.md), [`flows.md`](../../docs/flows.md), and ADRs [003](../../docs/adr/0003-fastapi-postgres.md) to [012](../../docs/adr/0012-sign-in-with-a-passkey.md).
 
 ## Capability map
 
@@ -21,7 +21,7 @@ What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product
 | 9 | [`quitting-goals`](quitting-goals.md) | #11 | Daily answers and urge ratings | `quit_days`, `urge_ratings` | 3 |
 | 10 | [`delete`](delete.md) | #12 | Delete for mistakes, with what it takes along | — | 2–6, 9 |
 | 11 | [`settings-sync`](settings-sync.md) | #13 | Intensity, the phone's time zone, a check that every write is safe to repeat | — | 1 |
-| 12 | [`sign-in`](sign-in.md) | #14 | Replacing the one fixed user; needs its own ADR first | to be decided | 1 |
+| 12 | [`sign-in`](sign-in.md) | #14 | Replacing the one fixed user with a passkey and a session cookie (ADR-012) | passkeys, sessions, one-time codes and sign-in challenges; named in the spec | 1 |
 
 **Build order:** 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12.
 
@@ -37,7 +37,7 @@ What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product
 
 4 and 9 need only 3, and 11 needs only 1, so any of them can move earlier if the front end wants them sooner. The path that gets a real plan onto Today is 1, 2, 3, 5, 6, 7, 8.
 
-**Not in the map:** hosting and deployment (they wait until the API is done), CI (checks are run by hand for now), and switching the front end to the real API (front-end issues #30 to #39).
+**Not in the map:** hosting and deployment (decided in ADR-011; they wait until the API is done, and sign-in is built before the API is first reachable), CI (checks are run by hand for now), and switching the front end to the real API (front-end issues #30 to #39).
 
 ## Shared decisions
 
@@ -64,7 +64,12 @@ Settled 2026-11-16 (ADR-010):
 
 13. **The week is the only plan read.** The phone stores it as one document and draws Today, a day and the bank from it.
 14. **A write the phone may queue states its end result, and its request body only changes by addition.** A plan edit also names its week. The queueable writes are listed in `tasks-week` and `quitting-goals`; every other write needs a connection.
-15. **A queued write that no longer applies gets a 404 or a 409, never a 500,** so the phone can drop it. A create is never refused over where it goes.
+15. **A queued write that no longer applies gets a 404 or a 409, never a 500,** so the phone can drop it. A create is never refused over where it goes. Only those two answers drop a change; the phone keeps it on any other, a 401, 403 or 422 included.
+
+Settled 2026-11-16 (ADR-011):
+
+16. **The API serves its routes under `/api`,** locally as well as hosted, so a request looks the same through the dev proxy and through CloudFront. The routes built so far have no prefix yet; issue #20 adds it.
+17. **Hosted, each running copy of the API holds one database connection** and checks it before use. Locally the default pool stays.
 
 ## Shared conventions
 

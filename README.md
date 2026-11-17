@@ -25,9 +25,11 @@ The app and the tests connect to the local Postgres by default. To point them el
 uv run uvicorn app.main:app --reload   # http://localhost:8000
 ```
 
-- Health: <http://localhost:8000/health>
-- Interactive docs: <http://localhost:8000/docs>
-- OpenAPI schema, the contract with the front end: <http://localhost:8000/openapi.json>
+- Health: <http://localhost:8000/api/health>
+- Interactive docs: <http://localhost:8000/api/docs>
+- OpenAPI schema, the contract with the front end: <http://localhost:8000/api/openapi.json>
+
+Every route is served under `/api`, here as well as hosted, because CloudFront passes `/api/*` to the API with the path unchanged (ADR-011). The front end's dev proxy passes the path on as it is.
 
 The schema is also committed as `openapi.json`, which the front end generates its types from. After any change to a route or an API model:
 

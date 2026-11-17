@@ -8,7 +8,7 @@ Two small things that sit across the whole API: the person's one setting, and a 
 
 The write conventions themselves (device-made ids, creates and actions safe to repeat, the time zone header) are [shared decisions](README.md#shared-decisions) used from slice 2. This slice doesn't introduce them; it proves they held everywhere.
 
-References: [`data-model.md`](../../docs/data-model.md#users), [ADR-004](../../docs/adr/0004-instant-open.md), front-end issue #39, the front end's settings spec.
+References: [`data-model.md`](../../docs/data-model.md#users), [ADR-004](../../docs/adr/0004-instant-open.md), [ADR-010](../../docs/adr/0010-week-document-and-replayed-queue.md), front-end issue #39, the front end's settings spec.
 
 ## Scope
 
@@ -17,11 +17,13 @@ References: [`data-model.md`](../../docs/data-model.md#users), [ADR-004](../../d
 - `getSettings`, `setIntensity`. Intensity is stored on the user; nothing resets it or suggests changing it.
 - The phone's time zone: the name sent with each request is stored on the user as last known, and a name that isn't a real zone is refused.
 - A test, run over every route in the OpenAPI schema, that sending the same write twice gives the same answer and the same data.
-- A written description in the README of what the front end can rely on: which writes can be queued and resent, in what order, and what happens when a queued write no longer applies (checking off a task deleted on the laptop).
+- A test over every queueable write (ADR-010; shared decisions 13 to 15) that one aimed at a row that is deleted, set aside or in a week the task has left answers 404 or 409, never 500, and that a create aimed at a day no longer allowed lands in the bank.
+- A written description in the README of what the front end can rely on: the list of queueable writes, that they are sent one at a time in order, what each answer means for the queue (success, 404 or 409 dropped, anything else retried), and that their request bodies only change by addition.
 
 **Out (later):**
 
-- A "what changed since" read. See the first open question.
+- A "what changed since" read. The phone refetches the week document instead (ADR-010).
+- Version numbers or conflict responses. The last write to arrive wins.
 - Push or live updates to a second device.
 - Notifications, export, changing the week's start day.
 
@@ -44,6 +46,6 @@ As shared. **Never:** trust the phone's clock for ordering; store an offset.
 
 ## Open questions
 
-1. **Does the phone need "what changed since I last asked"?** ADR-004 only needs Today to render from the cache and then refresh, which whole-screen reads already do. I'd not build a changes feed until a screen is slow without one.
-2. **Should intensity move earlier?** It is one small route pair and the planner reads it. It could ride with `planner`, leaving this slice as the sync check alone.
-3. **A resent create whose body differs from the stored row** (the phone edited it offline, then the create and the edit both arrive): the create returns the row as it is and the edit then applies. Is ignoring the difference right, or should it be a 409?
+1. **Should intensity move earlier?** It is one small route pair and the planner reads it. It could ride with `planner`, leaving this slice as the sync check alone.
+
+Settled 2026-11-16 (ADR-010): no "what changed since" read; a resent create whose body differs from the stored row returns the row as it is, and the difference is ignored.

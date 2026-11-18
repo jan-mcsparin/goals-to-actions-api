@@ -350,6 +350,43 @@
         "title": "GoalList",
         "type": "object"
       },
+      "GoalPage": {
+        "description": "Everything a goal's page reads.",
+        "properties": {
+          "goal": {
+            "$ref": "#/components/schemas/Goal"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LatestResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "milestones": {
+            "description": "In the order they're checked in.",
+            "items": {
+              "$ref": "#/components/schemas/Milestone"
+            },
+            "title": "Milestones",
+            "type": "array"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/Progress"
+          }
+        },
+        "required": [
+          "goal",
+          "milestones",
+          "progress",
+          "latest"
+        ],
+        "title": "GoalPage",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -375,6 +412,169 @@
           "status"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "LatestResult": {
+        "description": "The goal's most recent check-in with a result, shown as \"Latest\".",
+        "properties": {
+          "checkedInOn": {
+            "format": "date",
+            "title": "Checkedinon",
+            "type": "string"
+          },
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result",
+          "checkedInOn"
+        ],
+        "title": "LatestResult",
+        "type": "object"
+      },
+      "Milestone": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "measurableLine": {
+            "title": "Measurableline",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "upcoming",
+              "hit",
+              "notYet"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "targetDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetdate"
+          }
+        },
+        "required": [
+          "id",
+          "position",
+          "measurableLine",
+          "targetDate",
+          "status"
+        ],
+        "title": "Milestone",
+        "type": "object"
+      },
+      "MilestoneEdit": {
+        "description": "Sent whole. Moving or adjusting a \"not yet\" is an edit: it makes it upcoming again.",
+        "properties": {
+          "measurableLine": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Measurableline",
+            "type": "string"
+          },
+          "targetDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetdate"
+          }
+        },
+        "required": [
+          "measurableLine"
+        ],
+        "title": "MilestoneEdit",
+        "type": "object"
+      },
+      "MilestoneOrder": {
+        "description": "Every milestone of the goal, first to be checked in first.",
+        "properties": {
+          "ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "MilestoneOrder",
+        "type": "object"
+      },
+      "NewCheckIn": {
+        "description": "A check-in against Next: the first milestone that isn't hit, or the goal's own line\n(`milestoneId` empty) once every milestone is hit. Dated today where the phone is.",
+        "properties": {
+          "goalId": {
+            "format": "uuid",
+            "title": "Goalid",
+            "type": "string"
+          },
+          "milestoneId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Milestoneid"
+          },
+          "outcome": {
+            "enum": [
+              "hit",
+              "notYet"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          }
+        },
+        "required": [
+          "goalId",
+          "milestoneId",
+          "outcome"
+        ],
+        "title": "NewCheckIn",
         "type": "object"
       },
       "NewGoal": {
@@ -467,6 +667,58 @@
           "measurableLine"
         ],
         "title": "NewGoal",
+        "type": "object"
+      },
+      "NewMilestone": {
+        "properties": {
+          "goalId": {
+            "format": "uuid",
+            "title": "Goalid",
+            "type": "string"
+          },
+          "measurableLine": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Measurableline",
+            "type": "string"
+          },
+          "targetDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetdate"
+          }
+        },
+        "required": [
+          "goalId",
+          "measurableLine"
+        ],
+        "title": "NewMilestone",
+        "type": "object"
+      },
+      "Progress": {
+        "description": "\"2 of 6\": the goal's milestones plus one for the goal, which counts once reached.",
+        "properties": {
+          "hit": {
+            "title": "Hit",
+            "type": "integer"
+          },
+          "of": {
+            "title": "Of",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hit",
+          "of"
+        ],
+        "title": "Progress",
         "type": "object"
       },
       "Retirement": {
@@ -946,6 +1198,88 @@
         ]
       }
     },
+    "/api/check-ins/{check_in_id}": {
+      "put": {
+        "operationId": "checkIn",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "check_in_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Check In Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewCheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check In",
+        "tags": [
+          "milestones"
+        ]
+      }
+    },
     "/api/goals": {
       "get": {
         "operationId": "listGoals",
@@ -990,6 +1324,7 @@
     },
     "/api/goals/{goal_id}": {
       "get": {
+        "description": "The goal's page: the goal, its milestones, progress and latest result.",
         "operationId": "getGoal",
         "parameters": [
           {
@@ -1017,7 +1352,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Goal"
+                  "$ref": "#/components/schemas/GoalPage"
                 }
               }
             },
@@ -1428,6 +1763,88 @@
         ]
       }
     },
+    "/api/goals/{goal_id}/milestones/reorder": {
+      "post": {
+        "operationId": "reorderMilestones",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MilestoneOrder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reorder Milestones",
+        "tags": [
+          "milestones"
+        ]
+      }
+    },
     "/api/goals/{goal_id}/pause": {
       "post": {
         "operationId": "pauseGoal",
@@ -1743,6 +2160,242 @@
           }
         },
         "summary": "Health"
+      }
+    },
+    "/api/milestones/{milestone_id}": {
+      "patch": {
+        "description": "Also how a \"not yet\" is moved (a new date) or adjusted (a new line).",
+        "operationId": "updateMilestone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "milestone_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Milestone Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MilestoneEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Milestone",
+        "tags": [
+          "milestones"
+        ]
+      },
+      "put": {
+        "operationId": "addMilestone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "milestone_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Milestone Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewMilestone"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Milestone",
+        "tags": [
+          "milestones"
+        ]
+      }
+    },
+    "/api/milestones/{milestone_id}/keep": {
+      "post": {
+        "description": "After a \"not yet\": keep the date and the line, and make it upcoming again.",
+        "operationId": "keepMilestone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "milestone_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Milestone Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Keep Milestone",
+        "tags": [
+          "milestones"
+        ]
       }
     }
   }

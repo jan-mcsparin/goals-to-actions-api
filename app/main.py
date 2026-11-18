@@ -9,6 +9,7 @@ from app.aspirations.routes import router as aspirations_router
 from app.config import APP_NAME
 from app.errors import NotAllowed, NotFound
 from app.goals.routes import router as goals_router
+from app.milestones.routes import router as milestones_router
 from app.schemas import ApiModel
 
 
@@ -33,6 +34,7 @@ def health() -> Health:
 
 api.include_router(aspirations_router)
 api.include_router(goals_router)
+api.include_router(milestones_router)
 
 app = FastAPI(
     title=f"{APP_NAME} API",

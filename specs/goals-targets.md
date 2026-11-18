@@ -56,7 +56,7 @@ As shared. **Never:** infer a goal's type; add a "missed" status or a hard-deadl
 | Operation | Route | Body |
 | --- | --- | --- |
 | `listGoals` | `GET /api/goals` | |
-| `getGoal` | `GET /api/goals/{id}` | |
+| `getGoal` | `GET /api/goals/{id}` | (returns the goal's page since `milestones-check-ins`) |
 | `createGoal` | `PUT /api/goals/{id}` | `type`, `label`, `measurableLine`, `baseline`, `aspirationId`, `startDate` (today when left out), `deadline`, `weeklyTarget` (building goals only, and required there) |
 | `updateGoal` | `PATCH /api/goals/{id}` | `label`, `measurableLine`, `baseline`, `aspirationId`, `deadline`; sent whole every time |
 | `setWeeklyTarget` | `PUT /api/goals/{id}/weekly-target` | `kind` (`count` or `amount`), `sessions`, `amount` (amount targets only), `unit` |
@@ -83,7 +83,7 @@ Every goal route needs the `X-Time-Zone` header and returns the goal: `id`, `asp
 4. **A goal goes under an active aspiration** (409 otherwise), and can stay under one that has since retired.
 5. **A deadline before the start date** is a 422 when both are in the body, and a 409 when the start date is stored or defaulted to today.
 6. **The week a target change takes effect** is `app/weeks.py`'s `target_week`: the phone's week, or next week once `planned_through_week` is later. The same target again writes nothing.
-7. **Every goal write takes the user lock,** and `tests/test_aspirations_lock.py` checks each one.
+7. **Every goal write takes the user lock,** and `tests/test_user_lock.py` checks each one.
 8. **Input limits:** a label is at most 200 characters, a measurable line and a baseline 500, a unit 100; an amount is above 0 and at most 1,000,000.
 
 ## Left for later

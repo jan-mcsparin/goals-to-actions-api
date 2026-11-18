@@ -33,6 +33,19 @@ class AuditLog(pydantic.BaseModel):
     changed_at: datetime.datetime
 
 
+class CheckIn(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    goal_id: uuid.UUID
+    milestone_id: Optional[uuid.UUID]
+    outcome: str
+    result: Optional[str]
+    checked_in_on: datetime.date
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+
+
 class Goal(pydantic.BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
@@ -45,6 +58,20 @@ class Goal(pydantic.BaseModel):
     start_date: datetime.date
     deadline: Optional[datetime.date]
     ended_on: Optional[datetime.date]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+
+
+class Milestone(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    goal_id: uuid.UUID
+    goal_type: str
+    position: int
+    measurable_line: str
+    target_date: Optional[datetime.date]
+    status: str
     created_at: datetime.datetime
     updated_at: datetime.datetime
     deleted_at: Optional[datetime.datetime]

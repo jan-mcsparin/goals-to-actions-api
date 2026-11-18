@@ -172,6 +172,20 @@ def test_the_same_check_in_twice_is_kept_once(
     assert len(history(connection)) == 1
 
 
+def test_an_id_already_another_goals_check_in_is_not_allowed(
+    goals_client: TestClient, connection: Connection
+) -> None:
+    first = create_goal(goals_client, no_sugar())
+    second = create_goal(goals_client, no_sugar())
+    check_in_id = uuid4()
+    check_in(goals_client, first["id"], None, "notYet", "Day 3", check_in_id)
+
+    response = check_in(goals_client, second["id"], None, "notYet", "Day 3", check_in_id)
+
+    assert response.status_code == 409
+    assert history(connection) == {(None, "not_yet", "Day 3")}
+
+
 def test_latest_is_the_newest_check_in_with_a_result(
     goals_client: TestClient, connection: Connection
 ) -> None:

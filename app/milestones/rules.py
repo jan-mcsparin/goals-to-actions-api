@@ -8,6 +8,7 @@ from sqlalchemy import Connection
 
 from app.db import check_ins, goals, milestones, models
 from app.errors import NotAllowed, NotFound
+from app.goals import rules as goal_rules
 from app.goals.rules import lock_user
 from app.milestones.models import MilestoneEdit, MilestoneOrder, NewCheckIn, NewMilestone
 
@@ -110,9 +111,8 @@ def check_in(
             id=new.milestone_id, user_id=user_id, status=outcome
         )
     elif outcome == "hit":
-        goals.Querier(connection).set_goal_status(
-            id=goal.id, user_id=user_id, status="reached", ended_on=today
-        )
+        # The same change as "I reached it", so whatever reaching a goal does, this does too.
+        goal_rules.change_status(connection, user_id, goal.id, goal_rules.MARK_REACHED, today)
     return goal.id
 
 

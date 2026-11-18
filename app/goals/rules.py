@@ -7,9 +7,10 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import Connection
 
-from app.db import aspirations, goals, milestones, models, users, weekly_targets
+from app.db import aspirations, goals, milestones, models, weekly_targets
 from app.errors import NotAllowed, NotFound
 from app.goals.models import TYPE_IN_DATABASE, GoalEdit, NewGoal, WeeklyTargetInput
+from app.users import lock_user
 from app.weeks import target_week
 
 
@@ -133,15 +134,6 @@ def change_status(
         )
         assert goal is not None
     return goal, latest_target(connection, user_id, goal_id)
-
-
-def lock_user(connection: Connection, user_id: UUID) -> users.GetUserRow:
-    """Writes to a user's goals run one at a time."""
-    queries = users.Querier(connection)
-    queries.lock_user(id=user_id)
-    owner = queries.get_user(id=user_id)
-    assert owner is not None
-    return owner
 
 
 def check_aspiration(connection: Connection, user_id: UUID, aspiration_id: UUID) -> None:

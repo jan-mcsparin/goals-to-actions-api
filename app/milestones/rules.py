@@ -9,8 +9,8 @@ from sqlalchemy import Connection
 from app.db import check_ins, goals, milestones, models
 from app.errors import NotAllowed, NotFound
 from app.goals import rules as goal_rules
-from app.goals.rules import lock_user
 from app.milestones.models import MilestoneEdit, MilestoneOrder, NewCheckIn, NewMilestone
+from app.users import lock_user
 
 
 def add(connection: Connection, user_id: UUID, milestone_id: UUID, new: NewMilestone) -> UUID:

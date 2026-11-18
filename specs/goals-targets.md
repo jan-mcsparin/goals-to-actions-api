@@ -83,7 +83,7 @@ Every goal route needs the `X-Time-Zone` header and returns the goal: `id`, `asp
 4. **A goal goes under an active aspiration** (409 otherwise), and can stay under one that has since retired.
 5. **A deadline before the start date** is a 422 when both are in the body, and a 409 when the start date is stored or defaulted to today.
 6. **The week a target change takes effect** is `app/weeks.py`'s `target_week`: the phone's week, or next week once `planned_through_week` is later. The same target again writes nothing.
-7. **Every goal write takes the user lock,** and `tests/test_aspirations_lock.py` checks each one.
+7. **Every goal write takes the user lock,** and `tests/test_user_lock.py` checks each one.
 8. **Input limits:** a label is at most 200 characters, a measurable line and a baseline 500, a unit 100; an amount is above 0 and at most 1,000,000.
 
 ## Left for later

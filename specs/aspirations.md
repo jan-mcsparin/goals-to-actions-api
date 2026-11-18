@@ -63,7 +63,7 @@ An aspiration is `id`, `name`, `why`, `status`, `position`, `retiredOn`, `create
 1. **Position is unique per owner by a deferrable constraint, checked when each statement ends,** and a reorder is one statement that renumbers from the ids sent. sqlc handles the `uuid[]` parameter. Not checked at commit: the tests' rolled-back transactions would never check it. "No gaps" is kept by `app/aspirations/rules.py`.
 2. **`listAspirations` returns aspirations alone.** Goal counts join it in `goals-targets`; the list is wrapped in an object so they can.
 3. **A reorder that isn't exactly the active ids is 409,** as is a create whose id is already another user's row.
-4. **Writes that renumber lock the owner's `users` row first.** `tests/test_aspirations_lock.py` checks each one waits for it, on two real connections.
+4. **Writes that renumber lock the owner's `users` row first.** `tests/test_user_lock.py` checks each one waits for it, on two real connections.
 5. **Input limits:** a name is at most 200 characters and a why 2,000; a reorder lists at most 500 ids. Text with a NUL character is refused (422), since Postgres can't store it.
 
 ## Left for later

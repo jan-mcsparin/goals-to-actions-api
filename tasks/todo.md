@@ -100,9 +100,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** A goal created, resumed, reopened or gone again gets each open week's sessions if that week has none, with the short-first-week cap. A raised target adds sessions in the week it takes effect. A lowered one soft-deletes the extra open sessions, last in the week first: the bank before any day, then the latest day. New tasks go through `place_new_work`.
 
 **Acceptance criteria:**
-- [ ] A goal made on Saturday has two sessions in the bank; one made on Sunday evening also gets next week's full target.
-- [ ] Raising 3 to 4 adds one session; lowering 3 to 2 removes the last open one, never a done or set-aside one. A target changed on Sunday evening leaves this week as it was.
-- [ ] A goal paused in one week and resumed in a later one gets that week's sessions, and the old ones stay closed with no miss recorded.
+- [x] A goal made on Saturday has two sessions in the bank; one made on Sunday evening also gets next week's full target.
+- [x] Raising 3 to 4 adds one session; lowering 3 to 2 removes the last open one, never a done or set-aside one. A target changed on Sunday evening leaves this week as it was.
+- [x] A goal paused in one week and resumed in a later one gets that week's sessions, and the old ones stay closed with no miss recorded.
 
 **Verify:** `uv run pytest tests/test_goal_tasks.py tests/test_goals.py tests/test_goal_status.py`.
 

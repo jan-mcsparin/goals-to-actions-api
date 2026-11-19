@@ -15,7 +15,7 @@ from app.tasks.rules import add_row, set_outcome
 from app.turnover.due import Slot, goal_slots, item_slots
 from app.turnover.endings import ending_for, item_of, schedule_of
 from app.users import lock_user
-from app.weeks import current_week, open_weeks
+from app.weeks import OpenWeeks, current_week, open_weeks
 
 # The hour next week opens on Sunday (ADR-009), by the phone's clock.
 OPENS_AT = time(18, 0)
@@ -138,12 +138,7 @@ def open_week(connection: Connection, user_id: UUID, week: date, today: date) ->
     made: list[UUID] = []
     existing = existing_slots(connection, user_id, week)
     for goal, sessions in active_goals(connection, user_id, week):
-        first_day = max(goal.start_date, today)
-        for slot in goal_slots(sessions, week, first_day):
-            if (goal.id, None, *slot) not in existing:
-                made.append(
-                    add_generated(connection, user_id, week, goal.label, goal.id, None, slot)
-                )
+        made += make_sessions(connection, user_id, goal, sessions, week, today, existing)
     for item in recurring_items.Querier(connection).list_recurring_items(user_id=user_id):
         if not item.active:
             continue
@@ -160,6 +155,64 @@ def open_week(connection: Connection, user_id: UUID, week: date, today: date) ->
     mark_opened(connection, user_id, week)
     place_new_work(connection, user_id, made, max(today, week))
     return made
+
+
+def make_sessions(
+    connection: Connection,
+    user_id: UUID,
+    goal: models.Goal,
+    sessions: int,
+    week: date,
+    today: date,
+    existing: set[tuple[UUID | None, UUID | None, date, int]],
+) -> list[UUID]:
+    """The goal's sessions for the week that aren't there yet."""
+    return [
+        add_generated(connection, user_id, week, goal.label, goal.id, None, slot)
+        for slot in goal_slots(sessions, week, max(goal.start_date, today))
+        if (goal.id, None, *slot) not in existing
+    ]
+
+
+def fill_goal(
+    connection: Connection, user_id: UUID, goal_id: UUID, weeks: OpenWeeks, today: date
+) -> None:
+    """A goal created, resumed, reopened or gone again, or its target raised: each open week
+    gets the sessions it's missing. Last week's don't come back."""
+    goal = goals.Querier(connection).get_goal(id=goal_id, user_id=user_id)
+    if goal is None or goal.type != "building" or goal.status != "active":
+        return
+    made: list[UUID] = []
+    for week in (weeks.current, weeks.next) if weeks.next_open else (weeks.current,):
+        target = weekly_targets.Querier(connection).goal_weekly_target_for(
+            goal_id=goal_id, user_id=user_id, effective_from=week
+        )
+        if target is None:
+            continue
+        existing = existing_slots(connection, user_id, week)
+        made += make_sessions(connection, user_id, goal, target.sessions, week, today, existing)
+    place_new_work(connection, user_id, made, today + timedelta(days=1))
+
+
+def trim_goal(
+    connection: Connection, user_id: UUID, goal_id: UUID, week: date, sessions: int
+) -> None:
+    """A target lowered: the open sessions that are now extra are removed, last in the week
+    first, so the bank before any day, and then the latest day. A session that is done or set
+    aside is never removed."""
+    queries = turnover.Querier(connection)
+    found = list(queries.list_goal_sessions_in_week(goal_id=goal_id, user_id=user_id, week=week))
+    removable = [row for row in found if row.state == "open" and row.outcome is None]
+    removable.sort(
+        key=lambda row: (
+            row.planned_day is not None,
+            -(row.planned_day.toordinal() if row.planned_day else 0),
+            -(row.number or 0),
+        )
+    )
+    for row in removable[: max(0, len(found) - sessions)]:
+        queries.delete_task_rows(task_id=row.task_id, user_id=user_id)
+        queries.delete_task(id=row.task_id, user_id=user_id)
 
 
 def existing_slots(

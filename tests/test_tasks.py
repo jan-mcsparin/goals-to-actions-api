@@ -213,7 +213,8 @@ def test_a_task_saved_set_aside_comes_back_with_its_goal(tasks_client: TestClien
     tasks_client.post(f"/api/goals/{goal['id']}/resume")
 
     week = tasks_client.get(f"/api/weeks/{week_of(today()).isoformat()}").json()
-    assert [shown["id"] for shown in week["tasks"]] == [task["id"]]
+    by_hand = [shown["id"] for shown in week["tasks"] if shown["origin"] == "byHand"]
+    assert by_hand == [task["id"]]
 
 
 @pytest.mark.parametrize(

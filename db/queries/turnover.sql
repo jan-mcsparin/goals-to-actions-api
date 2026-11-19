@@ -40,3 +40,22 @@ where task_weeks.user_id = sqlc.arg(user_id) and task_weeks.week <= sqlc.arg(thr
     ))
   )
 order by task_weeks.week, tasks.created_at, tasks.id;
+
+-- Every session a goal made for a week, with its row in that week.
+-- name: ListGoalSessionsInWeek :many
+select tasks.id as task_id, tasks.number, tasks.state, task_weeks.planned_day, task_weeks.outcome
+from tasks
+join task_weeks on task_weeks.task_id = tasks.id and task_weeks.week = $3
+  and task_weeks.deleted_at is null
+where tasks.goal_id = $1 and tasks.user_id = $2 and tasks.origin = 'weekly_target'
+  and tasks.period_start = $3 and tasks.deleted_at is null;
+
+-- A task removed for good (a session a lowered target no longer asks for). It stays, deleted,
+-- so the same session isn't made again.
+-- name: DeleteTask :exec
+update tasks set deleted_at = now()
+where id = $1 and user_id = $2 and deleted_at is null;
+
+-- name: DeleteTaskRows :exec
+update task_weeks set deleted_at = now()
+where task_id = $1 and user_id = $2 and deleted_at is null;

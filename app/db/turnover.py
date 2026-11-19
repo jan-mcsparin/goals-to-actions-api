@@ -31,6 +31,18 @@ class AddGeneratedTaskParams(pydantic.BaseModel):
     number: Optional[int]
 
 
+DELETE_TASK = """-- name: delete_task \\:exec
+update tasks set deleted_at = now()
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
+DELETE_TASK_ROWS = """-- name: delete_task_rows \\:exec
+update task_weeks set deleted_at = now()
+where task_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 LIST_DUE_TASKS_WITHOUT_ROWS = """-- name: list_due_tasks_without_rows \\:many
 select tasks.id from tasks
 left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
@@ -55,6 +67,24 @@ class ListGeneratedSlotsRow(pydantic.BaseModel):
     recurring_item_id: Optional[uuid.UUID]
     period_start: Optional[datetime.date]
     number: Optional[int]
+
+
+LIST_GOAL_SESSIONS_IN_WEEK = """-- name: list_goal_sessions_in_week \\:many
+select tasks.id as task_id, tasks.number, tasks.state, task_weeks.planned_day, task_weeks.outcome
+from tasks
+join task_weeks on task_weeks.task_id = tasks.id and task_weeks.week = :p3
+  and task_weeks.deleted_at is null
+where tasks.goal_id = :p1 and tasks.user_id = :p2 and tasks.origin = 'weekly_target'
+  and tasks.period_start = :p3 and tasks.deleted_at is null
+"""
+
+
+class ListGoalSessionsInWeekRow(pydantic.BaseModel):
+    task_id: uuid.UUID
+    number: Optional[int]
+    state: str
+    planned_day: Optional[datetime.date]
+    outcome: Optional[str]
 
 
 LIST_ROWS_TO_CLOSE = """-- name: list_rows_to_close \\:many
@@ -127,6 +157,12 @@ class Querier:
             deleted_at=row[18],
         )
 
+    def delete_task(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_TASK), {"p1": id, "p2": user_id})
+
+    def delete_task_rows(self, *, task_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_TASK_ROWS), {"p1": task_id, "p2": user_id})
+
     def list_due_tasks_without_rows(self, *, user_id: uuid.UUID, due_date: Optional[datetime.date]) -> Iterator[uuid.UUID]:
         result = self._conn.execute(sqlalchemy.text(LIST_DUE_TASKS_WITHOUT_ROWS), {"p1": user_id, "p2": due_date})
         for row in result:
@@ -140,6 +176,17 @@ class Querier:
                 recurring_item_id=row[1],
                 period_start=row[2],
                 number=row[3],
+            )
+
+    def list_goal_sessions_in_week(self, *, goal_id: Optional[uuid.UUID], user_id: uuid.UUID, week: datetime.date) -> Iterator[ListGoalSessionsInWeekRow]:
+        result = self._conn.execute(sqlalchemy.text(LIST_GOAL_SESSIONS_IN_WEEK), {"p1": goal_id, "p2": user_id, "p3": week})
+        for row in result:
+            yield ListGoalSessionsInWeekRow(
+                task_id=row[0],
+                number=row[1],
+                state=row[2],
+                planned_day=row[3],
+                outcome=row[4],
             )
 
     def list_rows_to_close(self, *, user_id: uuid.UUID, through: datetime.date, after: datetime.date) -> Iterator[ListRowsToCloseRow]:

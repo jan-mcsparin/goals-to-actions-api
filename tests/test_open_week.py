@@ -73,6 +73,9 @@ def work(goals_client: TestClient, connection: Connection) -> Connection:
             startsOn="2026-11-16",
         ),
     )
+    # Making them already gave this week its sessions; start from a week nobody has opened.
+    connection.execute(text("delete from task_weeks"))
+    connection.execute(text("delete from tasks"))
     reset_markers(connection)
     return connection
 

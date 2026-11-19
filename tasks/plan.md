@@ -86,7 +86,7 @@ clock + closed_through_week (1)
 
 Checkpoint after task 5: weeks open and close; the four checks pass.
 
-- [ ] Task 6: Goals and targets act on the open weeks
+- [x] Task 6: Goals and targets act on the open weeks
 - [ ] Task 7: Recurring items act on the open weeks
 - [ ] Task 8: What closing will do, "Still matter?", and the upcoming list
 - [ ] Task 9: Answer "Still matter?"

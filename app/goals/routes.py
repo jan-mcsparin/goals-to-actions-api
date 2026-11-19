@@ -3,10 +3,17 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
-from app.db import goals, weekly_targets
+from app.db import goals, milestones, weekly_targets
 from app.dependencies import CurrentDatabase, CurrentUserId
 from app.goals import rules
-from app.goals.models import Goal, GoalEdit, GoalList, NewGoal, WeeklyTargetInput
+from app.goals.models import (
+    Goal,
+    GoalEdit,
+    GoalList,
+    ListedGoal,
+    NewGoal,
+    WeeklyTargetInput,
+)
 from app.milestones.models import GoalPage
 from app.milestones.page import goal_page
 from app.schemas import NOT_ALLOWED, NOT_FOUND
@@ -23,7 +30,16 @@ def list_goals(database: CurrentDatabase, user_id: CurrentUserId, today: Today) 
             target.goal_id: target
             for target in weekly_targets.Querier(connection).latest_weekly_targets(user_id=user_id)
         }
-    return GoalList(goals=[Goal.from_row(row, targets.get(row.id), today) for row in rows])
+        counts = {
+            count.goal_id: count
+            for count in milestones.Querier(connection).count_milestones(user_id=user_id)
+        }
+    return GoalList(
+        goals=[
+            ListedGoal.from_rows(row, targets.get(row.id), counts.get(row.id), today)
+            for row in rows
+        ]
+    )
 
 
 @router.get("/{goal_id}", responses=NOT_FOUND)

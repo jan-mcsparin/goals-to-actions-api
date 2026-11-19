@@ -15,3 +15,10 @@ insert into check_ins (id, user_id, goal_id, milestone_id, outcome, result, chec
 values ($1, $2, $3, $4, $5, $6, $7)
 on conflict (id) do nothing
 returning *;
+
+-- The result of each of a goal's milestones that has a hit check-in: its latest one.
+-- name: HitResults :many
+select distinct on (milestone_id) milestone_id, result from check_ins
+where goal_id = $1 and user_id = $2 and outcome = 'hit' and milestone_id is not null
+  and deleted_at is null
+order by milestone_id, checked_in_on desc, created_at desc;

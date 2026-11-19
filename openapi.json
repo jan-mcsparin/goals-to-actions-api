@@ -135,6 +135,26 @@
         "title": "AspirationOrder",
         "type": "object"
       },
+      "AspirationRef": {
+        "description": "The aspiration a goal is under, named on its page.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "AspirationRef",
+        "type": "object"
+      },
       "ErrorMessage": {
         "description": "FastAPI's error shape, for the errors the API raises itself.",
         "properties": {
@@ -338,7 +358,7 @@
         "properties": {
           "goals": {
             "items": {
-              "$ref": "#/components/schemas/Goal"
+              "$ref": "#/components/schemas/ListedGoal"
             },
             "title": "Goals",
             "type": "array"
@@ -353,6 +373,16 @@
       "GoalPage": {
         "description": "Everything a goal's page reads.",
         "properties": {
+          "aspiration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AspirationRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "goal": {
             "$ref": "#/components/schemas/Goal"
           },
@@ -380,6 +410,7 @@
         },
         "required": [
           "goal",
+          "aspiration",
           "milestones",
           "progress",
           "latest"
@@ -434,6 +465,136 @@
         "title": "LatestResult",
         "type": "object"
       },
+      "ListedGoal": {
+        "properties": {
+          "aspirationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aspirationid"
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline"
+          },
+          "endedOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endedon"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "measurableLine": {
+            "title": "Measurableline",
+            "type": "string"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/Progress"
+          },
+          "slipped": {
+            "description": "Active, with its deadline before today.",
+            "title": "Slipped",
+            "type": "boolean"
+          },
+          "startDate": {
+            "format": "date",
+            "title": "Startdate",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "paused",
+              "reached",
+              "ended"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "building",
+              "quitting",
+              "oneOff"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "weeklyTarget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeeklyTarget"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The latest target. Its effectiveFrom is after this week when a change waits for next week. Empty for quitting and one-off goals."
+          }
+        },
+        "required": [
+          "id",
+          "aspirationId",
+          "type",
+          "label",
+          "measurableLine",
+          "baseline",
+          "status",
+          "startDate",
+          "deadline",
+          "endedOn",
+          "slipped",
+          "weeklyTarget",
+          "createdAt",
+          "progress"
+        ],
+        "title": "ListedGoal",
+        "type": "object"
+      },
       "Milestone": {
         "properties": {
           "id": {
@@ -448,6 +609,18 @@
           "position": {
             "title": "Position",
             "type": "integer"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its hit check-in's result. Empty until it's hit.",
+            "title": "Result"
           },
           "status": {
             "enum": [
@@ -476,7 +649,8 @@
           "position",
           "measurableLine",
           "targetDate",
-          "status"
+          "status",
+          "result"
         ],
         "title": "Milestone",
         "type": "object"

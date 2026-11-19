@@ -294,6 +294,19 @@ def test_an_item_cannot_be_moved_under_a_retired_aspiration(items_client: TestCl
     assert response.status_code == 409, response.text
 
 
+def test_an_item_can_be_edited_while_it_stays_under_its_retired_aspiration(
+    items_client: TestClient,
+) -> None:
+    aspiration = create_aspiration(items_client, "Keep a home")
+    created = create(items_client, item(aspirationId=aspiration["id"]))
+    items_client.post(f"/api/aspirations/{aspiration['id']}/retire", json={"itsWork": "pause"})
+
+    edited = edit(items_client, created["id"], item(name="Trash", aspirationId=aspiration["id"]))
+
+    assert edited["name"] == "Trash"
+    assert edited["aspirationId"] == aspiration["id"]
+
+
 @pytest.mark.parametrize("owner", ["nobody", "someone else"])
 def test_an_edit_to_an_unknown_or_another_owners_item_is_not_found(
     items_client: TestClient, connection: Connection, owner: str

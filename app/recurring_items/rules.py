@@ -81,7 +81,7 @@ def update(
 
 
 def turn(
-    connection: Connection, user_id: UUID, item_id: UUID, on: bool, today: date
+    connection: Connection, user_id: UUID, item_id: UUID, today: date, *, on: bool
 ) -> models.RecurringItem:
     """Off sets the item's open tasks aside in every open week; on returns them, the way a
     paused goal's are. Coming on under a retired aspiration, it carries on as maintenance.

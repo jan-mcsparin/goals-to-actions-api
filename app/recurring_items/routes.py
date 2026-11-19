@@ -47,7 +47,7 @@ def turn_off_recurring_item(
 ) -> RecurringItem:
     """Its open tasks leave the days and the bank in every open week, until it's turned on."""
     with database.transaction(user_id, "turn off recurring item") as connection:
-        return RecurringItem.from_row(rules.turn(connection, user_id, item_id, False, today))
+        return RecurringItem.from_row(rules.turn(connection, user_id, item_id, today, on=False))
 
 
 @router.post("/{item_id}/turn-on", responses=NOT_FOUND)
@@ -56,4 +56,4 @@ def turn_on_recurring_item(
 ) -> RecurringItem:
     """Its set-aside tasks return to the bank of their week, if that week is still open."""
     with database.transaction(user_id, "turn on recurring item") as connection:
-        return RecurringItem.from_row(rules.turn(connection, user_id, item_id, True, today))
+        return RecurringItem.from_row(rules.turn(connection, user_id, item_id, today, on=True))

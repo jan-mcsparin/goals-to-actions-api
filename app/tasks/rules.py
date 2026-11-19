@@ -15,7 +15,6 @@ from app.tasks.models import CheckOff, NewTask, Placing, Swap, TaskEdit, ToBank
 from app.users import lock_user
 from app.weeks import OpenWeeks, open_weeks, week_of
 
-# A row of task_weeks, as either query that reads them returns it.
 # A row of a goal's or an item's open tasks, with the task's origin.
 WorkRow = ListGoalTaskWeeksRow | ListItemTaskWeeksRow
 Row = TaskWeek | WorkRow

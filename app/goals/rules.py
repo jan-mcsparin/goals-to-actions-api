@@ -136,10 +136,11 @@ def change_status(
         )
         assert goal is not None
         current = open_weeks(today, owner.planned_through_week).current
-        rows = task_rules.goal_task_weeks(connection, user_id, goal_id)
         if was == "active":
+            rows = task_rules.goal_task_weeks(connection, user_id, goal_id)
             task_rules.set_aside(connection, user_id, rows, current)
         elif change.to == "active":
+            rows = task_rules.goal_task_weeks(connection, user_id, goal_id)
             task_rules.bring_back(connection, user_id, rows, current)
     return goal, latest_target(connection, user_id, goal_id)
 

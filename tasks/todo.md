@@ -11,9 +11,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `Now` in `app/time_zone.py`: the moment in the phone's zone, from a `clock` dependency that tests override. `Today` reads it. `conftest.py` pins the clock to Wednesday 18 Nov 2026 at noon, and a fixture lets a test set its own moment. The tests' `today()` helper reads the pinned date. A migration adds `users.closed_through_week`. `open_weeks` and `target_week` take it: the current week is the later of the week after it and the phone's week.
 
 **Acceptance criteria:**
-- [ ] Every existing test passes against the pinned clock, with no test reading the real date.
-- [ ] `open_weeks` and `target_week` follow `closed_through_week`: after a wrap-up on Sunday night the current week is next week, and a flight west doesn't take it back.
-- [ ] Up, rollback, up leaves `db/schema.sql` unchanged.
+- [x] Every existing test passes against the pinned clock, with no test reading the real date.
+- [x] `open_weeks` and `target_week` follow `closed_through_week`: after a wrap-up on Sunday night the current week is next week, and a flight west doesn't take it back.
+- [x] Up, rollback, up leaves `db/schema.sql` unchanged.
 
 **Verify:** `uv run pytest`; `tests/test_weeks.py` has the new cases.
 

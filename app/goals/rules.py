@@ -47,7 +47,7 @@ def create(
         raise NotAllowed("That id is already in use.")
     target = None
     if new.weekly_target is not None:
-        week = target_week(today, owner.planned_through_week)
+        week = target_week(today, owner.planned_through_week, owner.closed_through_week)
         target = set_target(connection, user_id, goal_id, new.weekly_target, week)
     return created, target
 
@@ -96,7 +96,7 @@ def set_weekly_target(
         raise NotFound
     if goal.type != "building":
         raise NotAllowed("Only a building goal has a weekly target.")
-    week = target_week(today, owner.planned_through_week)
+    week = target_week(today, owner.planned_through_week, owner.closed_through_week)
     return goal, set_target(connection, user_id, goal_id, target, week)
 
 
@@ -135,7 +135,7 @@ def change_status(
             id=goal_id, user_id=user_id, status=change.to, ended_on=ended_on
         )
         assert goal is not None
-        current = open_weeks(today, owner.planned_through_week).current
+        current = open_weeks(today, owner.planned_through_week, owner.closed_through_week).current
         if was == "active":
             rows = task_rules.goal_task_weeks(connection, user_id, goal_id)
             task_rules.set_aside(connection, user_id, rows, current)

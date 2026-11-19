@@ -13,7 +13,7 @@ from app.db import models
 
 
 GET_USER = """-- name: get_user \\:one
-select id, intensity, time_zone, planned_through_week, created_at, updated_at
+select id, intensity, time_zone, planned_through_week, closed_through_week, created_at, updated_at
 from users
 where id = :p1 and deleted_at is null
 """
@@ -24,6 +24,7 @@ class GetUserRow(pydantic.BaseModel):
     intensity: str
     time_zone: Optional[str]
     planned_through_week: Optional[datetime.date]
+    closed_through_week: Optional[datetime.date]
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -35,10 +36,27 @@ for update
 """
 
 
+SET_CLOSED_THROUGH_WEEK = """-- name: set_closed_through_week \\:one
+update users set closed_through_week = :p2
+where id = :p1 and deleted_at is null
+returning id, intensity, time_zone, planned_through_week, closed_through_week, created_at, updated_at
+"""
+
+
+class SetClosedThroughWeekRow(pydantic.BaseModel):
+    id: uuid.UUID
+    intensity: str
+    time_zone: Optional[str]
+    planned_through_week: Optional[datetime.date]
+    closed_through_week: Optional[datetime.date]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+
+
 SET_INTENSITY = """-- name: set_intensity \\:one
 update users set intensity = :p2
 where id = :p1 and deleted_at is null
-returning id, intensity, time_zone, planned_through_week, created_at, updated_at
+returning id, intensity, time_zone, planned_through_week, closed_through_week, created_at, updated_at
 """
 
 
@@ -47,6 +65,7 @@ class SetIntensityRow(pydantic.BaseModel):
     intensity: str
     time_zone: Optional[str]
     planned_through_week: Optional[datetime.date]
+    closed_through_week: Optional[datetime.date]
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -54,7 +73,7 @@ class SetIntensityRow(pydantic.BaseModel):
 SET_PLANNED_THROUGH_WEEK = """-- name: set_planned_through_week \\:one
 update users set planned_through_week = :p2
 where id = :p1 and deleted_at is null
-returning id, intensity, time_zone, planned_through_week, created_at, updated_at
+returning id, intensity, time_zone, planned_through_week, closed_through_week, created_at, updated_at
 """
 
 
@@ -63,6 +82,7 @@ class SetPlannedThroughWeekRow(pydantic.BaseModel):
     intensity: str
     time_zone: Optional[str]
     planned_through_week: Optional[datetime.date]
+    closed_through_week: Optional[datetime.date]
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -70,7 +90,7 @@ class SetPlannedThroughWeekRow(pydantic.BaseModel):
 SET_TIME_ZONE = """-- name: set_time_zone \\:one
 update users set time_zone = :p2
 where id = :p1 and deleted_at is null
-returning id, intensity, time_zone, planned_through_week, created_at, updated_at
+returning id, intensity, time_zone, planned_through_week, closed_through_week, created_at, updated_at
 """
 
 
@@ -79,6 +99,7 @@ class SetTimeZoneRow(pydantic.BaseModel):
     intensity: str
     time_zone: Optional[str]
     planned_through_week: Optional[datetime.date]
+    closed_through_week: Optional[datetime.date]
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -96,12 +117,27 @@ class Querier:
             intensity=row[1],
             time_zone=row[2],
             planned_through_week=row[3],
-            created_at=row[4],
-            updated_at=row[5],
+            closed_through_week=row[4],
+            created_at=row[5],
+            updated_at=row[6],
         )
 
     def lock_user(self, *, id: uuid.UUID) -> None:
         self._conn.execute(sqlalchemy.text(LOCK_USER), {"p1": id})
+
+    def set_closed_through_week(self, *, id: uuid.UUID, closed_through_week: Optional[datetime.date]) -> Optional[SetClosedThroughWeekRow]:
+        row = self._conn.execute(sqlalchemy.text(SET_CLOSED_THROUGH_WEEK), {"p1": id, "p2": closed_through_week}).first()
+        if row is None:
+            return None
+        return SetClosedThroughWeekRow(
+            id=row[0],
+            intensity=row[1],
+            time_zone=row[2],
+            planned_through_week=row[3],
+            closed_through_week=row[4],
+            created_at=row[5],
+            updated_at=row[6],
+        )
 
     def set_intensity(self, *, id: uuid.UUID, intensity: str) -> Optional[SetIntensityRow]:
         row = self._conn.execute(sqlalchemy.text(SET_INTENSITY), {"p1": id, "p2": intensity}).first()
@@ -112,8 +148,9 @@ class Querier:
             intensity=row[1],
             time_zone=row[2],
             planned_through_week=row[3],
-            created_at=row[4],
-            updated_at=row[5],
+            closed_through_week=row[4],
+            created_at=row[5],
+            updated_at=row[6],
         )
 
     def set_planned_through_week(self, *, id: uuid.UUID, planned_through_week: Optional[datetime.date]) -> Optional[SetPlannedThroughWeekRow]:
@@ -125,8 +162,9 @@ class Querier:
             intensity=row[1],
             time_zone=row[2],
             planned_through_week=row[3],
-            created_at=row[4],
-            updated_at=row[5],
+            closed_through_week=row[4],
+            created_at=row[5],
+            updated_at=row[6],
         )
 
     def set_time_zone(self, *, id: uuid.UUID, time_zone: Optional[str]) -> Optional[SetTimeZoneRow]:
@@ -138,6 +176,7 @@ class Querier:
             intensity=row[1],
             time_zone=row[2],
             planned_through_week=row[3],
-            created_at=row[4],
-            updated_at=row[5],
+            closed_through_week=row[4],
+            created_at=row[5],
+            updated_at=row[6],
         )

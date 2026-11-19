@@ -104,7 +104,7 @@ def turn(
         id=item_id, user_id=user_id, active=on, aspiration_id=aspiration_id
     )
     assert updated is not None
-    current = open_weeks(today, owner.planned_through_week).current
+    current = open_weeks(today, owner.planned_through_week, owner.closed_through_week).current
     rows = task_rules.item_task_weeks(connection, user_id, item_id)
     if on:
         task_rules.bring_back(connection, user_id, rows, current)

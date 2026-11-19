@@ -78,7 +78,7 @@ clock + closed_through_week (1)
 
 ## Task list
 
-- [ ] Task 1: Pin the clock, and add closed_through_week
+- [x] Task 1: Pin the clock, and add closed_through_week
 - [ ] Task 2: What a week is due
 - [ ] Task 3: Open a week
 - [ ] Task 4: Close a week

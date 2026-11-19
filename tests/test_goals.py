@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
@@ -10,6 +10,7 @@ from sqlalchemy import Connection, text
 
 from app.config import FIXED_USER_ID
 from app.weeks import week_of
+from tests.conftest import PINNED
 from tests.test_aspirations import add_aspiration_for, add_other_user, audit_rows
 from tests.test_aspirations import create as create_aspiration
 
@@ -24,7 +25,7 @@ def goals_client(client: TestClient) -> Iterator[TestClient]:
 
 
 def today() -> date:
-    return datetime.now(ZoneInfo(ZONE)).date()
+    return PINNED.astimezone(ZoneInfo(ZONE)).date()
 
 
 def lifting(**changes: Any) -> dict[str, Any]:

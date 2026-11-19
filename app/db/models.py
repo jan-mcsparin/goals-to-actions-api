@@ -138,6 +138,7 @@ class User(pydantic.BaseModel):
     created_at: datetime.datetime
     updated_at: datetime.datetime
     deleted_at: Optional[datetime.datetime]
+    closed_through_week: Optional[datetime.date]
 
 
 class WeeklyTarget(pydantic.BaseModel):

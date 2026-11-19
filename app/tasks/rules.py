@@ -55,7 +55,12 @@ def add(connection: Connection, user_id: UUID, task_id: UUID, new: NewTask, toda
     )
     if added is None:
         raise NotAllowed("That id is already in use.")
-    goes = landing(new, goal_type, today, open_weeks(today, owner.planned_through_week))
+    goes = landing(
+        new,
+        goal_type,
+        today,
+        open_weeks(today, owner.planned_through_week, owner.closed_through_week),
+    )
     if goes is not None:
         add_row(
             connection,
@@ -145,7 +150,11 @@ def check_off(
         set_outcome(connection, user_id, rows[-1], "done")
     elif task.state == "open":
         row = in_play(rows)
-        if row is not None and row.week > open_weeks(today, owner.planned_through_week).current:
+        if (
+            row is not None
+            and row.week
+            > open_weeks(today, owner.planned_through_week, owner.closed_through_week).current
+        ):
             raise NotAllowed("Next week's tasks can't be checked off until it starts.")
         if row is None:
             mark_done_without_a_row_in_play(connection, user_id, task_id, rows, done.completed_on)
@@ -192,7 +201,7 @@ def uncheck(connection: Connection, user_id: UUID, task_id: UUID, today: date) -
         raise NotAllowed(f"A {task.state} task can't be unchecked.")
     rows = list(task_weeks.Querier(connection).list_task_weeks(task_id=task_id, user_id=user_id))
     done_row = rows[-1]
-    current = open_weeks(today, owner.planned_through_week).current
+    current = open_weeks(today, owner.planned_through_week, owner.closed_through_week).current
     queries = tasks.Querier(connection)
     queries.set_task_open(id=task_id, user_id=user_id)
     in_play = None if work_is_active(connection, user_id, task) else "set_aside"
@@ -270,7 +279,12 @@ def place(
     it to another day."""
     owner = lock_user(connection, user_id)
     row = row_in_week(connection, user_id, task_id, placing.week)
-    check_day(placing.day, row.week, today, open_weeks(today, owner.planned_through_week))
+    check_day(
+        placing.day,
+        row.week,
+        today,
+        open_weeks(today, owner.planned_through_week, owner.closed_through_week),
+    )
     set_row(connection, user_id, row, day=placing.day, placed_by_hand=True, outcome=None)
 
 
@@ -311,7 +325,12 @@ def swap(connection: Connection, user_id: UUID, task_id: UUID, swap: Swap, today
         raise NotAllowed("A task can't be swapped with itself.")
     to_bank = row_in_week(connection, user_id, task_id, swap.week)
     placed = row_in_week(connection, user_id, swap.bank_task_id, swap.week)
-    check_day(swap.day, swap.week, today, open_weeks(today, owner.planned_through_week))
+    check_day(
+        swap.day,
+        swap.week,
+        today,
+        open_weeks(today, owner.planned_through_week, owner.closed_through_week),
+    )
     to_the_bank(connection, user_id, to_bank)
     set_row(connection, user_id, placed, day=swap.day, placed_by_hand=True, outcome=None)
 

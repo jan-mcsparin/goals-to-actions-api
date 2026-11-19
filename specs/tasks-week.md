@@ -111,3 +111,6 @@ Every route but `updateTask` and `dropTask` needs `X-Time-Zone`.
 10. **Pausing sets aside rows in play from the current week on.** Coming back returns a set-aside row whose week is open to that week's bank. A task added by hand whose set-aside week has closed gets a row in the current week's bank.
 11. **A one-off goal's step with no date waits with no row** until the person pulls it in or dates it (settled 2026-11-16).
 12. **For a check-off, the phone's stated day wins,** even when its week has closed (settled 2026-11-16).
+13. **A task added under a goal that isn't active is saved set aside,** not refused (review, 2026-11-18). A queued add made offline while another device paused the goal is kept, and comes back when the goal does. Creates are never refused (ADR-010).
+14. **A set-aside task whose latest row is in a later week is checked off on that row,** so a done task's last row is always done.
+15. **A late uncheck under a goal that isn't active** rolls the task into the current week set aside, not into its bank.

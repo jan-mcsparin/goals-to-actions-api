@@ -191,15 +191,29 @@ def test_another_users_goal_is_not_found(tasks_client: TestClient, connection: C
     assert response.status_code == 404
 
 
-def test_a_goal_that_isnt_active_gets_no_new_tasks(tasks_client: TestClient) -> None:
+@pytest.mark.parametrize("away", ["pause", "end", "mark-reached"])
+def test_a_task_for_a_goal_that_isnt_active_is_saved_set_aside(
+    tasks_client: TestClient, connection: Connection, away: str
+) -> None:
+    # Queued offline while another device paused the goal: kept, never lost.
+    goal = create_goal(tasks_client, lifting())
+    tasks_client.post(f"/api/goals/{goal['id']}/{away}")
+
+    task = add_task(tasks_client, goalId=goal["id"], day=today().isoformat())
+
+    assert (task["week"], task["plannedDay"]) == (None, None)
+    assert rows(connection, task["id"]) == [(week_of(today()), today(), True, "set_aside")]
+
+
+def test_a_task_saved_set_aside_comes_back_with_its_goal(tasks_client: TestClient) -> None:
     goal = create_goal(tasks_client, lifting())
     tasks_client.post(f"/api/goals/{goal['id']}/pause")
+    task = add_task(tasks_client, goalId=goal["id"])
 
-    response = tasks_client.put(
-        f"/api/tasks/{uuid4()}", json={"title": "Lift", "goalId": goal["id"]}
-    )
+    tasks_client.post(f"/api/goals/{goal['id']}/resume")
 
-    assert response.status_code == 409
+    week = tasks_client.get(f"/api/weeks/{week_of(today()).isoformat()}").json()
+    assert [shown["id"] for shown in week["tasks"]] == [task["id"]]
 
 
 @pytest.mark.parametrize(

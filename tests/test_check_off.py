@@ -320,3 +320,40 @@ def test_a_late_uncheck_lapses_a_weekly_target_task(
         None,
     )
     assert rows(connection, task_id) == [(last_week(), None, False, "lapsed")]
+
+
+def test_a_set_aside_task_whose_row_is_in_next_week_is_done_on_that_row(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    # Checked off on a paused goal's page while next week is open.
+    open_next_week(connection)
+    next_monday = week_of(today()) + timedelta(weeks=1)
+    goal = one_off(tasks_client)
+    step = add_task(tasks_client, goalId=goal["id"], dueDate=next_monday.isoformat())
+    tasks_client.post(f"/api/goals/{goal['id']}/pause")
+
+    done = check_off(tasks_client, step["id"])
+
+    assert (done["state"], done["completedOn"]) == ("done", today().isoformat())
+    assert rows(connection, step["id"]) == [(next_monday, None, False, "done")]
+
+
+def test_a_late_uncheck_under_a_paused_goal_comes_back_set_aside(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    goal = one_off(tasks_client)
+    step = add_task(tasks_client, goalId=goal["id"], dueDate=today().isoformat())
+    connection.execute(
+        text("update task_weeks set week = :week where task_id = :id"),
+        {"week": last_week(), "id": step["id"]},
+    )
+    check_off(tasks_client, step["id"], **done_on(last_sunday()))
+    tasks_client.post(f"/api/goals/{goal['id']}/pause")
+
+    unchecked = uncheck(tasks_client, step["id"])
+
+    assert (unchecked["state"], unchecked["week"]) == ("open", None)
+    assert rows(connection, step["id"]) == [
+        (last_week(), None, False, "rolled_over"),
+        (week_of(today()), None, False, "set_aside"),
+    ]

@@ -13,6 +13,14 @@ import sqlalchemy
 from app.db import models
 
 
+GOAL_WEEKLY_TARGET_FOR = """-- name: goal_weekly_target_for \\:one
+select id, user_id, goal_id, goal_type, kind, sessions, amount, unit, effective_from, created_at, updated_at, deleted_at from weekly_targets
+where goal_id = :p1 and user_id = :p2 and effective_from <= :p3 and deleted_at is null
+order by effective_from desc
+limit 1
+"""
+
+
 LATEST_WEEKLY_TARGET = """-- name: latest_weekly_target \\:one
 select id, user_id, goal_id, goal_type, kind, sessions, amount, unit, effective_from, created_at, updated_at, deleted_at from weekly_targets
 where goal_id = :p1 and user_id = :p2 and deleted_at is null
@@ -61,6 +69,25 @@ order by goal_id, effective_from desc
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
+
+    def goal_weekly_target_for(self, *, goal_id: uuid.UUID, user_id: uuid.UUID, effective_from: datetime.date) -> Optional[models.WeeklyTarget]:
+        row = self._conn.execute(sqlalchemy.text(GOAL_WEEKLY_TARGET_FOR), {"p1": goal_id, "p2": user_id, "p3": effective_from}).first()
+        if row is None:
+            return None
+        return models.WeeklyTarget(
+            id=row[0],
+            user_id=row[1],
+            goal_id=row[2],
+            goal_type=row[3],
+            kind=row[4],
+            sessions=row[5],
+            amount=row[6],
+            unit=row[7],
+            effective_from=row[8],
+            created_at=row[9],
+            updated_at=row[10],
+            deleted_at=row[11],
+        )
 
     def latest_weekly_target(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.WeeklyTarget]:
         row = self._conn.execute(sqlalchemy.text(LATEST_WEEKLY_TARGET), {"p1": goal_id, "p2": user_id}).first()

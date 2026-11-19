@@ -62,7 +62,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 - [x] The rest:
   - sent twice, it returns the task as it is
   - another owner's goal is a 404
-  - a goal that isn't active is a 409
+  - a goal that isn't active saves the task set aside (changed in review)
   - `getWeek` shows each task's goal label and `carriedOver`
   - a week that isn't a Monday is a 422
 

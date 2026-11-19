@@ -28,19 +28,19 @@ class Landing:
 
 
 def add(connection: Connection, user_id: UUID, task_id: UUID, new: NewTask, today: date) -> None:
-    """Adds a task by hand. Never refused over where it goes. Sent again, it changes nothing."""
+    """Adds a task by hand. Never refused over where it goes: under a goal that isn't active
+    (paused on another device while this was queued) it's set aside, and comes back with the
+    goal. Sent again, it changes nothing."""
     owner = lock_user(connection, user_id)
     queries = tasks.Querier(connection)
     if queries.get_task(id=task_id, user_id=user_id):
         return
-    goal_type = None
+    goal_type, goal_active = None, True
     if new.goal_id is not None:
         goal = goals.Querier(connection).get_goal(id=new.goal_id, user_id=user_id)
         if goal is None:
             raise NotFound
-        if goal.status != "active":
-            raise NotAllowed("A task can only be added to an active goal.")
-        goal_type = goal.type
+        goal_type, goal_active = goal.type, goal.status == "active"
     added = queries.add_task(
         tasks.AddTaskParams(
             id=task_id,
@@ -56,7 +56,15 @@ def add(connection: Connection, user_id: UUID, task_id: UUID, new: NewTask, toda
         raise NotAllowed("That id is already in use.")
     goes = landing(new, goal_type, today, open_weeks(today, owner.planned_through_week))
     if goes is not None:
-        add_row(connection, user_id, task_id, goes.week, day=goes.day, placed_by_hand=True)
+        add_row(
+            connection,
+            user_id,
+            task_id,
+            goes.week,
+            day=goes.day,
+            placed_by_hand=True,
+            outcome=None if goal_active else "set_aside",
+        )
 
 
 def landing(new: NewTask, goal_type: str | None, today: date, weeks: OpenWeeks) -> Landing | None:
@@ -135,17 +143,11 @@ def check_off(
         # Done in a week that has since closed, sent late: the lapse wasn't final.
         set_outcome(connection, user_id, rows[-1], "done")
     elif task.state == "open":
-        weeks = open_weeks(today, owner.planned_through_week)
         row = in_play(rows)
-        if row is not None and row.week > weeks.current:
+        if row is not None and row.week > open_weeks(today, owner.planned_through_week).current:
             raise NotAllowed("Next week's tasks can't be checked off until it starts.")
         if row is None:
-            week = week_of(done.completed_on)
-            existing = next((row for row in rows if row.week == week), None)
-            if existing is None:
-                add_row(connection, user_id, task_id, week, day=done.completed_on, outcome="done")
-            else:
-                set_row(connection, user_id, existing, done.completed_on, False, "done")
+            mark_done_without_a_row_in_play(connection, user_id, task_id, rows, done.completed_on)
         else:
             set_outcome(connection, user_id, row, "done")
     tasks.Querier(connection).set_task_done(
@@ -157,6 +159,23 @@ def check_off(
             value_logged=done.stored_value(),
         )
     )
+
+
+def mark_done_without_a_row_in_play(
+    connection: Connection, user_id: UUID, task_id: UUID, rows: list[TaskWeek], day: date
+) -> None:
+    """A waiting step checked off from the goal's page gets a done row on that day, in that
+    day's week. A set-aside task whose latest row is in a later week is done on that row, so
+    a done task's last row is always done."""
+    week = week_of(day)
+    if rows and rows[-1].week > week:
+        set_outcome(connection, user_id, rows[-1], "done")
+        return
+    existing = next((row for row in rows if row.week == week), None)
+    if existing is None:
+        add_row(connection, user_id, task_id, week, day=day, outcome="done")
+    else:
+        set_row(connection, user_id, existing, day=day, placed_by_hand=False, outcome="done")
 
 
 def uncheck(connection: Connection, user_id: UUID, task_id: UUID, today: date) -> None:
@@ -179,10 +198,24 @@ def uncheck(connection: Connection, user_id: UUID, task_id: UUID, today: date) -
         set_outcome(connection, user_id, done_row, None)
     elif task.origin == "by_hand":
         set_outcome(connection, user_id, done_row, "rolled_over")
-        add_row(connection, user_id, task_id, current)
+        add_row(
+            connection,
+            user_id,
+            task_id,
+            current,
+            outcome=None if goal_is_active(connection, user_id, task.goal_id) else "set_aside",
+        )
     else:
         set_outcome(connection, user_id, done_row, "lapsed")
         queries.set_task_closed(id=task_id, user_id=user_id, state="lapsed")
+
+
+def goal_is_active(connection: Connection, user_id: UUID, goal_id: UUID | None) -> bool:
+    """A task with no goal is always in play."""
+    if goal_id is None:
+        return True
+    goal = goals.Querier(connection).get_goal(id=goal_id, user_id=user_id)
+    return goal is not None and goal.status == "active"
 
 
 def get(connection: Connection, user_id: UUID, task_id: UUID) -> models.Task:
@@ -198,13 +231,21 @@ def in_play(rows: list[TaskWeek]) -> TaskWeek | None:
 
 def set_outcome(connection: Connection, user_id: UUID, row: Row, outcome: str | None) -> None:
     """Closes a row, or puts it back in play, on the day it had."""
-    set_row(connection, user_id, row, row.planned_day, row.placed_by_hand, outcome)
+    set_row(
+        connection,
+        user_id,
+        row,
+        day=row.planned_day,
+        placed_by_hand=row.placed_by_hand,
+        outcome=outcome,
+    )
 
 
 def set_row(
     connection: Connection,
     user_id: UUID,
     row: Row,
+    *,
     day: date | None,
     placed_by_hand: bool,
     outcome: str | None,
@@ -228,14 +269,19 @@ def place(
     owner = lock_user(connection, user_id)
     row = row_in_week(connection, user_id, task_id, placing.week)
     check_day(placing.day, row.week, today, open_weeks(today, owner.planned_through_week))
-    set_row(connection, user_id, row, placing.day, True, None)
+    set_row(connection, user_id, row, day=placing.day, placed_by_hand=True, outcome=None)
 
 
 def move_to_bank(connection: Connection, user_id: UUID, task_id: UUID, to_bank: ToBank) -> None:
     """Clears the task's day. Nothing else changes."""
     lock_user(connection, user_id)
     row = row_in_week(connection, user_id, task_id, to_bank.week)
-    set_row(connection, user_id, row, None, False, None)
+    to_the_bank(connection, user_id, row)
+
+
+def to_the_bank(connection: Connection, user_id: UUID, row: Row) -> None:
+    """In play, with no day."""
+    set_row(connection, user_id, row, day=None, placed_by_hand=False, outcome=None)
 
 
 def row_in_week(connection: Connection, user_id: UUID, task_id: UUID, week: date) -> TaskWeek:
@@ -264,8 +310,8 @@ def swap(connection: Connection, user_id: UUID, task_id: UUID, swap: Swap, today
     to_bank = row_in_week(connection, user_id, task_id, swap.week)
     placed = row_in_week(connection, user_id, swap.bank_task_id, swap.week)
     check_day(swap.day, swap.week, today, open_weeks(today, owner.planned_through_week))
-    set_row(connection, user_id, to_bank, None, False, None)
-    set_row(connection, user_id, placed, swap.day, True, None)
+    to_the_bank(connection, user_id, to_bank)
+    set_row(connection, user_id, placed, day=swap.day, placed_by_hand=True, outcome=None)
 
 
 def drop(connection: Connection, user_id: UUID, task_id: UUID) -> None:
@@ -310,6 +356,6 @@ def bring_back_goal_tasks(
         if row.outcome != "set_aside":
             continue
         if row.week >= current:
-            set_row(connection, user_id, row, None, False, None)
+            to_the_bank(connection, user_id, row)
         elif row.origin == "by_hand":
             add_row(connection, user_id, row.task_id, current)

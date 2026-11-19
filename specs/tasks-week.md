@@ -113,4 +113,4 @@ Every route but `updateTask` and `dropTask` needs `X-Time-Zone`.
 12. **For a check-off, the phone's stated day wins,** even when its week has closed (settled 2026-11-16).
 13. **A task added under a goal that isn't active is saved set aside,** not refused (review, 2026-11-18). A queued add made offline while another device paused the goal is kept, and comes back when the goal does. Creates are never refused (ADR-010).
 14. **A set-aside task whose latest row is in a later week is checked off on that row,** so a done task's last row is always done.
-15. **A late uncheck under a goal that isn't active** rolls the task into the current week set aside, not into its bank.
+15. **An uncheck under a goal that isn't active** leaves the task set aside: on its row if that week is open, or rolled into the current week set aside if it has closed (the in-week case was fixed in `recurring-items`).

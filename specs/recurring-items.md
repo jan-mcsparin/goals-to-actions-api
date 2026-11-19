@@ -80,3 +80,4 @@ Turning off and on need `X-Time-Zone`.
 6. **Retiring with its work paused also sets its goals' tasks aside.** `tasks-week` left this out; it went in with this slice.
 7. **Create and every item write take the user lock,** as goal writes do, since retiring changes items too.
 8. **The goal an item keeps** must be the owner's; its status isn't checked, so reopening the goal later leaves the item alone.
+9. **Unchecking a task whose goal isn't active, or whose item is off, leaves it set aside** (review, 2026-11-18). Before this, an uncheck in an open week put a paused goal's task back on its day.

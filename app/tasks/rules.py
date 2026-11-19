@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import Connection
 
-from app.db import goals, models, task_weeks, tasks
+from app.db import goals, models, recurring_items, task_weeks, tasks
 from app.db.models import TaskWeek
 from app.db.task_weeks import ListGoalTaskWeeksRow, ListItemTaskWeeksRow
 from app.errors import NotAllowed, NotFound
@@ -180,10 +180,10 @@ def mark_done_without_a_row_in_play(
 
 
 def uncheck(connection: Connection, user_id: UUID, task_id: UUID, today: date) -> None:
-    """Puts a done task's row back in play as it was, on its day or in its bank. If that
-    row's week has closed, the task gets the ending the week would have given it: a task added
-    by hand rolls over into the current week's bank; a generated one lapses. Sent again, it
-    changes nothing more."""
+    """Puts a done task's row back as it was, on its day or in its bank, or set aside there
+    if its goal isn't active or its item is off. If that row's week has closed, the task gets
+    the ending the week would have given it: a task added by hand rolls over into the current
+    week's bank; a generated one lapses. Sent again, it changes nothing more."""
     owner = lock_user(connection, user_id)
     task = get(connection, user_id, task_id)
     if task.state == "open":
@@ -195,28 +195,29 @@ def uncheck(connection: Connection, user_id: UUID, task_id: UUID, today: date) -
     current = open_weeks(today, owner.planned_through_week).current
     queries = tasks.Querier(connection)
     queries.set_task_open(id=task_id, user_id=user_id)
+    in_play = None if work_is_active(connection, user_id, task) else "set_aside"
     if done_row.week >= current:
-        set_outcome(connection, user_id, done_row, None)
+        set_outcome(connection, user_id, done_row, in_play)
     elif task.origin == "by_hand":
         set_outcome(connection, user_id, done_row, "rolled_over")
-        add_row(
-            connection,
-            user_id,
-            task_id,
-            current,
-            outcome=None if goal_is_active(connection, user_id, task.goal_id) else "set_aside",
-        )
+        add_row(connection, user_id, task_id, current, outcome=in_play)
     else:
         set_outcome(connection, user_id, done_row, "lapsed")
         queries.set_task_closed(id=task_id, user_id=user_id, state="lapsed")
 
 
-def goal_is_active(connection: Connection, user_id: UUID, goal_id: UUID | None) -> bool:
-    """A task with no goal is always in play."""
-    if goal_id is None:
-        return True
-    goal = goals.Querier(connection).get_goal(id=goal_id, user_id=user_id)
-    return goal is not None and goal.status == "active"
+def work_is_active(connection: Connection, user_id: UUID, task: models.Task) -> bool:
+    """Whether the task's goal is active, or its recurring item on. A task with neither is
+    always in play."""
+    if task.goal_id is not None:
+        goal = goals.Querier(connection).get_goal(id=task.goal_id, user_id=user_id)
+        return goal is not None and goal.status == "active"
+    if task.recurring_item_id is not None:
+        item = recurring_items.Querier(connection).get_recurring_item(
+            id=task.recurring_item_id, user_id=user_id
+        )
+        return item is not None and item.active
+    return True
 
 
 def get(connection: Connection, user_id: UUID, task_id: UUID) -> models.Task:

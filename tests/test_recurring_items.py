@@ -543,3 +543,17 @@ def test_retiring_again_changes_no_item(items_client: TestClient) -> None:
     retire(items_client, home["id"], "keep")
 
     assert listed(items_client) == [rent | {"active": False}]
+
+
+def test_an_uncheck_while_the_item_is_off_stays_set_aside(
+    items_client: TestClient, connection: Connection
+) -> None:
+    created = create(items_client, item())
+    this_week = week_of(today())
+    task = recurring_task(connection, created["id"], this_week, today(), state="done")
+    turn(items_client, created["id"], "off")
+
+    response = items_client.post(f"/api/tasks/{task}/uncheck")
+
+    assert response.status_code == 200, response.text
+    assert rows(connection, task) == [(this_week, today(), False, "set_aside")]

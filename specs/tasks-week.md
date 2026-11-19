@@ -1,6 +1,6 @@
 # Spec: Tasks and the week
 
-Status: draft 2026-11-13; finalised when its plan is written. Issue: [#7](https://github.com/jan-mcsparin/goals-to-actions-api/issues/7). Module `tasks-week` in the [map](README.md). Depends on `goals-targets`.
+Status: built 2026-11-18, in two PRs (#33, and the moves). Issue: [#7](https://github.com/jan-mcsparin/goals-to-actions-api/issues/7). Module `tasks-week` in the [map](README.md). Depends on `goals-targets`.
 
 ## Objective
 
@@ -59,21 +59,55 @@ As shared. **Never:** change a task's planned day except in a route the person c
 
 ## Success criteria
 
-- [ ] A person can add, place, check off, uncheck, move, swap and drop tasks, and the week read shows the result.
-- [ ] Each queueable write sent twice changes nothing more, and a plan edit aimed at a week the task has left is refused.
-- [ ] Every rule above is held by the database or the route, with a test.
-- [ ] Pause and resume set aside and return tasks.
-- [ ] Progress against a weekly target reads correctly for count and amount.
-- [ ] ADR-007 records how `numeric` is typed.
-- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
-- [ ] The four checks pass.
+- [x] A person can add, place, check off, uncheck, move, swap and drop tasks, and the week read shows the result.
+- [x] Each queueable write sent twice changes nothing more, and a plan edit aimed at a week the task has left is refused.
+- [x] Every rule above is held by the database or the route, with a test. A task's state and its rows agreeing is a constraint trigger checked at commit.
+- [x] Pause and resume set aside and return tasks; so do end and go again, reach and reopen.
+- [x] Progress against a weekly target reads correctly for count and amount.
+- [x] ADR-007 records how `numeric` is typed.
+- [x] The front end's types are regenerated from the new schema and its mock client compiles against them.
+- [x] The four checks pass.
 
-## Open questions
+## The contract, as built
 
-1. **Adding a task dated in a later week:** it waits on the upcoming list with no row. Can the person also place it on a day in that week? The model allows it; the app doesn't offer it yet. I'd leave it out.
-2. **What exactly is a swap?** Trading a planned task with one from the bank, or two planned tasks trading days, or both. Confirmed against the front end in the plan.
+| Operation | Route | Body | Returns |
+| --- | --- | --- | --- |
+| `getWeek` | `GET /api/weeks/{week}` | | the week; 422 if `week` isn't a Monday |
+| `addTask` | `PUT /api/tasks/{id}` | `title`, `goalId?`, `dueDate?`, `timeOfDay?`, `day?` | the task |
+| `updateTask` | `PATCH /api/tasks/{id}` | `title`, `dueDate`, `timeOfDay`; sent whole | the task |
+| `checkOffTask` | `POST /api/tasks/{id}/check-off` | `completedAt`, `completedOn`, `valueLogged?` | the task |
+| `uncheckTask` | `POST /api/tasks/{id}/uncheck` | | the task |
+| `placeTask` | `POST /api/tasks/{id}/place` | `week`, `day` | the task |
+| `moveTaskToBank` | `POST /api/tasks/{id}/bank` | `week` | the task |
+| `swapTasks` | `POST /api/tasks/{id}/swap` | `week`, `bankTaskId`, `day`; `{id}` goes to the bank | `toBank` and `placed` |
+| `dropTask` | `POST /api/tasks/{id}/drop` | | the task |
 
-Settled 2026-11-16:
+Every route but `updateTask` and `dropTask` needs `X-Time-Zone`.
 
-- A one-off goal's step with no date waits with no row until the person pulls it in or dates it.
-- For a check-off the phone's stated day wins, even when its week has closed.
+- **The week:** `week`, `isCurrent`, `nextWeekOpen`, `tasks` (on a day, then the bank; rows with no outcome or done; set-aside rows aren't shown) and `goals` (each active building goal with a target that week: `id`, `label`, `weeklyTarget`, `progress`).
+- **The task:**
+  - `id`, `title`, `origin` (`byHand`, `weeklyTarget`, `recurringItem`), `state` (`open`, `done`, `dropped`, `lapsed`)
+  - `goalId`, `goalLabel`, `recurringItemId`
+  - `dueDate`, `timeOfDay` (`kind` `by` or `at`, `time` as `HH:MM`)
+  - `valueLogged`, `completedAt`, `completedOn`
+  - `week` and `plannedDay`: of its row in play, or of its done row. Both are empty while it waits or is set aside; `plannedDay` alone is empty in the bank.
+  - `placedByHand`, and `carriedOver` (how many weeks it rolled over before)
+- **Goal reads:**
+  - `listGoals` and the goal's page gain `weekProgress` (`done` and `of`, by count or by amount; empty without a target this week).
+  - A one-off goal's `progress` counts its steps, leaving dropped ones out.
+  - The goal's page gains `steps`: a one-off goal's tasks, in the order added.
+
+## Settled
+
+1. **Adding a task dated in a later week that isn't open:** it waits on the upcoming list, with no row. Placing it on a day in that week isn't offered.
+2. **A swap trades a task on a day for one from the bank.** The day's task goes to the bank and the bank task takes its day. Two day tasks trading days is out.
+3. **Unchecking has one rule** (Jan, 2026-11-18): the row goes back in play as it was. A waiting step checked off on the goal's page made a row on the day it was done, so unchecking leaves it on that day. If the row's week has closed, the task gets the ending that week would have given it: a task added by hand rolls over into the current week's bank, and a generated one lapses. `recurring-items` adds the endings for recurring tasks.
+4. **`addTask` takes `day`,** not an "on today" flag, so a queued add states where it ends up.
+5. **Writes return the task.** The phone fetches the week again once its queue is empty (ADR-010).
+6. **Unchecking clears the value logged.**
+7. **A check-off from the bank leaves the task off the days.** It shows as done in the week read, with no `plannedDay`.
+8. **Checking off is allowed on a task whose row is in a week before the current one.** Until `week-turnover` closes weeks, such a row is still in play.
+9. **The current week is the phone's week** (`app/weeks.py`, `open_weeks`). `week-turnover` adds `closed_through_week`. "Today before the current week" is tested on the rule directly until then.
+10. **Pausing sets aside rows in play from the current week on.** Coming back returns a set-aside row whose week is open to that week's bank. A task added by hand whose set-aside week has closed gets a row in the current week's bank.
+11. **A one-off goal's step with no date waits with no row** until the person pulls it in or dates it (settled 2026-11-16).
+12. **For a check-off, the phone's stated day wins,** even when its week has closed (settled 2026-11-16).

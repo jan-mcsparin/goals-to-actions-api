@@ -220,11 +220,11 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** Record what was built, and regenerate the front end's types.
 
 **Acceptance criteria:**
-- [ ] ADR-007 says how `numeric` is typed.
-- [ ] `data-model.md` and `flows.md` match what was built, including uncheck's single rule.
-- [ ] `specs/tasks-week.md` is final, with its open questions answered and its success criteria ticked.
-- [ ] CLAUDE.md's structure names `tasks/`.
-- [ ] The front end's types are regenerated (`npm run api:types`), and its mock client compiles (`npm run build`, `npm test`), in a front-end PR.
+- [x] ADR-007 says how `numeric` is typed.
+- [x] `data-model.md` and `flows.md` match what was built, including uncheck's single rule.
+- [x] `specs/tasks-week.md` is final, with its open questions answered and its success criteria ticked.
+- [x] CLAUDE.md's structure names `tasks/`.
+- [x] The front end's types are regenerated (`npm run api:types`), and its mock client compiles (`npm run build`, `npm test`), in a front-end PR.
 
 **Verify:** the four checks; `npm run build` and `npm test` in `web-frontend/`.
 
@@ -234,6 +234,6 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ## Checkpoint B
 
-- [ ] Every spec success criterion is met.
-- [ ] The four checks pass.
-- [ ] PR B opened (closes #7), with the docs and front-end PRs alongside.
+- [x] Every spec success criterion is met.
+- [x] The four checks pass.
+- [x] PR B opened (closes #7), with the docs and front-end PRs alongside.

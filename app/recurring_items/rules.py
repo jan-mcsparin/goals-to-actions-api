@@ -1,6 +1,7 @@
 """Recurring items: the writes that need more than one query. Each runs inside the caller's
 transaction."""
 
+from datetime import date
 from uuid import UUID
 
 from sqlalchemy import Connection
@@ -8,7 +9,9 @@ from sqlalchemy import Connection
 from app.db import aspirations, goals, models, recurring_items
 from app.errors import NotAllowed, NotFound
 from app.recurring_items.models import NewRecurringItem, RecurringItemEdit, StoredSchedule
+from app.tasks import rules as task_rules
 from app.users import lock_user
+from app.weeks import open_weeks
 
 
 def create(
@@ -75,6 +78,44 @@ def update(
     )
     assert updated is not None
     return updated
+
+
+def turn(
+    connection: Connection, user_id: UUID, item_id: UUID, on: bool, today: date
+) -> models.RecurringItem:
+    """Off sets the item's open tasks aside in every open week; on returns them, the way a
+    paused goal's are. Coming on under a retired aspiration, it carries on as maintenance.
+    Sent again, it changes nothing."""
+    owner = lock_user(connection, user_id)
+    queries = recurring_items.Querier(connection)
+    item = queries.get_recurring_item(id=item_id, user_id=user_id)
+    if item is None:
+        raise NotFound
+    if item.active == on:
+        return item
+    aspiration_id = item.aspiration_id
+    if (
+        on
+        and aspiration_id is not None
+        and not aspiration_is_active(connection, user_id, aspiration_id)
+    ):
+        aspiration_id = None
+    updated = queries.set_recurring_item_active(
+        id=item_id, user_id=user_id, active=on, aspiration_id=aspiration_id
+    )
+    assert updated is not None
+    current = open_weeks(today, owner.planned_through_week).current
+    rows = task_rules.item_task_weeks(connection, user_id, item_id)
+    if on:
+        task_rules.bring_back(connection, user_id, rows, current)
+    else:
+        task_rules.set_aside(connection, user_id, rows, current)
+    return updated
+
+
+def aspiration_is_active(connection: Connection, user_id: UUID, aspiration_id: UUID) -> bool:
+    aspiration = aspirations.Querier(connection).get_aspiration(id=aspiration_id, user_id=user_id)
+    return aspiration is not None and aspiration.status == "active"
 
 
 def check_aspiration(connection: Connection, user_id: UUID, aspiration_id: UUID) -> None:

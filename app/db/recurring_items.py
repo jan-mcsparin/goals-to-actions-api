@@ -49,6 +49,13 @@ order by created_at, id
 """
 
 
+SET_RECURRING_ITEM_ACTIVE = """-- name: set_recurring_item_active \\:one
+update recurring_items set active = :p3, aspiration_id = :p4
+where id = :p1 and user_id = :p2 and deleted_at is null
+returning id, user_id, name, aspiration_id, from_goal_id, schedule_kind, weekday, day_of_month, times, period, starts_on, active, created_at, updated_at, deleted_at
+"""
+
+
 UPDATE_RECURRING_ITEM = """-- name: update_recurring_item \\:one
 update recurring_items
 set name = :p3, aspiration_id = :p4, schedule_kind = :p5, weekday = :p6, day_of_month = :p7,
@@ -151,6 +158,33 @@ class Querier:
                 updated_at=row[13],
                 deleted_at=row[14],
             )
+
+    def set_recurring_item_active(self, *, id: uuid.UUID, user_id: uuid.UUID, active: bool, aspiration_id: Optional[uuid.UUID]) -> Optional[models.RecurringItem]:
+        row = self._conn.execute(sqlalchemy.text(SET_RECURRING_ITEM_ACTIVE), {
+            "p1": id,
+            "p2": user_id,
+            "p3": active,
+            "p4": aspiration_id,
+        }).first()
+        if row is None:
+            return None
+        return models.RecurringItem(
+            id=row[0],
+            user_id=row[1],
+            name=row[2],
+            aspiration_id=row[3],
+            from_goal_id=row[4],
+            schedule_kind=row[5],
+            weekday=row[6],
+            day_of_month=row[7],
+            times=row[8],
+            period=row[9],
+            starts_on=row[10],
+            active=row[11],
+            created_at=row[12],
+            updated_at=row[13],
+            deleted_at=row[14],
+        )
 
     def update_recurring_item(self, arg: UpdateRecurringItemParams) -> Optional[models.RecurringItem]:
         row = self._conn.execute(sqlalchemy.text(UPDATE_RECURRING_ITEM), {

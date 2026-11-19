@@ -58,9 +58,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `turnOffRecurringItem` and `turnOnRecurringItem`. The set-aside and bring-back code in `app/tasks/rules.py` takes the rows to act on, so goals and items share it. A task_weeks query lists an item's rows.
 
 **Acceptance criteria:**
-- [ ] Off sets the item's open tasks aside in every open week, in the bank, on days and placed by hand; done ones stay. On returns those whose week is still open to that week's bank; one from a closed week doesn't come back.
-- [ ] Turning on an item whose aspiration is retired clears the aspiration. Both are safe to repeat and take the user lock.
-- [ ] The goal status tests pass unchanged.
+- [x] Off sets the item's open tasks aside in every open week, in the bank, on days and placed by hand; done ones stay. On returns those whose week is still open to that week's bank; one from a closed week doesn't come back.
+- [x] Turning on an item whose aspiration is retired clears the aspiration. Both are safe to repeat and take the user lock.
+- [x] The goal status tests pass unchanged.
 
 **Verify:** `uv run pytest tests/test_recurring_items.py tests/test_goal_status.py tests/test_user_lock.py`.
 

@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -7,9 +8,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Connection, text
 
 from app.config import FIXED_USER_ID
+from app.weeks import week_of
 from tests.test_aspirations import add_aspiration_for, add_other_user, audit_rows
 from tests.test_aspirations import create as create_aspiration
-from tests.test_goals import add_goal_for, create_goal, lifting
+from tests.test_goal_tasks import week_titles
+from tests.test_goals import add_goal_for, create_goal, lifting, today
+from tests.test_tasks import open_next_week, rows
 
 ZONE = "America/Denver"
 
@@ -317,3 +321,145 @@ def test_an_edit_is_in_the_audit_log(items_client: TestClient, connection: Conne
         "create recurring item",
         "update recurring item",
     ]
+
+
+# turnOffRecurringItem, turnOnRecurringItem
+
+
+def recurring_task(
+    connection: Connection,
+    item_id: str,
+    week: date,
+    day: date | None = None,
+    by_hand: bool = False,
+    state: str = "open",
+) -> str:
+    """A task made from the item, as week-turnover will make them, with its row in the week."""
+    task_id = str(uuid4())
+    done = state == "done"
+    connection.execute(
+        text(
+            "insert into tasks (id, user_id, title, origin, recurring_item_id, period_start,"
+            " number, state, completed_at, completed_on) values (:id, :user_id, 'Trash',"
+            " 'recurring_item', :item, :week,"
+            " (select count(*) + 1 from tasks where recurring_item_id = :item),"
+            " :state, :at, :on)"
+        ),
+        {
+            "id": task_id,
+            "user_id": FIXED_USER_ID,
+            "item": item_id,
+            "week": week,
+            "state": state,
+            "at": datetime.now(UTC) if done else None,
+            "on": day if done else None,
+        },
+    )
+    connection.execute(
+        text(
+            "insert into task_weeks (id, user_id, task_id, week, planned_day, placed_by_hand,"
+            " outcome) values (:id, :user_id, :task, :week, :day, :by_hand, :outcome)"
+        ),
+        {
+            "id": uuid4(),
+            "user_id": FIXED_USER_ID,
+            "task": task_id,
+            "week": week,
+            "day": day,
+            "by_hand": by_hand,
+            "outcome": "done" if done else None,
+        },
+    )
+    return task_id
+
+
+def turn(client: TestClient, item_id: str, way: str) -> Any:
+    response = client.post(f"/api/recurring-items/{item_id}/turn-{way}")
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_turning_off_sets_open_tasks_aside_keeping_their_day(
+    items_client: TestClient, connection: Connection
+) -> None:
+    created = create(items_client, item())
+    this_week = week_of(today())
+    bank = recurring_task(connection, created["id"], this_week)
+    placed = recurring_task(connection, created["id"], this_week, today(), by_hand=True)
+    done = recurring_task(connection, created["id"], this_week, today(), state="done")
+
+    turned = turn(items_client, created["id"], "off")
+
+    assert turned == created | {"active": False}
+    assert rows(connection, bank) == [(this_week, None, False, "set_aside")]
+    assert rows(connection, placed) == [(this_week, today(), True, "set_aside")]
+    assert rows(connection, done) == [(this_week, today(), False, "done")]
+    assert week_titles(items_client, this_week) == ["Trash"]
+
+
+def test_turning_on_returns_tasks_to_their_weeks_bank_but_not_a_closed_weeks(
+    items_client: TestClient, connection: Connection
+) -> None:
+    open_next_week(connection)
+    created = create(items_client, item())
+    this_week = week_of(today())
+    next_week = this_week + timedelta(weeks=1)
+    last_week = this_week - timedelta(weeks=1)
+    placed = recurring_task(connection, created["id"], this_week, today(), by_hand=True)
+    later = recurring_task(connection, created["id"], next_week)
+    turn(items_client, created["id"], "off")
+    old = recurring_task(connection, created["id"], last_week)
+    connection.execute(
+        text("update task_weeks set outcome = 'set_aside' where task_id = :id"), {"id": old}
+    )
+
+    turned = turn(items_client, created["id"], "on")
+
+    assert turned["active"] is True
+    assert rows(connection, placed) == [(this_week, None, False, None)]
+    assert rows(connection, later) == [(next_week, None, False, None)]
+    assert rows(connection, old) == [(last_week, None, False, "set_aside")]
+
+
+def test_turning_off_and_on_sent_twice_changes_nothing_more(
+    items_client: TestClient, connection: Connection
+) -> None:
+    created = create(items_client, item())
+    task = recurring_task(connection, created["id"], week_of(today()), today(), by_hand=True)
+
+    turn(items_client, created["id"], "off")
+    assert turn(items_client, created["id"], "off")["active"] is False
+    turn(items_client, created["id"], "on")
+    assert turn(items_client, created["id"], "on")["active"] is True
+
+    assert rows(connection, task) == [(week_of(today()), None, False, None)]
+    assert [row.action for row in audit_rows(connection, created["id"])] == [
+        "create recurring item",
+        "turn off recurring item",
+        "turn on recurring item",
+    ]
+
+
+def test_turning_on_under_a_retired_aspiration_makes_it_maintenance(
+    items_client: TestClient,
+) -> None:
+    aspiration = create_aspiration(items_client, "Keep a home")
+    created = create(items_client, item(aspirationId=aspiration["id"]))
+    turn(items_client, created["id"], "off")
+    items_client.post(f"/api/aspirations/{aspiration['id']}/retire", json={"itsWork": "pause"})
+
+    turned = turn(items_client, created["id"], "on")
+
+    assert turned["aspirationId"] is None
+
+
+@pytest.mark.parametrize("way", ["off", "on"])
+@pytest.mark.parametrize("owner", ["nobody", "someone else"])
+def test_turning_an_unknown_or_another_owners_item_is_not_found(
+    items_client: TestClient, connection: Connection, owner: str, way: str
+) -> None:
+    item_id = uuid4() if owner == "nobody" else add_item_for(connection, add_other_user(connection))
+
+    response = items_client.post(f"/api/recurring-items/{item_id}/turn-{way}")
+
+    assert response.status_code == 404, response.text

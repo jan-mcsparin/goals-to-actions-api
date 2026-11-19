@@ -9,14 +9,16 @@ from sqlalchemy import Connection
 
 from app.db import goals, models, task_weeks, tasks
 from app.db.models import TaskWeek
-from app.db.task_weeks import ListGoalTaskWeeksRow
+from app.db.task_weeks import ListGoalTaskWeeksRow, ListItemTaskWeeksRow
 from app.errors import NotAllowed, NotFound
 from app.tasks.models import CheckOff, NewTask, Placing, Swap, TaskEdit, ToBank
 from app.users import lock_user
 from app.weeks import OpenWeeks, open_weeks, week_of
 
 # A row of task_weeks, as either query that reads them returns it.
-Row = TaskWeek | ListGoalTaskWeeksRow
+# A row of a goal's or an item's open tasks, with the task's origin.
+WorkRow = ListGoalTaskWeeksRow | ListItemTaskWeeksRow
+Row = TaskWeek | WorkRow
 
 
 @dataclass(frozen=True)
@@ -330,27 +332,32 @@ def drop(connection: Connection, user_id: UUID, task_id: UUID) -> None:
     tasks.Querier(connection).set_task_closed(id=task_id, user_id=user_id, state="dropped")
 
 
-def set_aside_goal_tasks(
-    connection: Connection, user_id: UUID, goal_id: UUID, current: date
-) -> None:
-    """Pausing, ending or reaching a goal: its unfinished tasks' rows in every open week are
-    set aside. They keep their day, but no day shows them."""
-    for row in task_weeks.Querier(connection).list_goal_task_weeks(
-        goal_id=goal_id, user_id=user_id
-    ):
+def goal_task_weeks(connection: Connection, user_id: UUID, goal_id: UUID) -> list[WorkRow]:
+    return list(
+        task_weeks.Querier(connection).list_goal_task_weeks(goal_id=goal_id, user_id=user_id)
+    )
+
+
+def item_task_weeks(connection: Connection, user_id: UUID, item_id: UUID) -> list[WorkRow]:
+    return list(
+        task_weeks.Querier(connection).list_item_task_weeks(
+            recurring_item_id=item_id, user_id=user_id
+        )
+    )
+
+
+def set_aside(connection: Connection, user_id: UUID, rows: list[WorkRow], current: date) -> None:
+    """A goal leaving active, or a recurring item turned off: its unfinished tasks' rows in
+    every open week are set aside. They keep their day, but no day shows them."""
+    for row in rows:
         if row.outcome is None and row.week >= current:
             set_outcome(connection, user_id, row, "set_aside")
 
 
-def bring_back_goal_tasks(
-    connection: Connection, user_id: UUID, goal_id: UUID, current: date
-) -> None:
-    """Resume, reopen, go again. A set-aside task whose week is still open returns to that
-    week's bank; one added by hand whose week has closed gets a row in the current week's
-    bank. Last week's generated tasks don't come back."""
-    rows = list(
-        task_weeks.Querier(connection).list_goal_task_weeks(goal_id=goal_id, user_id=user_id)
-    )
+def bring_back(connection: Connection, user_id: UUID, rows: list[WorkRow], current: date) -> None:
+    """A goal resumed, reopened or gone again, or an item turned on. A set-aside task whose
+    week is still open returns to that week's bank; one added by hand whose week has closed
+    gets a row in the current week's bank. Last week's generated tasks don't come back."""
     latest = {row.task_id: row for row in rows}  # oldest week first, so the last one wins
     for row in latest.values():
         if row.outcome != "set_aside":

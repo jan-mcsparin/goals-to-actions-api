@@ -23,3 +23,9 @@ set name = $3, aspiration_id = $4, schedule_kind = $5, weekday = $6, day_of_mont
   times = $8, period = $9, starts_on = $10
 where id = $1 and user_id = $2 and deleted_at is null
 returning *;
+
+-- Off and on. Coming on, it can also lose an aspiration that has been retired.
+-- name: SetRecurringItemActive :one
+update recurring_items set active = $3, aspiration_id = $4
+where id = $1 and user_id = $2 and deleted_at is null
+returning *;

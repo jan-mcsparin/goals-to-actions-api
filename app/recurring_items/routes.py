@@ -12,6 +12,7 @@ from app.recurring_items.models import (
     RecurringItemList,
 )
 from app.schemas import NOT_ALLOWED, NOT_FOUND
+from app.time_zone import Today
 
 router = APIRouter(prefix="/recurring-items", tags=["recurring items"])
 
@@ -38,3 +39,21 @@ def update_recurring_item(
 ) -> RecurringItem:
     with database.transaction(user_id, "update recurring item") as connection:
         return RecurringItem.from_row(rules.update(connection, user_id, item_id, body))
+
+
+@router.post("/{item_id}/turn-off", responses=NOT_FOUND)
+def turn_off_recurring_item(
+    item_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> RecurringItem:
+    """Its open tasks leave the days and the bank in every open week, until it's turned on."""
+    with database.transaction(user_id, "turn off recurring item") as connection:
+        return RecurringItem.from_row(rules.turn(connection, user_id, item_id, False, today))
+
+
+@router.post("/{item_id}/turn-on", responses=NOT_FOUND)
+def turn_on_recurring_item(
+    item_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> RecurringItem:
+    """Its set-aside tasks return to the bank of their week, if that week is still open."""
+    with database.transaction(user_id, "turn on recurring item") as connection:
+        return RecurringItem.from_row(rules.turn(connection, user_id, item_id, True, today))

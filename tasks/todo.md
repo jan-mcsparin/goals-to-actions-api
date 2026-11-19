@@ -157,9 +157,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `POST /api/tasks/{id}/swap` (`week`, `bankTaskId`, `day`). The task named in the route goes to the bank, and the bank task goes onto the day.
 
 **Acceptance criteria:**
-- [ ] Both tasks change in one transaction. Both are checked before either changes.
-- [ ] It's a 409 when either task's row is in another week than the one named, or when the day isn't allowed. It's a 404 when either task belongs to another owner.
-- [ ] Sent twice, it changes nothing more.
+- [x] Both tasks change in one transaction. Both are checked before either changes.
+- [x] It's a 409 when either task's row is in another week than the one named, or when the day isn't allowed. It's a 404 when either task belongs to another owner.
+- [x] Sent twice, it changes nothing more.
 
 **Verify:** `uv run pytest tests/test_task_moves.py`.
 

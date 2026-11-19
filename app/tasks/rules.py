@@ -10,7 +10,7 @@ from sqlalchemy import Connection
 from app.db import goals, models, task_weeks, tasks
 from app.db.models import TaskWeek
 from app.errors import NotAllowed, NotFound
-from app.tasks.models import CheckOff, NewTask, Placing, TaskEdit, ToBank
+from app.tasks.models import CheckOff, NewTask, Placing, Swap, TaskEdit, ToBank
 from app.users import lock_user
 from app.weeks import OpenWeeks, open_weeks, week_of
 
@@ -232,3 +232,16 @@ def row_in_week(connection: Connection, user_id: UUID, task_id: UUID, week: date
 def check_day(day: date, week: date, today: date, weeks: OpenWeeks) -> None:
     if week_of(day) != week or not day_allowed(day, today, weeks):
         raise NotAllowed("A task goes on a day from today on, in its own week.")
+
+
+def swap(connection: Connection, user_id: UUID, task_id: UUID, swap: Swap, today: date) -> None:
+    """Trades a task on a day for one from the bank. Both are checked before either
+    changes."""
+    owner = lock_user(connection, user_id)
+    if swap.bank_task_id == task_id:
+        raise NotAllowed("A task can't be swapped with itself.")
+    to_bank = row_in_week(connection, user_id, task_id, swap.week)
+    placed = row_in_week(connection, user_id, swap.bank_task_id, swap.week)
+    check_day(swap.day, swap.week, today, open_weeks(today, owner.planned_through_week))
+    set_row(connection, user_id, to_bank, None, False, None)
+    set_row(connection, user_id, placed, swap.day, True, None)

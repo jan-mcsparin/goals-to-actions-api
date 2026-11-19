@@ -19,7 +19,7 @@ from app.goals.models import GoalEdit, NewGoal, WeeklyTargetInput
 from app.milestones import rules as milestone_rules
 from app.milestones.models import MilestoneEdit, MilestoneOrder, NewCheckIn, NewMilestone
 from app.tasks import rules as task_rules
-from app.tasks.models import CheckOff, NewTask, Placing, ToBank
+from app.tasks.models import CheckOff, NewTask, Placing, Swap, ToBank
 
 NEW_GOAL = NewGoal(type="oneOff", label="Move house", measurable_line="Keys handed in")
 
@@ -86,6 +86,13 @@ WRITES: dict[str, Callable[[Connection], object]] = {
     ),
     "move task to bank": lambda tx: task_rules.move_to_bank(
         tx, FIXED_USER_ID, uuid4(), ToBank(week=date(2026, 11, 16))
+    ),
+    "swap tasks": lambda tx: task_rules.swap(
+        tx,
+        FIXED_USER_ID,
+        uuid4(),
+        Swap(week=date(2026, 11, 16), bank_task_id=uuid4(), day=date(2026, 11, 16)),
+        date(2026, 11, 16),
     ),
 }
 

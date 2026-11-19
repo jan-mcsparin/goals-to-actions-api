@@ -1070,6 +1070,50 @@
         "title": "Retirement",
         "type": "object"
       },
+      "Swap": {
+        "description": "The task in the route goes to the bank; the bank task goes onto the day.",
+        "properties": {
+          "bankTaskId": {
+            "format": "uuid",
+            "title": "Banktaskid",
+            "type": "string"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "week": {
+            "description": "The week the change was made in. Refused once either task has left it.",
+            "format": "date",
+            "title": "Week",
+            "type": "string"
+          }
+        },
+        "required": [
+          "week",
+          "bankTaskId",
+          "day"
+        ],
+        "title": "Swap",
+        "type": "object"
+      },
+      "Swapped": {
+        "properties": {
+          "placed": {
+            "$ref": "#/components/schemas/Task"
+          },
+          "toBank": {
+            "$ref": "#/components/schemas/Task"
+          }
+        },
+        "required": [
+          "toBank",
+          "placed"
+        ],
+        "title": "Swapped",
+        "type": "object"
+      },
       "Task": {
         "properties": {
           "carriedOver": {
@@ -3454,6 +3498,89 @@
           }
         },
         "summary": "Place Task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/tasks/{task_id}/swap": {
+      "post": {
+        "description": "This task goes to the bank, and the bank task takes the day.",
+        "operationId": "swapTasks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Swap"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Swapped"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Swap Tasks",
         "tags": [
           "tasks"
         ]

@@ -164,3 +164,18 @@ class ToBank(ApiModel):
     week: date = Field(
         description="The week the change was made in. Refused once the task has left it."
     )
+
+
+class Swap(ApiModel):
+    """The task in the route goes to the bank; the bank task goes onto the day."""
+
+    week: date = Field(
+        description="The week the change was made in. Refused once either task has left it."
+    )
+    bank_task_id: UUID
+    day: date
+
+
+class Swapped(ApiModel):
+    to_bank: Task
+    placed: Task

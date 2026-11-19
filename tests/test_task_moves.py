@@ -155,3 +155,73 @@ def test_back_to_the_bank_clears_the_day_and_the_mark(
     assert to_bank(tasks_client, task["id"]).json() == response.json()
     assert rows(connection, task["id"]) == [(this_week(), None, False, None)]
     assert row_actions(connection, task["id"])[-1] == "move task to bank"
+
+
+# swapTasks
+
+
+def swap(
+    client: TestClient, task_id: str, bank_task_id: str, day: date, week: date | None = None
+) -> Any:
+    return client.post(
+        f"/api/tasks/{task_id}/swap",
+        json={
+            "week": (week or this_week()).isoformat(),
+            "bankTaskId": bank_task_id,
+            "day": day.isoformat(),
+        },
+    )
+
+
+def test_a_swap_sends_the_days_task_to_the_bank_and_places_the_bank_task(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    on_today = add_task(tasks_client, title="On today", day=today().isoformat())
+    in_bank = add_task(tasks_client, title="In the bank")
+
+    response = swap(tasks_client, on_today["id"], in_bank["id"], today())
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "toBank": on_today | {"plannedDay": None, "placedByHand": False},
+        "placed": in_bank | {"plannedDay": today().isoformat(), "placedByHand": True},
+    }
+    assert row_actions(connection, in_bank["id"])[-1] == "swap tasks"
+
+
+def test_the_same_swap_twice_changes_nothing_more(tasks_client: TestClient) -> None:
+    on_today = add_task(tasks_client, day=today().isoformat())
+    in_bank = add_task(tasks_client)
+    first = swap(tasks_client, on_today["id"], in_bank["id"], today()).json()
+
+    assert swap(tasks_client, on_today["id"], in_bank["id"], today()).json() == first
+
+
+def test_a_swap_is_refused_whole_when_either_task_has_left_the_week(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    on_today = add_task(tasks_client, day=today().isoformat())
+    in_bank = add_task(tasks_client)
+    move_to_last_week(connection, in_bank["id"])
+
+    assert swap(tasks_client, on_today["id"], in_bank["id"], today()).status_code == 409
+    assert rows(connection, on_today["id"]) == [(this_week(), today(), True, None)]
+
+
+def test_a_swap_onto_a_past_day_or_with_itself_is_refused(tasks_client: TestClient) -> None:
+    on_today = add_task(tasks_client, day=today().isoformat())
+    in_bank = add_task(tasks_client)
+    yesterday = today() - timedelta(days=1)
+
+    assert swap(tasks_client, on_today["id"], in_bank["id"], yesterday).status_code == 409
+    assert swap(tasks_client, on_today["id"], on_today["id"], today()).status_code == 409
+
+
+def test_a_swap_with_another_users_task_is_not_found(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    on_today = add_task(tasks_client, day=today().isoformat())
+    theirs = str(add_task_for(connection, add_other_user(connection)))
+
+    assert swap(tasks_client, on_today["id"], theirs, today()).status_code == 404
+    assert swap(tasks_client, theirs, on_today["id"], today()).status_code == 404

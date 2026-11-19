@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from app.dependencies import CurrentDatabase, CurrentUserId
 from app.schemas import NOT_ALLOWED, NOT_FOUND
 from app.tasks import rules
-from app.tasks.models import NewTask, Task, Week
+from app.tasks.models import NewTask, Task, TaskEdit, Week
 from app.tasks.week import task_view, week_read
 from app.time_zone import Today
 
@@ -46,4 +46,13 @@ def add_task(
 ) -> Task:
     with database.transaction(user_id, "add task") as connection:
         rules.add(connection, user_id, task_id, body, today)
+        return task_view(connection, user_id, task_id)
+
+
+@router.patch("/tasks/{task_id}", responses=NOT_FOUND)
+def update_task(
+    task_id: UUID, body: TaskEdit, database: CurrentDatabase, user_id: CurrentUserId
+) -> Task:
+    with database.transaction(user_id, "update task") as connection:
+        rules.update(connection, user_id, task_id, body)
         return task_view(connection, user_id, task_id)

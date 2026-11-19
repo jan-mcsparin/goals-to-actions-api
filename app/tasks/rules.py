@@ -9,7 +9,7 @@ from sqlalchemy import Connection
 
 from app.db import goals, task_weeks, tasks
 from app.errors import NotAllowed, NotFound
-from app.tasks.models import NewTask
+from app.tasks.models import NewTask, TaskEdit
 from app.users import lock_user
 from app.weeks import OpenWeeks, open_weeks, week_of
 
@@ -96,3 +96,18 @@ def add_row(
             outcome=outcome,
         )
     )
+
+
+def update(connection: Connection, user_id: UUID, task_id: UUID, edit: TaskEdit) -> None:
+    updated = tasks.Querier(connection).update_task(
+        tasks.UpdateTaskParams(
+            id=task_id,
+            user_id=user_id,
+            title=edit.title,
+            due_date=edit.due_date,
+            time_kind=None if edit.time_of_day is None else edit.time_of_day.kind,
+            time_of_day=None if edit.time_of_day is None else edit.time_of_day.stored(),
+        )
+    )
+    if updated is None:
+        raise NotFound

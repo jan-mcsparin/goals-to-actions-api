@@ -77,8 +77,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `PATCH /api/tasks/{id}` (`updateTask`): title, due date and time of day, sent whole.
 
 **Acceptance criteria:**
-- [ ] The edit is saved, and the task stays where it is.
-- [ ] Another owner's task is a 404, and a blank title is a 422.
+- [x] The edit is saved, and the task stays where it is.
+- [x] Another owner's task is a 404, and a blank title is a 422.
 
 **Verify:** `uv run pytest tests/test_tasks.py`.
 

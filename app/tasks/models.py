@@ -112,3 +112,11 @@ class Week(ApiModel):
         description="On a day, then in the bank; with no outcome or done. Set-aside rows "
         "aren't shown."
     )
+
+
+class TaskEdit(ApiModel):
+    """Sent whole on every edit. Where the task is doesn't change."""
+
+    title: Label
+    due_date: date | None = None
+    time_of_day: TimeOfDay | None = None

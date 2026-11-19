@@ -29,6 +29,18 @@ def add_task(client: TestClient, task_id: UUID | None = None, **body: Any) -> An
     return response.json()
 
 
+def add_task_for(connection: Connection, user_id: UUID) -> UUID:
+    task_id = uuid4()
+    connection.execute(
+        text(
+            "insert into tasks (id, user_id, title, origin)"
+            " values (:id, :user_id, 'Theirs', 'by_hand')"
+        ),
+        {"id": task_id, "user_id": user_id},
+    )
+    return task_id
+
+
 def rows(connection: Connection, task_id: str) -> list[Any]:
     return list(
         connection.execute(
@@ -220,3 +232,39 @@ def test_a_day_in_a_week_not_open_yet_puts_the_task_in_the_current_bank() -> Non
     new = NewTask(title="Pack", day=date(2026, 12, 2))
 
     assert landing(new, None, SUNDAY, AFTER_WRAP_UP) == Landing(date(2026, 11, 23))
+
+
+# updateTask
+
+
+def test_an_edit_changes_what_was_typed_and_leaves_the_task_where_it_is(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    task = add_task(
+        tasks_client, day=today().isoformat(), timeOfDay={"kind": "at", "time": "09:30"}
+    )
+    due = (today() + timedelta(days=20)).isoformat()
+
+    response = tasks_client.patch(
+        f"/api/tasks/{task['id']}", json={"title": "Call the vet", "dueDate": due}
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == task | {"title": "Call the vet", "dueDate": due, "timeOfDay": None}
+    assert [row.action for row in audit_rows(connection, task["id"])] == ["add task", "update task"]
+
+
+def test_an_edit_of_another_users_task_is_not_found(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    theirs = add_task_for(connection, add_other_user(connection))
+
+    response = tasks_client.patch(f"/api/tasks/{theirs}", json={"title": "Mine now"})
+
+    assert response.status_code == 404
+
+
+def test_an_edit_with_a_blank_title_is_refused(tasks_client: TestClient) -> None:
+    task = add_task(tasks_client)
+
+    assert tasks_client.patch(f"/api/tasks/{task['id']}", json={"title": " "}).status_code == 422

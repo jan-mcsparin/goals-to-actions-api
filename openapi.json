@@ -1155,6 +1155,44 @@
         "title": "Task",
         "type": "object"
       },
+      "TaskEdit": {
+        "description": "Sent whole on every edit. Where the task is doesn't change.",
+        "properties": {
+          "dueDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duedate"
+          },
+          "timeOfDay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimeOfDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "TaskEdit",
+        "type": "object"
+      },
       "TimeOfDay": {
         "description": "\"By 6 p.m.\" or \"at 6 p.m.\", wherever the phone is.",
         "properties": {
@@ -2875,6 +2913,67 @@
       }
     },
     "/api/tasks/{task_id}": {
+      "patch": {
+        "operationId": "updateTask",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Task",
+        "tags": [
+          "tasks"
+        ]
+      },
       "put": {
         "operationId": "addTask",
         "parameters": [

@@ -43,3 +43,8 @@ where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.deleted_at
   and (task_weeks.outcome is null or task_weeks.outcome = 'done')
 order by task_weeks.planned_day nulls last, tasks.time_of_day nulls last, tasks.created_at,
   tasks.id;
+
+-- name: UpdateTask :one
+update tasks set title = $3, due_date = $4, time_kind = $5, time_of_day = $6
+where id = $1 and user_id = $2 and deleted_at is null
+returning *;

@@ -1,96 +1,85 @@
 # Spec: The planner
 
-Status: draft 2026-11-13, product decisions settled 2026-11-16; finalised when its plan is written. Issue: [#10](https://github.com/jan-mcsparin/goals-to-actions-api/issues/10). Module `planner` in the [map](README.md). Depends on `week-turnover`.
+Status: draft 2026-11-13, product decisions settled 2026-11-16, narrowed to recurring work 2026-11-19 (ADR-013); finalised when its plan is written. Issue: [#10](https://github.com/jan-mcsparin/goals-to-actions-api/issues/10). Module `planner` in the [map](README.md). Depends on `week-turnover`.
 
 ## Objective
 
-Draft the week: take what is in the bank and put it on days, maintenance first, then goal work, leaving free time. It runs on the server (ADR-008), once per week (ADR-009), and it is the part of the product with the most rules and the most ways to annoy someone.
+Place the week's recurring work on days: fixed-day tasks on their day, and a goal's sessions and a flexible item's tasks spread evenly across the week. Everything else stays in the bank for the person to place (ADR-013). It runs on the server (ADR-008), when a week opens and as new recurring work arrives (ADR-009).
 
-References: [`product-rules.md`](../../docs/product-rules.md#planning) (all nine planning rules), [`flows.md`](../../docs/flows.md#flow-4-plan-today), [ADR-008](../../docs/adr/0008-planner-on-server.md), [ADR-009](../../docs/adr/0009-week-opens-sunday-drafted-once.md), [`data-model.md`](../../docs/data-model.md#rules-the-data-must-keep).
+The full draft this spec used to describe (due-date placement, fitting under the cap, goals taking turns, lifting work off days when intensity drops) is gone. A wrong guess costs the person more than placing a task themselves.
+
+References: [`product-rules.md`](../../docs/product-rules.md#planning), [`flows.md`](../../docs/flows.md#flow-4-plan-today), [ADR-008](../../docs/adr/0008-planner-on-server.md), [ADR-009](../../docs/adr/0009-week-opens-sunday-drafted-once.md), [ADR-013](../../docs/adr/0013-place-only-recurring-work.md), [`data-model.md`](../../docs/data-model.md#rules-the-data-must-keep).
 
 ## Scope
 
 **In:**
 
-- A drafting rule, written as a plain function from the week's state (tasks, what is placed, the first day it may use, intensity) to a list of placements, with no database or clock inside it, so it can be tested by example.
-- The three times it runs, and nothing else (below).
-- The order, the spread and the cap (below).
-- The two things it must never do: move a task placed by hand, or write to today or an earlier day after the week's first draft. Both are also refused where the database can refuse them.
-- Saying so when the week holds more than fits: the week's read carries how much of the bank the rest of the week can't hold, which days have room and which are over the cap. It is worked out on every read, and nothing is crammed or moved.
+- A placing rule, written as a plain function from the week's state (the tasks to place, what is already on each day, the first day it may use) to a list of placements, with no database or clock inside it, so it can be tested by example.
+- The two times it runs (below).
+- The two things it must never do: move a task placed by hand, or write to today or an earlier day after the week's first placement. Both are also refused where the database can refuse them.
+- The full-day mark: the week's read carries each day's cap and whether the day is over it. It is worked out on every read, and nothing is moved because of it.
 
-**Out (later):**
+**Out:**
 
-- Learning a person's rhythm from history.
-- Time estimates, per-day capacity, calendar awareness.
-- Intensity that expires.
-- Pausing everything while away.
+- Placing anything that isn't recurring work: tasks added by hand, a one-off goal's steps, tasks now due, carry-overs. They stay in the bank.
+- The cap as a limit. Lowering intensity moves nothing (ADR-013).
+- Saying the bank holds more than the week can, or suggesting what to move.
+- Learning a person's rhythm, time estimates, per-day capacity, calendar awareness.
 - Order within a day. Timed tasks anchor a day and untimed ones float around them, but that is how a day is drawn; no position is stored.
+- A "suggest a plan" the person asks for. The bank-first design leaves room for it later.
 
-## Settled 2026-11-16
+## When it runs
 
-### When it runs
+1. **The first placement,** when a week opens (`week-turnover`), in the same transaction. It places the new week's recurring work and may use any day from today on. Opened on Sunday evening, that is the whole week.
+2. **New recurring work,** in the transaction that creates it: a new building goal's sessions, a session added by a raised target, a new or changed recurring item's tasks, and sessions or recurring tasks made fresh when a goal or item comes back. It places only the arriving tasks, on days after today. With no day after today left in the week, they stay in the bank.
 
-1. **The first draft,** when a week opens (`week-turnover`), in the same transaction. It places everything in the new week's bank and may use any day from today on. Opened on Sunday evening, that is the whole week.
-2. **A new arrival,** in the transaction that creates it: a carry-over when last week closes, a new building goal's sessions, a session added by a raised target, a new or changed recurring item's tasks. Only the arriving tasks are placed, on days after today with room; with no room they stay in the bank.
-3. **Intensity lowered:** on days after today that are now over the cap, goal work the planner placed goes back to the bank, lowest priority first, until the day fits. Raising intensity moves nothing.
+It never runs because a slot came free, and never for a carry-over: carry-overs arrive in the bank. A task the person sent to the bank, added to the bank, or got back by resuming a goal stays there until they place it.
 
-It never runs because a slot came free. A task checked off early, sent back to the bank, dropped or set aside leaves its day lighter, and the planner leaves it that way. A task the person sent to the bank, added to the bank, or got back by resuming a goal stays in the bank until they place it.
+This is why `task_weeks` needs no extra column: the planner only places tasks created in its own transaction.
 
-This is why `task_weeks` needs no extra column: the planner only places tasks created or carried over in its own transaction.
+## Where it puts things
 
-### The order
+**What it places:** fixed-day recurring tasks, a building goal's weekly sessions, and flexible recurring tasks. "The days it may use" are those from the first day allowed (above) to Sunday.
 
-1. **Fixed-day recurring tasks** on their day, even when that takes the day over the cap. If the day is before the first day the draft may use, the first day.
-2. **Tasks with a due date in the week:** one with an "at" time on its due date; any other on the lightest day up to its due date. If the date has passed, the first day.
-3. **Other maintenance:** flexible recurring tasks whose item has no aspiration, and tasks with no goal, on the lightest day with room. Several of one item in a week are spaced apart.
-4. **Goal work,** by priority (below): sessions, tasks that belong to a goal, and flexible recurring tasks whose item sits under an aspiration.
+1. **A fixed-day task** goes on its day. If that day is before the first day it may use, it goes on the first day. It lands on its day whatever the day already holds.
+2. **A goal's sessions, or a flexible item's tasks,** are spread evenly over the days it may use. With _n_ tasks and _d_ days, they go _d_/_n_ days apart, rounded down (3 over 7: Monday, Wednesday, Friday), never two on one day unless _n_ is more than _d_. Where the spacing leaves a choice of starting day, it takes the start whose days hold the fewest tasks; ties go to the earlier start.
+3. **New work for a goal or item that already has tasks this week** (a raised target) goes on the lightest day it may use that holds none of that goal's or item's tasks; ties go to the earlier day.
 
-"Lightest" is the day with the fewest tasks; ties go to the earlier day.
+**The order** only decides who sees the lighter days first: fixed-day tasks, then maintenance (flexible items with no aspiration), then goal work in the order of its aspiration's position (an aspiration's goals by when they were made, then its recurring items), then goals with no aspiration or a retired one.
 
-### The cap
-
-- 3 tasks a day at Easing off, 4 at Normal, 6 at Going hard. One constant each; expect to tune them from use.
-- Everything on the day counts: placed by hand, placed by the planner, done or not. Quitting answers are not tasks and never count.
-- The planner never takes a day past the cap, except for a fixed-day task on its day.
-- The person can go past it by hand. The read marks the day as over; nothing is moved.
-
-### Spread and priority
-
-- A goal's sessions are spaced as evenly as the days allow, never two on one day unless there are more sessions than days.
-- Goals are taken in the order of their aspirations' positions, then by when the goal was made. An aspiration's recurring items come after its goals. Goals with no aspiration, or a retired one, come last.
-- Goals take turns: every goal gets its first session placed before any gets its second. When the week is short, what is left in the bank is the later sessions of the lower goals.
+**The cap is not consulted.** A day may end up over it; the read marks it.
 
 ### Left to other slices
 
-- **An undated step of a one-off goal** has no row until the person pulls it in or dates it, so the planner never sees it (`tasks-week`).
-- **A task added by hand under a building goal** counts towards its target, and no session is removed to make up for it. A session left over stays where it is until the person moves it or it lapses.
+- **An undated step of a one-off goal** has no row until the person pulls it in or dates it (`tasks-week`).
+- **A task added by hand under a building goal** counts towards its target, and no session is removed to make up for it.
 - **A new fixed-day item whose day is today** is put on today by the route that creates it, because the person just asked for it (`recurring-items`). It is not a planner write.
+- **Intensity** is read for the full-day mark; until `settings-sync` adds `setIntensity`, every user is Normal (4).
 
 ## Testing strategy
 
-- **The drafting function, by example:** a table of small weeks in, placements out. One case per rule above, plus the empty week, the full week, the week that doesn't fit, and a week first opened on Wednesday.
-- **Properties that must hold for any input:** no hand-placed task moves; after the first draft nothing lands on today or earlier; no day exceeds the cap unless hand-placed or fixed-day tasks take it there; every placement is inside the week; drafting the same state twice gives the same placements. Whether these are written as examples or with a property-testing library is a dependency question to ask in the plan.
+- **The placing function, by example:** a table of small weeks in, placements out. One case per rule above, plus the empty week, a week first opened on Wednesday, more sessions than days, two goals competing for the lighter days, and a day already over the cap.
+- **Properties that must hold:** no hand-placed task moves; after the first placement nothing lands on today or earlier; only recurring work is ever placed; every placement is inside the week; placing the same state twice gives the same placements.
 - **Through the API:**
-  - a draft when the week opens, on Sunday evening and on a first request midweek;
-  - a carry-over placed on Tuesday or later;
+  - a placement when the week opens, on Sunday evening and on a first request midweek;
+  - carry-overs, tasks now due and one-off steps are in the bank after the week opens;
+  - a new goal made on Tuesday has its sessions on Wednesday or later;
   - a check-off made early and a task sent back to the bank each leave every other row as it was;
-  - lowering intensity lifts only the planner's own goal work.
+  - changing intensity moves nothing and changes only the full-day mark.
 
 ## Boundaries
 
-As shared. **Ask first:** any change to a planning rule in `product-rules.md`; a property-testing dependency. **Never:** a write to a hand-placed row; a write to today or an earlier day after the week's first draft; filling a day to the cap just because there is room; a run triggered by a slot coming free.
+As shared. **Ask first:** any change to a planning rule in `product-rules.md`; placing anything that isn't recurring work. **Never:** a write to a hand-placed row; a write to today or an earlier day after the week's first placement; a run triggered by a slot coming free.
 
 ## Success criteria
 
-- [ ] When a week opens, it has a draft that follows every rule above.
-- [ ] After the first draft, Today is byte-for-byte the same before and after any planner run.
-- [ ] A week that doesn't fit says so and leaves the rest in the bank.
-- [ ] A new arrival is placed on a later day with room, and nothing else moves.
-- [ ] Lowering intensity lifts goal work off later days over the cap; raising it moves nothing.
+- [ ] When a week opens, its recurring work is on days by the rules above, and everything else is in the bank.
+- [ ] After the first placement, Today is byte-for-byte the same before and after any planner run.
+- [ ] New recurring work is placed on later days, and nothing else moves.
+- [ ] The week's read marks a day over the cap; nothing is moved because of it.
 - [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.
 
 ## Open questions
 
-1. **What the "doesn't fit" suggestion says.** Rule 9 asks the app to suggest what to move. The read can name the lowest-priority goal work in the bank and the days with room; the wording and whether it names tasks is settled with the front end's screen.
-2. **Does intensity ride with this slice?** `settings-sync` asks the same. The planner reads it and reacts to it, so I'd bring `getSettings` and `setIntensity` here.
+None. The two from the full draft (what the "doesn't fit" suggestion says, and whether intensity rides with this slice) went with it.

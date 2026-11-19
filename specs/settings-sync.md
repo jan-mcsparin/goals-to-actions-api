@@ -37,7 +37,7 @@ As shared. **Never:** trust the phone's clock for ordering; store an offset.
 
 ## Success criteria
 
-- [ ] Intensity reads and saves, and the planner uses it: the next draft follows it, and lowering it lifts goal work off later days at once (`planner`).
+- [ ] Intensity reads and saves, and the week's read marks days against it. Changing it moves nothing (ADR-013).
 - [ ] The user's time zone follows the phone.
 - [ ] Every write in the API passes the repeat test.
 - [ ] The README says what the offline queue can rely on.
@@ -46,6 +46,8 @@ As shared. **Never:** trust the phone's clock for ordering; store an offset.
 
 ## Open questions
 
-1. **Should intensity move earlier?** It is one small route pair and the planner reads it. It could ride with `planner`, leaving this slice as the sync check alone.
+None left.
+
+Settled 2026-11-19 (ADR-013): intensity stays in this slice. It no longer changes what the planner places, only which days the week's read marks as full, and every user reads as Normal until then.
 
 Settled 2026-11-16 (ADR-010): no "what changed since" read; a resent create whose body differs from the stored row returns the row as it is, and the difference is ignored.

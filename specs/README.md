@@ -17,7 +17,7 @@ What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product
 | 5 | [`tasks-week`](tasks-week.md) | #7 | Tasks and their week records; the week read; add, check off, back to bank, pull, swap, place | `tasks`, `task_weeks` | 3 |
 | 6 | [`recurring-items`](recurring-items.md) | #8 | Structured schedules, create and edit, on and off | `recurring_items` | 3, 5 |
 | 7 | [`week-turnover`](week-turnover.md) | #9 | Opening a week on Sunday evening and filling its bank, closing it with rollover and lapse, wrapping up by hand, the upcoming list, "Still matter?" | — (one column on `users`) | 5, 6 |
-| 8 | [`planner`](planner.md) | #10 | Drafting the week onto days, once: maintenance first, the intensity cap, never a hand-placed task, never today after the first draft | — | 7 |
+| 8 | [`planner`](planner.md) | #10 | Placing recurring work on days (ADR-013): fixed-day tasks on their day, goal sessions and flexible items spread evenly, the full-day mark; never a hand-placed task, never today after the first placement | — | 7 |
 | 9 | [`quitting-goals`](quitting-goals.md) | #11 | Daily answers and urge ratings | `quit_days`, `urge_ratings` | 3 |
 | 10 | [`delete`](delete.md) | #12 | Delete for mistakes, with what it takes along | — | 2–6, 9 |
 | 11 | [`settings-sync`](settings-sync.md) | #13 | Intensity, the phone's time zone, a check that every write is safe to repeat | — | 1 |
@@ -142,4 +142,4 @@ tests/
 
 - **Always:** work on a branch and open a PR; run the four checks before saying work is done; update `../docs/` in the same work when behaviour or the data model changes; keep generated code generated.
 - **Ask first:** any new dependency; a change to the data model in `data-model.md`; a new shared convention; anything a spec lists as an open question.
-- **Never:** SQL outside `db/`; a query without the owner; reading the audit log from a route; a planner write to a hand-placed task, or to today after a week's first draft; tests against anything but Postgres.
+- **Never:** SQL outside `db/`; a query without the owner; reading the audit log from a route; a planner write to a hand-placed task, or to today after a week's first placement; tests against anything but Postgres.

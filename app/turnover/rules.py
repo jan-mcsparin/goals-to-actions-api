@@ -5,15 +5,16 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from uuid import UUID, uuid4
 
-from sqlalchemy import Connection, text
+from sqlalchemy import Connection
 
+from app.database import set_audit_action
 from app.db import goals, models, recurring_items, tasks, turnover, users, weekly_targets
 from app.db.users import GetUserRow
 from app.errors import NotAllowed
 from app.planner import place_new_work
 from app.tasks.rules import add_row, set_outcome
 from app.turnover.due import Slot, goal_slots, item_slots
-from app.turnover.endings import ending_for, item_of, schedule_of
+from app.turnover.endings import ending_of, schedule_of
 from app.users import lock_user
 from app.weeks import OpenWeeks, current_week, open_weeks
 
@@ -56,7 +57,7 @@ def catch_up(connection: Connection, user_id: UUID, now: datetime) -> bool:
     if due.close:
         last = current - timedelta(weeks=1)
         close_weeks(connection, user_id, last, current, owner.closed_through_week)
-        set_action(connection, "open week")
+        set_audit_action(connection, "open week")
         mark_closed(connection, user_id, last)
     if due.open_current:
         open_week(connection, user_id, current, now.date())
@@ -65,13 +66,7 @@ def catch_up(connection: Connection, user_id: UUID, now: datetime) -> bool:
     return True
 
 
-SET_ACTION = text("select set_config('app.action', :action, true)")
 NEVER = date(1, 1, 1)
-
-
-def set_action(connection: Connection, action: str) -> None:
-    """Names what the audit log records for the rest of this transaction."""
-    connection.execute(SET_ACTION, {"action": action})
 
 
 def mark_closed(connection: Connection, user_id: UUID, week: date) -> None:
@@ -90,9 +85,7 @@ def close_weeks(
     period and its row keeps saying set aside; one added by hand waits."""
     queries = turnover.Querier(connection)
     for row in queries.list_rows_to_close(user_id=user_id, through=through, after=after or NEVER):
-        task = tasks.Querier(connection).get_task(id=row.task_id, user_id=user_id)
-        assert task is not None
-        ends = ending_for(connection, user_id, task, row.week)
+        ends = ending_of(row.origin, row.item_kind, row.item_period, row.period_start, row.week)
         if row.outcome is None:
             if ends == "rolls_over":
                 set_outcome(connection, user_id, row, "rolled_over")
@@ -102,11 +95,10 @@ def close_weeks(
                 tasks.Querier(connection).set_task_closed(
                     id=row.task_id, user_id=user_id, state="lapsed"
                 )
-        elif task.origin == "by_hand":
+        elif row.origin == "by_hand":
             continue
         else:
-            item = item_of(connection, user_id, task)
-            if ends == "rolls_over" and item is not None and item.schedule_kind == "flexible":
+            if ends == "rolls_over" and row.item_kind == "flexible":
                 add_row(connection, user_id, row.task_id, carry_to, outcome="set_aside")
             else:
                 tasks.Querier(connection).set_task_closed(
@@ -147,6 +139,7 @@ def open_week(connection: Connection, user_id: UUID, week: date, today: date) ->
     ):
         add_row(connection, user_id, due, week)
     mark_opened(connection, user_id, week)
+    # Opening places from today on: Sunday evening's first placement may use the whole week.
     place_new_work(connection, user_id, made, max(today, week))
     return made
 
@@ -196,7 +189,9 @@ def fill_item(
     for week in (weeks.current, weeks.next) if weeks.next_open else (weeks.current,):
         existing = existing_slots(connection, user_id, week)
         made += make_item_tasks(connection, user_id, item, week, today, existing)
-    place_new_work(connection, user_id, made, today + timedelta(days=1))
+    # A change places only on later days: today only changes because of something the person did.
+    if made:
+        place_new_work(connection, user_id, made, today + timedelta(days=1))
 
 
 def fill_goal(
@@ -216,7 +211,9 @@ def fill_goal(
             continue
         existing = existing_slots(connection, user_id, week)
         made += make_sessions(connection, user_id, goal, target.sessions, week, today, existing)
-    place_new_work(connection, user_id, made, today + timedelta(days=1))
+    # A change places only on later days: today only changes because of something the person did.
+    if made:
+        place_new_work(connection, user_id, made, today + timedelta(days=1))
 
 
 def trim_goal(

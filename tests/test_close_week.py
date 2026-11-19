@@ -39,7 +39,6 @@ def new_task(
     item_id: UUID | None = None,
     period_start: date | None = None,
     outcome: str | None = None,
-    state: str = "open",
     number: int = 1,
 ) -> UUID:
     task_id = uuid4()
@@ -66,10 +65,6 @@ def new_task(
         ),
         {"user": FIXED_USER_ID, "task": task_id, "week": week, "outcome": outcome},
     )
-    if state != "open":
-        connection.execute(
-            text("update tasks set state = :state where id = :id"), {"state": state, "id": task_id}
-        )
     return task_id
 
 
@@ -213,9 +208,13 @@ def test_a_week_of_one_of_three_is_followed_by_a_week_of_three(connection: Conne
             period_start=W2,
             number=number,
             outcome="done" if number == 1 else None,
-            state="open",
         )
-    connection.execute(text("update task_weeks set outcome = 'done' where outcome = 'done'"))
+    connection.execute(
+        text(
+            "update tasks set state = 'done', completed_at = now(), completed_on = '2026-11-10'"
+            " where id in (select task_id from task_weeks where outcome = 'done')"
+        )
+    )
 
     close_on(connection, date(2026, 11, 18))
 

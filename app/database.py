@@ -10,10 +10,17 @@ from app.config import DATABASE_URL, FIXED_USER_ID
 SET_AUDIT_CONTEXT = text(
     "select set_config('app.user_id', :user_id, true), set_config('app.action', :action, true)"
 )
+SET_ACTION = text("select set_config('app.action', :action, true)")
 SET_READ_ONLY = text("set transaction read only")
 # The checks Postgres runs at commit (constraints declared `initially deferred`).
 CHECK_AS_AT_COMMIT = text("set constraints tasks_rows_agree, task_weeks_rows_agree immediate")
 DEFER_AGAIN = text("set constraints tasks_rows_agree, task_weeks_rows_agree deferred")
+
+
+def set_audit_action(connection: Connection, action: str) -> None:
+    """Renames what the audit log records for the rest of this transaction, for a write that
+    turns out to be something else once it has begun ("close week", then "open week")."""
+    connection.execute(SET_ACTION, {"action": action})
 
 
 class Database:

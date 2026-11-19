@@ -21,22 +21,35 @@ def schedule_of(item: models.RecurringItem) -> ItemSchedule:
     )
 
 
-def item_of(
-    connection: Connection, user_id: UUID, task: models.Task
-) -> models.RecurringItem | None:
-    if task.recurring_item_id is None:
-        return None
-    return recurring_items.Querier(connection).get_recurring_item(
-        id=task.recurring_item_id, user_id=user_id
-    )
+def ending_of(
+    origin: str,
+    item_kind: str | None,
+    item_period: str | None,
+    period_start: date | None,
+    week: date,
+) -> Ending:
+    """What closing `week` does to an unfinished task, from what the task queries carry: its
+    origin, its item's kind and period (none when it has no item), and its period start. A
+    recurring task whose item is gone ends with its week."""
+    if origin != "recurring_item":
+        return ending(origin, None, period_start, week)
+    if item_kind is None:
+        return "lapses"
+    schedule = ItemSchedule(item_kind, week, period=item_period)  # type: ignore[arg-type]
+    return ending(origin, schedule, period_start, week)
 
 
 def ending_for(connection: Connection, user_id: UUID, task: models.Task, week: date) -> Ending:
-    """What closing `week` does to the task if it's unfinished. A recurring task whose item is
-    gone ends with its week."""
-    if task.origin != "recurring_item":
-        return ending(task.origin, None, task.period_start, week)
-    item = item_of(connection, user_id, task)
-    if item is None:
-        return "lapses"
-    return ending(task.origin, schedule_of(item), task.period_start, week)
+    """The same, for a task read on its own."""
+    item = None
+    if task.recurring_item_id is not None:
+        item = recurring_items.Querier(connection).get_recurring_item(
+            id=task.recurring_item_id, user_id=user_id
+        )
+    return ending_of(
+        task.origin,
+        None if item is None else item.schedule_kind,
+        None if item is None else item.period,
+        task.period_start,
+        week,
+    )

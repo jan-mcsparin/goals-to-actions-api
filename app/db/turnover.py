@@ -88,8 +88,11 @@ class ListGoalSessionsInWeekRow(pydantic.BaseModel):
 
 
 LIST_ROWS_TO_CLOSE = """-- name: list_rows_to_close \\:many
-select task_weeks.id, task_weeks.user_id, task_weeks.task_id, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand, task_weeks.outcome, task_weeks.created_at, task_weeks.updated_at, task_weeks.deleted_at, tasks.origin from task_weeks
+select task_weeks.id, task_weeks.user_id, task_weeks.task_id, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand, task_weeks.outcome, task_weeks.created_at, task_weeks.updated_at, task_weeks.deleted_at, tasks.origin, tasks.period_start,
+  items.schedule_kind as item_kind, items.period as item_period
+from task_weeks
 join tasks on tasks.id = task_weeks.task_id and tasks.state = 'open' and tasks.deleted_at is null
+left join recurring_items items on items.id = tasks.recurring_item_id
 where task_weeks.user_id = :p1 and task_weeks.week <= :p2\\:\\:date and task_weeks.week > :p3\\:\\:date
   and task_weeks.deleted_at is null
   and (
@@ -116,6 +119,9 @@ class ListRowsToCloseRow(pydantic.BaseModel):
     updated_at: datetime.datetime
     deleted_at: Optional[datetime.datetime]
     origin: str
+    period_start: Optional[datetime.date]
+    item_kind: Optional[str]
+    item_period: Optional[str]
 
 
 class Querier:
@@ -204,4 +210,7 @@ class Querier:
                 updated_at=row[8],
                 deleted_at=row[9],
                 origin=row[10],
+                period_start=row[11],
+                item_kind=row[12],
+                item_period=row[13],
             )

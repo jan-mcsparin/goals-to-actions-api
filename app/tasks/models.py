@@ -9,7 +9,7 @@ from pydantic import AwareDatetime, Field, StringConstraints
 from app.db.tasks import GetTaskViewRow, ListStepsRow, ListUpcomingRow, ListWeekTasksRow
 from app.goals.models import Label, WeeklyTarget, WeekProgress
 from app.schemas import ApiModel
-from app.turnover.due import ItemSchedule, ending
+from app.turnover.endings import ending_of
 
 TaskOrigin = Literal["byHand", "weeklyTarget", "recurringItem"]
 TaskState = Literal["open", "done", "dropped", "lapsed"]
@@ -109,24 +109,15 @@ class Task(ApiModel):
 def at_close(
     row: GetTaskViewRow | ListWeekTasksRow | ListStepsRow | ListUpcomingRow,
 ) -> AtClose | None:
-    """The same rule closing uses (`app.turnover.due.ending`), so the sheet and the close
+    """The same rule closing uses (`app.turnover.endings.ending_of`), so the sheet and the close
     can't disagree."""
     if row.state != "open" or row.week is None:
         return None
-    schedule = None
-    if row.item_kind is not None:
-        schedule = ItemSchedule(
-            row.item_kind,  # type: ignore[arg-type]
-            row.week,
-            period=row.item_period,  # type: ignore[arg-type]
-        )
-    elif row.origin == "recurring_item":
-        return "ends"  # its item is gone
-    return (
-        "carriesOver"
-        if ending(row.origin, schedule, row.period_start, row.week) == "rolls_over"
-        else "ends"
+    rolls_over = (
+        ending_of(row.origin, row.item_kind, row.item_period, row.period_start, row.week)
+        == "rolls_over"
     )
+    return "carriesOver" if rolls_over else "ends"
 
 
 def still_matters(

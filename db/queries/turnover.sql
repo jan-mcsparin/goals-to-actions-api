@@ -27,8 +27,11 @@ order by tasks.due_date, tasks.created_at, tasks.id;
 -- and set-aside rows that are their task's latest. Weeks closed already (`$3` and before)
 -- are left alone.
 -- name: ListRowsToClose :many
-select task_weeks.*, tasks.origin from task_weeks
+select task_weeks.*, tasks.origin, tasks.period_start,
+  items.schedule_kind as item_kind, items.period as item_period
+from task_weeks
 join tasks on tasks.id = task_weeks.task_id and tasks.state = 'open' and tasks.deleted_at is null
+left join recurring_items items on items.id = tasks.recurring_item_id
 where task_weeks.user_id = sqlc.arg(user_id) and task_weeks.week <= sqlc.arg(through)::date and task_weeks.week > sqlc.arg(after)::date
   and task_weeks.deleted_at is null
   and (

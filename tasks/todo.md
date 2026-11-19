@@ -88,8 +88,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `openapi.json`; the spec finalised (status, contract, settled questions); `specs/README.md` notes; `../docs/data-model.md` (starts on, worked out by the front end and turnover), `../docs/flows.md` if retire's wording changes. In `web-frontend`, on its own branch: regenerate the types and make the mock client compile against them.
 
 **Acceptance criteria:**
-- [ ] `openapi.json` is regenerated and the contract test passes.
-- [ ] The docs say what was built and decided.
+- [x] `openapi.json` is regenerated and the contract test passes.
+- [x] The docs say what was built and decided.
 - [ ] The front end's types are regenerated and its checks pass (`nvm use` first).
 
 **Verify:** the four checks here; `npm run lint`, `npm run typecheck` (or the repo's equivalent) and `npm test` in `web-frontend`.

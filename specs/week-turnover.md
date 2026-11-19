@@ -15,10 +15,11 @@ References: [`data-model.md`](../../docs/data-model.md#task_weeks) (how a week e
 **In:**
 
 - **Closing a week**, by origin: weekly-target tasks lapse; flexible recurring tasks lapse at the end of their period and carry inside it; fixed-day recurring tasks and tasks added by hand roll over into the next week's bank.
+- The same endings for a recurring task unchecked after its week closed (`tasks-week` settled 3; today it lapses like any generated task).
 - **Set-aside rows stay set aside at the close.** A generated task among them ends with its week or period: the task closes as lapsed, and its row still says set aside, so it never reads as a miss. A task added by hand stays open with no row in play.
 - **Opening a week**, which fills its bank and then calls the planner's first draft in the same transaction:
   - one task per session of each active building goal's target for that week, from the week of the goal's start date;
-  - recurring tasks due in that week, by schedule kind;
+  - recurring tasks due in that week, by schedule kind: a fixed item's days from the first matching day on or after its `startsOn`, a flexible item's periods anchored on it;
   - open tasks whose due date falls in the week and have no row yet.
 - **Carry-overs arrive at the close,** not at the opening: a task can have only one row in play, so it can't be in next week while this week still holds it. They are handed to the planner as new arrivals.
 - **One step brings the week up to date,** before any route that needs the day, read or write. Reads are read-only, so it runs in its own write transaction, with its own audit action (`open week`, `close week`), and does nothing when nothing is due. It takes the user lock first: opening the app sends several requests at once, and hosted they run on separate copies of the API (ADR-011), so two must not open or close the same week together.

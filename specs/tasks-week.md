@@ -101,7 +101,7 @@ Every route but `updateTask` and `dropTask` needs `X-Time-Zone`.
 
 1. **Adding a task dated in a later week that isn't open:** it waits on the upcoming list, with no row. Placing it on a day in that week isn't offered.
 2. **A swap trades a task on a day for one from the bank.** The day's task goes to the bank and the bank task takes its day. Two day tasks trading days is out.
-3. **Unchecking has one rule** (Jan, 2026-11-18): the row goes back in play as it was. A waiting step checked off on the goal's page made a row on the day it was done, so unchecking leaves it on that day. If the row's week has closed, the task gets the ending that week would have given it: a task added by hand rolls over into the current week's bank, and a generated one lapses. `recurring-items` adds the endings for recurring tasks.
+3. **Unchecking has one rule** (Jan, 2026-11-18): the row goes back in play as it was. A waiting step checked off on the goal's page made a row on the day it was done, so unchecking leaves it on that day. If the row's week has closed, the task gets the ending that week would have given it: a task added by hand rolls over into the current week's bank, and a generated one lapses. `week-turnover` adds the endings for recurring tasks, with the closing rules they share.
 4. **`addTask` takes `day`,** not an "on today" flag, so a queued add states where it ends up.
 5. **Writes return the task.** The phone fetches the week again once its queue is empty (ADR-010).
 6. **Unchecking clears the value logged.**

@@ -58,6 +58,7 @@ select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.
   goals.label as goal_label,
   (select count(*) from task_weeks carried
     where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.week < coalesce(shown.week, 'infinity'\\:\\:date)
       and carried.deleted_at is null)\\:\\:integer as carried_over
 from tasks
 left join task_weeks shown on shown.id = (
@@ -67,7 +68,7 @@ left join task_weeks shown on shown.id = (
   order by task_weeks.week desc
   limit 1
 )
-left join goals on goals.id = tasks.goal_id
+left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
 where tasks.id = :p1 and tasks.user_id = :p2 and tasks.deleted_at is null
 """
 
@@ -99,11 +100,26 @@ class GetTaskViewRow(pydantic.BaseModel):
     carried_over: int
 
 
+GOAL_WEEK_DONE = """-- name: goal_week_done \\:one
+select count(*)\\:\\:integer as done, coalesce(sum(tasks.value_logged), 0)\\:\\:numeric as logged
+from task_weeks
+join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
+where task_weeks.user_id = :p1 and task_weeks.week = :p2 and task_weeks.outcome = 'done'
+  and task_weeks.deleted_at is null and tasks.goal_id = :p3
+"""
+
+
+class GoalWeekDoneRow(pydantic.BaseModel):
+    done: int
+    logged: decimal.Decimal
+
+
 LIST_STEPS = """-- name: list_steps \\:many
 select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, shown.week, shown.planned_day, shown.placed_by_hand,
   goals.label as goal_label,
   (select count(*) from task_weeks carried
     where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.week < coalesce(shown.week, 'infinity'\\:\\:date)
       and carried.deleted_at is null)\\:\\:integer as carried_over
 from tasks
 left join task_weeks shown on shown.id = (
@@ -155,7 +171,7 @@ select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.
       and carried.week < task_weeks.week and carried.deleted_at is null)\\:\\:integer as carried_over
 from task_weeks
 join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
-left join goals on goals.id = tasks.goal_id
+left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
 where task_weeks.user_id = :p1 and task_weeks.week = :p2 and task_weeks.deleted_at is null
   and (task_weeks.outcome is null or task_weeks.outcome = 'done')
 order by task_weeks.planned_day nulls last, tasks.time_of_day nulls last, tasks.created_at,
@@ -188,6 +204,12 @@ class ListWeekTasksRow(pydantic.BaseModel):
     placed_by_hand: bool
     goal_label: Optional[str]
     carried_over: int
+
+
+SET_TASK_CLOSED = """-- name: set_task_closed \\:exec
+update tasks set state = :p3
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
 
 
 SET_TASK_DONE = """-- name: set_task_done \\:exec
@@ -349,6 +371,15 @@ class Querier:
             carried_over=row[23],
         )
 
+    def goal_week_done(self, *, user_id: uuid.UUID, week: datetime.date, goal_id: Optional[uuid.UUID]) -> Optional[GoalWeekDoneRow]:
+        row = self._conn.execute(sqlalchemy.text(GOAL_WEEK_DONE), {"p1": user_id, "p2": week, "p3": goal_id}).first()
+        if row is None:
+            return None
+        return GoalWeekDoneRow(
+            done=row[0],
+            logged=row[1],
+        )
+
     def list_steps(self, *, goal_id: Optional[uuid.UUID], user_id: uuid.UUID) -> Iterator[ListStepsRow]:
         result = self._conn.execute(sqlalchemy.text(LIST_STEPS), {"p1": goal_id, "p2": user_id})
         for row in result:
@@ -408,6 +439,9 @@ class Querier:
                 goal_label=row[22],
                 carried_over=row[23],
             )
+
+    def set_task_closed(self, *, id: uuid.UUID, user_id: uuid.UUID, state: str) -> None:
+        self._conn.execute(sqlalchemy.text(SET_TASK_CLOSED), {"p1": id, "p2": user_id, "p3": state})
 
     def set_task_done(self, arg: SetTaskDoneParams) -> None:
         self._conn.execute(sqlalchemy.text(SET_TASK_DONE), {

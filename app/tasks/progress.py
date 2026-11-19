@@ -2,6 +2,7 @@
 one-off goal's steps. Each is one query for all of the owner's goals."""
 
 from datetime import date
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import Connection
@@ -28,22 +29,44 @@ def targets_for(
     return {row.goal_id: row for row in rows}
 
 
-def week_progress(connection: Connection, user_id: UUID, week: date) -> dict[UUID, WeekProgress]:
-    """Each goal with a target that week: done out of sessions (count), or the values logged
-    out of the amount (amount)."""
+def week_progress(
+    connection: Connection,
+    user_id: UUID,
+    week: date,
+    targets: dict[UUID, models.WeeklyTarget] | None = None,
+) -> dict[UUID, WeekProgress]:
+    """Each goal with a target that week. Takes the targets when the caller has read them."""
+    if targets is None:
+        targets = targets_for(connection, user_id, week)
     done = {
         row.goal_id: row for row in tasks.Querier(connection).week_done(user_id=user_id, week=week)
     }
-    progress = {}
-    for goal_id, target in targets_for(connection, user_id, week).items():
-        row = done.get(goal_id)
-        if target.kind == "amount" and target.amount is not None:
-            progress[goal_id] = WeekProgress(
-                done=float(row.logged) if row else 0.0, of=float(target.amount)
-            )
-        else:
-            progress[goal_id] = WeekProgress(done=row.done if row else 0, of=target.sessions)
-    return progress
+    return {
+        goal_id: measured(target, done[goal_id].done, done[goal_id].logged)
+        if goal_id in done
+        else measured(target, 0, Decimal(0))
+        for goal_id, target in targets.items()
+    }
+
+
+def goal_week_progress(
+    connection: Connection, user_id: UUID, goal_id: UUID, week: date
+) -> WeekProgress | None:
+    """One goal's week, for its page. Empty without a target that week."""
+    target = weekly_targets.Querier(connection).goal_weekly_target_for(
+        goal_id=goal_id, user_id=user_id, effective_from=week
+    )
+    if target is None:
+        return None
+    row = tasks.Querier(connection).goal_week_done(user_id=user_id, week=week, goal_id=goal_id)
+    return measured(target, row.done if row else 0, row.logged if row else Decimal(0))
+
+
+def measured(target: models.WeeklyTarget, done: int, logged: Decimal) -> WeekProgress:
+    """Tasks done out of sessions (count), or the values logged out of the amount (amount)."""
+    if target.kind == "amount" and target.amount is not None:
+        return WeekProgress(done=float(logged), of=float(target.amount))
+    return WeekProgress(done=done, of=target.sessions)
 
 
 def steps(connection: Connection, user_id: UUID) -> dict[UUID, tuple[int, int]]:

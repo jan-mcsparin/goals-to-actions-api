@@ -10,8 +10,9 @@ from sqlalchemy import Connection
 from app.db import aspirations, goals, milestones, models, weekly_targets
 from app.errors import NotAllowed, NotFound
 from app.goals.models import TYPE_IN_DATABASE, GoalEdit, NewGoal, WeeklyTargetInput
+from app.tasks import rules as task_rules
 from app.users import lock_user
-from app.weeks import target_week
+from app.weeks import open_weeks, target_week
 
 
 def create(
@@ -119,8 +120,8 @@ def change_status(
     connection: Connection, user_id: UUID, goal_id: UUID, change: StatusChange, today: date
 ) -> tuple[models.Goal, models.WeeklyTarget | None]:
     """Moves the goal to the change's status. Reached and ended set the end day; coming back
-    clears it. Setting the goal's tasks aside, and returning them, is added with tasks."""
-    lock_user(connection, user_id)
+    clears it. Leaving active sets the goal's tasks aside; coming back returns them."""
+    owner = lock_user(connection, user_id)
     queries = goals.Querier(connection)
     goal = queries.get_goal(id=goal_id, user_id=user_id)
     if goal is None:
@@ -129,10 +130,16 @@ def change_status(
         if goal.status not in change.allowed_from:
             raise NotAllowed(f"A goal that is {goal.status} can't be made {change.to}.")
         ended_on = today if change.to in ("reached", "ended") else None
+        was = goal.status
         goal = queries.set_goal_status(
             id=goal_id, user_id=user_id, status=change.to, ended_on=ended_on
         )
         assert goal is not None
+        current = open_weeks(today, owner.planned_through_week).current
+        if was == "active":
+            task_rules.set_aside_goal_tasks(connection, user_id, goal_id, current)
+        elif change.to == "active":
+            task_rules.bring_back_goal_tasks(connection, user_id, goal_id, current)
     return goal, latest_target(connection, user_id, goal_id)
 
 

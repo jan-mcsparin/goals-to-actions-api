@@ -16,6 +16,7 @@ select tasks.*, shown.week, shown.planned_day, shown.placed_by_hand,
   goals.label as goal_label,
   (select count(*) from task_weeks carried
     where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.week < coalesce(shown.week, 'infinity'::date)
       and carried.deleted_at is null)::integer as carried_over
 from tasks
 left join task_weeks shown on shown.id = (
@@ -25,7 +26,7 @@ left join task_weeks shown on shown.id = (
   order by task_weeks.week desc
   limit 1
 )
-left join goals on goals.id = tasks.goal_id
+left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
 where tasks.id = $1 and tasks.user_id = $2 and tasks.deleted_at is null;
 
 -- The week read: the week's rows in play or done, by day, then the bank; timed tasks first
@@ -38,7 +39,7 @@ select tasks.*, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_ha
       and carried.week < task_weeks.week and carried.deleted_at is null)::integer as carried_over
 from task_weeks
 join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
-left join goals on goals.id = tasks.goal_id
+left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
 where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.deleted_at is null
   and (task_weeks.outcome is null or task_weeks.outcome = 'done')
 order by task_weeks.planned_day nulls last, tasks.time_of_day nulls last, tasks.created_at,
@@ -86,6 +87,7 @@ select tasks.*, shown.week, shown.planned_day, shown.placed_by_hand,
   goals.label as goal_label,
   (select count(*) from task_weeks carried
     where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.week < coalesce(shown.week, 'infinity'::date)
       and carried.deleted_at is null)::integer as carried_over
 from tasks
 left join task_weeks shown on shown.id = (
@@ -99,3 +101,15 @@ join goals on goals.id = tasks.goal_id
 where tasks.goal_id = $1 and tasks.user_id = $2 and tasks.state <> 'dropped'
   and tasks.deleted_at is null
 order by tasks.created_at, tasks.id;
+
+-- Dropped or lapsed: closed without being done.
+-- name: SetTaskClosed :exec
+update tasks set state = $3
+where id = $1 and user_id = $2 and deleted_at is null;
+
+-- name: GoalWeekDone :one
+select count(*)::integer as done, coalesce(sum(tasks.value_logged), 0)::numeric as logged
+from task_weeks
+join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
+where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.outcome = 'done'
+  and task_weeks.deleted_at is null and tasks.goal_id = $3;

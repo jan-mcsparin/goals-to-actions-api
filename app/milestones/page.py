@@ -44,7 +44,7 @@ def goal_page(connection: Connection, user_id: UUID, goal_id: UUID, today: date)
         )
         if one_off
         else Progress.counted(len(rows), hit, goal.status),
-        week_progress=progress.week_progress(connection, user_id, week).get(goal_id),
+        week_progress=progress.goal_week_progress(connection, user_id, goal_id, week),
         steps=[Task.from_row(step) for step in steps],
         latest=None
         if latest is None or latest.result is None

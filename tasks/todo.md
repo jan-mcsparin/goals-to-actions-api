@@ -62,7 +62,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 - [x] The rest:
   - sent twice, it returns the task as it is
   - another owner's goal is a 404
-  - a goal that isn't active is a 409
+  - a goal that isn't active saves the task set aside (changed in review)
   - `getWeek` shows each task's goal label and `carriedOver`
   - a week that isn't a Monday is a 422
 
@@ -138,13 +138,13 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `POST /api/tasks/{id}/place` (`week`, `day`) and `/bank` (`week`).
 
 **Acceptance criteria:**
-- [ ] Placing sets the day and marks the row placed by hand, and works on next week's rows. Back to the bank clears the day and the placed-by-hand mark.
-- [ ] Each is a 409 when:
+- [x] Placing sets the day and marks the row placed by hand, and works on next week's rows. Back to the bank clears the day and the placed-by-hand mark.
+- [x] Each is a 409 when:
   - the task's row in play is in another week than the one named
   - the day is a past day
   - the day is outside the row's week, which covers today before the current week
   - the task isn't in play
-- [ ] Each sent twice changes nothing more.
+- [x] Each sent twice changes nothing more.
 
 **Verify:** `uv run pytest tests/test_task_moves.py`.
 
@@ -157,9 +157,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `POST /api/tasks/{id}/swap` (`week`, `bankTaskId`, `day`). The task named in the route goes to the bank, and the bank task goes onto the day.
 
 **Acceptance criteria:**
-- [ ] Both tasks change in one transaction. Both are checked before either changes.
-- [ ] It's a 409 when either task's row is in another week than the one named, or when the day isn't allowed. It's a 404 when either task belongs to another owner.
-- [ ] Sent twice, it changes nothing more.
+- [x] Both tasks change in one transaction. Both are checked before either changes.
+- [x] It's a 409 when either task's row is in another week than the one named, or when the day isn't allowed. It's a 404 when either task belongs to another owner.
+- [x] Sent twice, it changes nothing more.
 
 **Verify:** `uv run pytest tests/test_task_moves.py`.
 
@@ -172,8 +172,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `POST /api/tasks/{id}/drop`: the task becomes dropped, and its row in play closes as dropped.
 
 **Acceptance criteria:**
-- [ ] A dropped task leaves the week read. A done task can't be dropped (409).
-- [ ] Sent twice, it changes nothing more.
+- [x] A dropped task leaves the week read. A done task can't be dropped (409).
+- [x] Sent twice, it changes nothing more.
 
 **Verify:** `uv run pytest tests/test_task_moves.py`.
 
@@ -186,28 +186,28 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `change_status` in `app/goals/rules.py` calls new task rules.
 
 **Acceptance criteria:**
-- [ ] Pause, end and reach set the goal's unfinished rows aside in every open week: on days, placed by hand, and in the bank. They keep their day.
-- [ ] Resume, reopen and go again bring them back:
+- [x] Pause, end and reach set the goal's unfinished rows aside in every open week: on days, placed by hand, and in the bank. They keep their day.
+- [x] Resume, reopen and go again bring them back:
   - a set-aside row whose week is open returns to that week's bank
   - a task added by hand whose week has closed gets a row in the current week's bank
-- [ ] Sent twice, each changes nothing more.
+- [x] Sent twice, each changes nothing more.
 
-**Verify:** `uv run pytest tests/test_goal_status.py`.
+**Verify:** `uv run pytest tests/test_goal_tasks.py`.
 
 **Dependencies:** 7.
 
-**Files:** `app/goals/rules.py`, `app/tasks/rules.py`, `db/queries/task_weeks.sql`, `tests/test_goal_status.py`.
+**Files:** `app/goals/rules.py`, `app/tasks/rules.py`, `db/queries/task_weeks.sql`, `tests/test_goal_tasks.py`.
 
 ### Task 11: Check-offs and unchecks that arrive after their week closed
 
 **Description:** A late check-off, and a late uncheck, in weeks that have closed. Tests make the closed rows directly in SQL.
 
 **Acceptance criteria:**
-- [ ] A late check-off:
+- [x] A late check-off:
   - on a lapsed task, turns the task and that row to done
   - on a task that rolled over, lands on its row in the new week
   - keeps the phone's stated day
-- [ ] A late uncheck gives the task the ending its week would have given it: rolled over into the current week's bank (added by hand) or lapsed (weekly target).
+- [x] A late uncheck gives the task the ending its week would have given it: rolled over into the current week's bank (added by hand) or lapsed (weekly target).
 
 **Verify:** `uv run pytest tests/test_check_off.py`.
 
@@ -220,11 +220,11 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** Record what was built, and regenerate the front end's types.
 
 **Acceptance criteria:**
-- [ ] ADR-007 says how `numeric` is typed.
-- [ ] `data-model.md` and `flows.md` match what was built, including uncheck's single rule.
-- [ ] `specs/tasks-week.md` is final, with its open questions answered and its success criteria ticked.
-- [ ] CLAUDE.md's structure names `tasks/`.
-- [ ] The front end's types are regenerated (`npm run api:types`), and its mock client compiles (`npm run build`, `npm test`), in a front-end PR.
+- [x] ADR-007 says how `numeric` is typed.
+- [x] `data-model.md` and `flows.md` match what was built, including uncheck's single rule.
+- [x] `specs/tasks-week.md` is final, with its open questions answered and its success criteria ticked.
+- [x] CLAUDE.md's structure names `tasks/`.
+- [x] The front end's types are regenerated (`npm run api:types`), and its mock client compiles (`npm run build`, `npm test`), in a front-end PR.
 
 **Verify:** the four checks; `npm run build` and `npm test` in `web-frontend/`.
 
@@ -234,6 +234,6 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ## Checkpoint B
 
-- [ ] Every spec success criterion is met.
-- [ ] The four checks pass.
-- [ ] PR B opened (closes #7), with the docs and front-end PRs alongside.
+- [x] Every spec success criterion is met.
+- [x] The four checks pass.
+- [x] PR B opened (closes #7), with the docs and front-end PRs alongside.

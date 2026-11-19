@@ -95,13 +95,13 @@ PR A, `tasks-week-read-add`:
 
 PR B, `tasks-week-moves`:
 
-- [ ] 7: Place on a day, and back to the bank
-- [ ] 8: Swap
-- [ ] 9: Drop
-- [ ] 10: Pausing sets tasks aside; coming back returns them
-- [ ] 11: Check-offs and unchecks that arrive after their week closed
-- [ ] 12: Docs, ADR-007 and the front end's types
-- [ ] **Checkpoint B:** every spec criterion met; checks pass; PR B opened
+- [x] 7: Place on a day, and back to the bank
+- [x] 8: Swap
+- [x] 9: Drop
+- [x] 10: Pausing sets tasks aside; coming back returns them
+- [x] 11: Check-offs and unchecks that arrive after their week closed
+- [x] 12: Docs, ADR-007 and the front end's types
+- [x] **Checkpoint B:** every spec criterion met; checks pass; PR B opened
 
 ## Risks and mitigations
 

@@ -8,7 +8,17 @@ from fastapi.exceptions import RequestValidationError
 from app.dependencies import CurrentDatabase, CurrentUserId
 from app.schemas import NOT_ALLOWED, NOT_FOUND
 from app.tasks import rules
-from app.tasks.models import CheckOff, NewTask, Task, TaskEdit, Week
+from app.tasks.models import (
+    CheckOff,
+    NewTask,
+    Placing,
+    Swap,
+    Swapped,
+    Task,
+    TaskEdit,
+    ToBank,
+    Week,
+)
 from app.tasks.week import task_view, week_read
 from app.time_zone import Today
 
@@ -68,8 +78,52 @@ def check_off_task(
 
 
 @router.post("/tasks/{task_id}/uncheck", responses=NOT_FOUND | NOT_ALLOWED)
-def uncheck_task(task_id: UUID, database: CurrentDatabase, user_id: CurrentUserId) -> Task:
-    """The task goes back where its row was, on its day or in its bank."""
+def uncheck_task(
+    task_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> Task:
+    """The task goes back where its row was, on its day or in its bank, or gets the ending
+    its week gave it if that week has closed."""
     with database.transaction(user_id, "uncheck task") as connection:
-        rules.uncheck(connection, user_id, task_id)
+        rules.uncheck(connection, user_id, task_id, today)
+        return task_view(connection, user_id, task_id)
+
+
+@router.post("/tasks/{task_id}/place", responses=NOT_FOUND | NOT_ALLOWED)
+def place_task(
+    task_id: UUID, body: Placing, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> Task:
+    """Onto a day, placed by hand. Pulling a task from the bank to today is this."""
+    with database.transaction(user_id, "place task") as connection:
+        rules.place(connection, user_id, task_id, body, today)
+        return task_view(connection, user_id, task_id)
+
+
+@router.post("/tasks/{task_id}/bank", responses=NOT_FOUND | NOT_ALLOWED)
+def move_task_to_bank(
+    task_id: UUID, body: ToBank, database: CurrentDatabase, user_id: CurrentUserId
+) -> Task:
+    """Back to the bank: the day is cleared, and nothing else changes."""
+    with database.transaction(user_id, "move task to bank") as connection:
+        rules.move_to_bank(connection, user_id, task_id, body)
+        return task_view(connection, user_id, task_id)
+
+
+@router.post("/tasks/{task_id}/swap", responses=NOT_FOUND | NOT_ALLOWED)
+def swap_tasks(
+    task_id: UUID, body: Swap, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> Swapped:
+    """This task goes to the bank, and the bank task takes the day."""
+    with database.transaction(user_id, "swap tasks") as connection:
+        rules.swap(connection, user_id, task_id, body, today)
+        return Swapped(
+            to_bank=task_view(connection, user_id, task_id),
+            placed=task_view(connection, user_id, body.bank_task_id),
+        )
+
+
+@router.post("/tasks/{task_id}/drop", responses=NOT_FOUND | NOT_ALLOWED)
+def drop_task(task_id: UUID, database: CurrentDatabase, user_id: CurrentUserId) -> Task:
+    """ "I decided not to do this": the answer No to "Still matter?". Not a delete."""
+    with database.transaction(user_id, "drop task") as connection:
+        rules.drop(connection, user_id, task_id)
         return task_view(connection, user_id, task_id)

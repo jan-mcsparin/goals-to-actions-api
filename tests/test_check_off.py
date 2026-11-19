@@ -9,7 +9,7 @@ from sqlalchemy import Connection, text
 
 from app.weeks import week_of
 from tests.test_aspirations import add_other_user, audit_rows
-from tests.test_goals import ZONE, today
+from tests.test_goals import ZONE, create_goal, lifting, today
 from tests.test_tasks import add_task, add_task_for, one_off, open_next_week, rows
 
 
@@ -201,4 +201,159 @@ def test_the_same_uncheck_twice_changes_nothing_more(
         "add task",
         "check off task",
         "uncheck task",
+    ]
+
+
+# Check-offs and unchecks that arrive after their week closed. Nothing closes a week until
+# `week-turnover`, so these tests write the closed rows themselves.
+
+
+def last_week() -> Any:
+    return week_of(today()) - timedelta(weeks=1)
+
+
+def last_sunday() -> str:
+    return (week_of(today()) - timedelta(days=1)).isoformat()
+
+
+def closed_session(connection: Connection, goal_id: str, state: str, outcome: str) -> str:
+    """A weekly-target task whose week has closed."""
+    task_id = str(uuid4())
+    done = state == "done"
+    connection.execute(
+        text(
+            "insert into tasks (id, user_id, title, origin, goal_id, state, period_start, number,"
+            " completed_at, completed_on)"
+            " select :id, user_id, 'Lift', 'weekly_target', id, :state, :week, 1,"
+            " case when :done then now() end, case when :done then cast(:sunday as date) end"
+            " from goals where id = :goal"
+        ),
+        {
+            "id": task_id,
+            "goal": goal_id,
+            "state": state,
+            "week": last_week(),
+            "done": done,
+            "sunday": last_sunday(),
+        },
+    )
+    add_closed_row(connection, task_id, last_week(), outcome)
+    return task_id
+
+
+def add_closed_row(connection: Connection, task_id: str, week: Any, outcome: str | None) -> None:
+    connection.execute(
+        text(
+            "insert into task_weeks (id, user_id, task_id, week, outcome)"
+            " select :id, user_id, id, :week, :outcome from tasks where id = :task"
+        ),
+        {"id": uuid4(), "task": task_id, "week": week, "outcome": outcome},
+    )
+
+
+def test_a_late_check_off_turns_a_lapsed_task_and_its_row_to_done(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    goal = create_goal(tasks_client, lifting())
+    task_id = closed_session(connection, goal["id"], "lapsed", "lapsed")
+
+    done = check_off(tasks_client, task_id, **done_on(last_sunday()))
+
+    assert (done["state"], done["completedOn"], done["week"]) == (
+        "done",
+        last_sunday(),
+        last_week().isoformat(),
+    )
+    assert rows(connection, task_id) == [(last_week(), None, False, "done")]
+
+
+def test_a_late_check_off_of_a_task_that_rolled_over_lands_on_its_new_row(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    task = add_task(tasks_client)
+    add_closed_row(connection, task["id"], last_week(), "rolled_over")
+
+    done = check_off(tasks_client, task["id"], **done_on(last_sunday()))
+
+    assert (done["completedOn"], done["week"]) == (last_sunday(), week_of(today()).isoformat())
+    assert rows(connection, task["id"]) == [
+        (last_week(), None, False, "rolled_over"),
+        (week_of(today()), None, False, "done"),
+    ]
+
+
+def test_a_late_uncheck_rolls_a_task_added_by_hand_into_this_weeks_bank(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    task = add_task(tasks_client)
+    connection.execute(
+        text("update task_weeks set week = :week where task_id = :id"),
+        {"week": last_week(), "id": task["id"]},
+    )
+    check_off(tasks_client, task["id"], **done_on(last_sunday()))
+
+    unchecked = uncheck(tasks_client, task["id"])
+
+    assert (unchecked["state"], unchecked["week"], unchecked["carriedOver"]) == (
+        "open",
+        week_of(today()).isoformat(),
+        1,
+    )
+    assert rows(connection, task["id"]) == [
+        (last_week(), None, False, "rolled_over"),
+        (week_of(today()), None, False, None),
+    ]
+    assert uncheck(tasks_client, task["id"]) == unchecked
+
+
+def test_a_late_uncheck_lapses_a_weekly_target_task(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    goal = create_goal(tasks_client, lifting())
+    task_id = closed_session(connection, goal["id"], "done", "done")
+
+    unchecked = uncheck(tasks_client, task_id)
+
+    assert (unchecked["state"], unchecked["completedOn"], unchecked["week"]) == (
+        "lapsed",
+        None,
+        None,
+    )
+    assert rows(connection, task_id) == [(last_week(), None, False, "lapsed")]
+
+
+def test_a_set_aside_task_whose_row_is_in_next_week_is_done_on_that_row(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    # Checked off on a paused goal's page while next week is open.
+    open_next_week(connection)
+    next_monday = week_of(today()) + timedelta(weeks=1)
+    goal = one_off(tasks_client)
+    step = add_task(tasks_client, goalId=goal["id"], dueDate=next_monday.isoformat())
+    tasks_client.post(f"/api/goals/{goal['id']}/pause")
+
+    done = check_off(tasks_client, step["id"])
+
+    assert (done["state"], done["completedOn"]) == ("done", today().isoformat())
+    assert rows(connection, step["id"]) == [(next_monday, None, False, "done")]
+
+
+def test_a_late_uncheck_under_a_paused_goal_comes_back_set_aside(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    goal = one_off(tasks_client)
+    step = add_task(tasks_client, goalId=goal["id"], dueDate=today().isoformat())
+    connection.execute(
+        text("update task_weeks set week = :week where task_id = :id"),
+        {"week": last_week(), "id": step["id"]},
+    )
+    check_off(tasks_client, step["id"], **done_on(last_sunday()))
+    tasks_client.post(f"/api/goals/{goal['id']}/pause")
+
+    unchecked = uncheck(tasks_client, step["id"])
+
+    assert (unchecked["state"], unchecked["week"]) == ("open", None)
+    assert rows(connection, step["id"]) == [
+        (last_week(), None, False, "rolled_over"),
+        (week_of(today()), None, False, "set_aside"),
     ]

@@ -28,3 +28,10 @@ returning *;
 select distinct on (goal_id) * from weekly_targets
 where user_id = $1 and effective_from <= $2 and deleted_at is null
 order by goal_id, effective_from desc;
+
+-- One goal's target for a week: the one set latest on or before it.
+-- name: GoalWeeklyTargetFor :one
+select * from weekly_targets
+where goal_id = $1 and user_id = $2 and effective_from <= $3 and deleted_at is null
+order by effective_from desc
+limit 1;

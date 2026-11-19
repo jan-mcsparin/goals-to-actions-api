@@ -168,9 +168,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `openapi.json` written; the spec marked built, with what changed while building; the map's shared decisions updated if a decision moved; `../docs/data-model.md` checked against what was built (it already has `closed_through_week`). In `../web-frontend`, on its own branch: `npm run api:types`, and the mock compiles against the new `Task` fields (the front end's plan, task 4).
 
 **Acceptance criteria:**
-- [ ] `tests/test_contract.py` passes with the new routes; every new operation is named as the front end will call it.
-- [ ] The spec and the docs say what was built.
-- [ ] The front end builds against the regenerated types.
+- [x] `tests/test_contract.py` passes with the new routes; every new operation is named as the front end will call it.
+- [x] The spec and the docs say what was built.
+- [x] The front end builds against the regenerated types.
 
 **Verify:** the four checks; in `../web-frontend`, `npm run build`.
 
@@ -181,5 +181,5 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Scope:** S
 
 ## Checkpoint: the slice
-- [ ] The four checks pass; the spec's success criteria are met.
-- [ ] The front end compiles against the new types.
+- [x] The four checks pass; the spec's success criteria are met.
+- [x] The front end compiles against the new types.

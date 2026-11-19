@@ -90,7 +90,7 @@ Checkpoint after task 5: weeks open and close; the four checks pass.
 - [x] Task 7: Recurring items act on the open weeks
 - [x] Task 8: What closing will do, "Still matter?", and the upcoming list
 - [x] Task 9: Answer "Still matter?"
-- [ ] Task 10: Docs, the contract and the front end's types
+- [x] Task 10: Docs, the contract and the front end's types
 
 Checkpoint after task 10: the slice is done, and the front end's mock compiles against the new types.
 

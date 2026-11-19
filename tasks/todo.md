@@ -28,9 +28,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `app/turnover/due.py`, pure code: the `(period_start, number)` pairs a week is due for a goal's target and for each schedule kind, the short-first-week cap, and `ending(origin, schedule, period_start, week)`, which says rolls over or lapses. Nothing calls it yet.
 
 **Acceptance criteria:**
-- [ ] Weekly on a weekday, from the first match on or after `startsOn`; monthly on the 1st and the 28th; flexible weekly, two-weekly anchored on `startsOn`, and monthly across November–December 2026 and a 5-week month.
-- [ ] A goal started on Saturday gets two sessions of three, and one started on Monday gets all three. A flexible item added on Saturday is capped the same way.
-- [ ] `ending` gives each row of the data model's "How a week ends" table, including a flexible task inside a longer period.
+- [x] Weekly on a weekday, from the first match on or after `startsOn`; monthly on the 1st and the 28th; flexible weekly, two-weekly anchored on `startsOn`, and monthly across November–December 2026 and a 5-week month.
+- [x] A goal started on Saturday gets two sessions of three, and one started on Monday gets all three. A flexible item added on Saturday is capped the same way.
+- [x] `ending` gives each row of the data model's "How a week ends" table, including a flexible task inside a longer period.
 
 **Verify:** `uv run pytest tests/test_due.py`.
 

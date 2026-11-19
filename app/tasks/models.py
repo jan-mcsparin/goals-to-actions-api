@@ -1,9 +1,10 @@
 from datetime import date, datetime
 from datetime import time as Time
+from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import Field, StringConstraints
+from pydantic import AwareDatetime, Field, StringConstraints
 
 from app.db.tasks import GetTaskViewRow, ListWeekTasksRow
 from app.goals.models import Label
@@ -120,3 +121,19 @@ class TaskEdit(ApiModel):
     title: Label
     due_date: date | None = None
     time_of_day: TimeOfDay | None = None
+
+
+class CheckOff(ApiModel):
+    """What the phone saw when the task was checked off. Its day wins, even for a week that
+    has since closed."""
+
+    completed_at: AwareDatetime = Field(description="The moment, as the phone recorded it.")
+    completed_on: date = Field(
+        description="The day it counts for, as the phone saw it: 12:30 a.m. is the new day."
+    )
+    value_logged: Annotated[float | None, Field(ge=0, le=1_000_000)] = Field(
+        default=None, description="Miles, minutes: counts towards an amount target."
+    )
+
+    def stored_value(self) -> Decimal | None:
+        return None if self.value_logged is None else Decimal(str(self.value_logged))

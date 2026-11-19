@@ -35,6 +35,20 @@ order by week
 """
 
 
+SET_TASK_WEEK = """-- name: set_task_week \\:exec
+update task_weeks set planned_day = :p3, placed_by_hand = :p4, outcome = :p5
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
+class SetTaskWeekParams(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    planned_day: Optional[datetime.date]
+    placed_by_hand: bool
+    outcome: Optional[str]
+
+
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
@@ -65,3 +79,12 @@ class Querier:
                 updated_at=row[8],
                 deleted_at=row[9],
             )
+
+    def set_task_week(self, arg: SetTaskWeekParams) -> None:
+        self._conn.execute(sqlalchemy.text(SET_TASK_WEEK), {
+            "p1": arg.id,
+            "p2": arg.user_id,
+            "p3": arg.planned_day,
+            "p4": arg.placed_by_hand,
+            "p5": arg.outcome,
+        })

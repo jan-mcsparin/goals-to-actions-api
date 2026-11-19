@@ -6,3 +6,7 @@ order by week;
 -- name: AddTaskWeek :exec
 insert into task_weeks (id, user_id, task_id, week, planned_day, placed_by_hand, outcome)
 values ($1, $2, $3, $4, $5, $6, $7);
+
+-- name: SetTaskWeek :exec
+update task_weeks set planned_day = $3, placed_by_hand = $4, outcome = $5
+where id = $1 and user_id = $2 and deleted_at is null;

@@ -7,9 +7,10 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import Connection
 
-from app.db import goals, task_weeks, tasks
+from app.db import goals, models, task_weeks, tasks
+from app.db.models import TaskWeek
 from app.errors import NotAllowed, NotFound
-from app.tasks.models import NewTask, TaskEdit
+from app.tasks.models import CheckOff, NewTask, TaskEdit
 from app.users import lock_user
 from app.weeks import OpenWeeks, open_weeks, week_of
 
@@ -111,3 +112,88 @@ def update(connection: Connection, user_id: UUID, task_id: UUID, edit: TaskEdit)
     )
     if updated is None:
         raise NotFound
+
+
+def check_off(
+    connection: Connection, user_id: UUID, task_id: UUID, done: CheckOff, today: date
+) -> None:
+    """Marks the task and its row in play done. A task with no row in play (a one-off goal's
+    waiting step, from the goal's page) gets a done row on the day the phone sent. Sent again,
+    it changes nothing more."""
+    owner = lock_user(connection, user_id)
+    task = get(connection, user_id, task_id)
+    if task.state in ("dropped", "lapsed"):
+        raise NotAllowed(f"A {task.state} task can't be checked off.")
+    rows = list(task_weeks.Querier(connection).list_task_weeks(task_id=task_id, user_id=user_id))
+    if task.state == "open":
+        weeks = open_weeks(today, owner.planned_through_week)
+        row = in_play(rows)
+        if row is not None and row.week > weeks.current:
+            raise NotAllowed("Next week's tasks can't be checked off until it starts.")
+        if row is None:
+            week = week_of(done.completed_on)
+            existing = next((row for row in rows if row.week == week), None)
+            if existing is None:
+                add_row(connection, user_id, task_id, week, day=done.completed_on, outcome="done")
+            else:
+                set_row(connection, user_id, existing, done.completed_on, False, "done")
+        else:
+            set_outcome(connection, user_id, row, "done")
+    tasks.Querier(connection).set_task_done(
+        tasks.SetTaskDoneParams(
+            id=task_id,
+            user_id=user_id,
+            completed_at=done.completed_at,
+            completed_on=done.completed_on,
+            value_logged=done.stored_value(),
+        )
+    )
+
+
+def uncheck(connection: Connection, user_id: UUID, task_id: UUID) -> None:
+    """Puts a done task's row back in play as it was, on its day or in its bank. Sent again,
+    it changes nothing more."""
+    lock_user(connection, user_id)
+    task = get(connection, user_id, task_id)
+    if task.state == "open":
+        return
+    if task.state != "done":
+        raise NotAllowed(f"A {task.state} task can't be unchecked.")
+    rows = list(task_weeks.Querier(connection).list_task_weeks(task_id=task_id, user_id=user_id))
+    set_outcome(connection, user_id, rows[-1], None)
+    tasks.Querier(connection).set_task_open(id=task_id, user_id=user_id)
+
+
+def get(connection: Connection, user_id: UUID, task_id: UUID) -> models.Task:
+    task = tasks.Querier(connection).get_task(id=task_id, user_id=user_id)
+    if task is None:
+        raise NotFound
+    return task
+
+
+def in_play(rows: list[TaskWeek]) -> TaskWeek | None:
+    return next((row for row in rows if row.outcome is None), None)
+
+
+def set_outcome(connection: Connection, user_id: UUID, row: TaskWeek, outcome: str | None) -> None:
+    """Closes a row, or puts it back in play, on the day it had."""
+    set_row(connection, user_id, row, row.planned_day, row.placed_by_hand, outcome)
+
+
+def set_row(
+    connection: Connection,
+    user_id: UUID,
+    row: TaskWeek,
+    day: date | None,
+    placed_by_hand: bool,
+    outcome: str | None,
+) -> None:
+    task_weeks.Querier(connection).set_task_week(
+        task_weeks.SetTaskWeekParams(
+            id=row.id,
+            user_id=user_id,
+            planned_day=day,
+            placed_by_hand=placed_by_hand and day is not None,
+            outcome=outcome,
+        )
+    )

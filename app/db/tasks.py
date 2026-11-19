@@ -126,6 +126,28 @@ class ListWeekTasksRow(pydantic.BaseModel):
     carried_over: int
 
 
+SET_TASK_DONE = """-- name: set_task_done \\:exec
+update tasks
+set state = 'done', completed_at = :p3, completed_on = :p4, value_logged = :p5
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
+class SetTaskDoneParams(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    completed_at: Optional[datetime.datetime]
+    completed_on: Optional[datetime.date]
+    value_logged: Optional[decimal.Decimal]
+
+
+SET_TASK_OPEN = """-- name: set_task_open \\:exec
+update tasks
+set state = 'open', completed_at = null, completed_on = null, value_logged = null
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 UPDATE_TASK = """-- name: update_task \\:one
 update tasks set title = :p3, due_date = :p4, time_kind = :p5, time_of_day = :p6
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -266,6 +288,18 @@ class Querier:
                 goal_label=row[22],
                 carried_over=row[23],
             )
+
+    def set_task_done(self, arg: SetTaskDoneParams) -> None:
+        self._conn.execute(sqlalchemy.text(SET_TASK_DONE), {
+            "p1": arg.id,
+            "p2": arg.user_id,
+            "p3": arg.completed_at,
+            "p4": arg.completed_on,
+            "p5": arg.value_logged,
+        })
+
+    def set_task_open(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(SET_TASK_OPEN), {"p1": id, "p2": user_id})
 
     def update_task(self, arg: UpdateTaskParams) -> Optional[models.Task]:
         row = self._conn.execute(sqlalchemy.text(UPDATE_TASK), {

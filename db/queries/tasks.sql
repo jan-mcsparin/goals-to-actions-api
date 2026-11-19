@@ -48,3 +48,14 @@ order by task_weeks.planned_day nulls last, tasks.time_of_day nulls last, tasks.
 update tasks set title = $3, due_date = $4, time_kind = $5, time_of_day = $6
 where id = $1 and user_id = $2 and deleted_at is null
 returning *;
+
+-- name: SetTaskDone :exec
+update tasks
+set state = 'done', completed_at = $3, completed_on = $4, value_logged = $5
+where id = $1 and user_id = $2 and deleted_at is null;
+
+-- Open again: unchecked, or brought back. The completion and the value logged go with it.
+-- name: SetTaskOpen :exec
+update tasks
+set state = 'open', completed_at = null, completed_on = null, value_logged = null
+where id = $1 and user_id = $2 and deleted_at is null;

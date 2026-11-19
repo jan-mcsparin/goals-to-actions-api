@@ -91,17 +91,17 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `POST /api/tasks/{id}/check-off` and `/uncheck`, on the open weeks. Weeks that have already closed come in task 11.
 
 **Acceptance criteria:**
-- [ ] Checking off:
+- [x] Checking off:
   - marks the row and the task done with the moment, the day and the value
   - counts a check-off at 12:30 a.m. for the day the phone sent
   - on a task with no row, makes a done row on that day, in that day's week
   - on a next-week row, is a 409
   - on a dropped task, is a 409
-- [ ] Unchecking:
+- [x] Unchecking:
   - after a check-off, leaves the task and its row as they were
   - on a waiting step checked off from the goal's page, leaves it in play on that day (one rule)
   - clears the value logged
-- [ ] Each sent twice changes nothing more.
+- [x] Each sent twice changes nothing more.
 
 **Verify:** `uv run pytest tests/test_check_off.py`.
 

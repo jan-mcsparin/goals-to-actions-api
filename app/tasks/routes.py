@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from app.dependencies import CurrentDatabase, CurrentUserId
 from app.schemas import NOT_ALLOWED, NOT_FOUND
 from app.tasks import rules
-from app.tasks.models import NewTask, Task, TaskEdit, Week
+from app.tasks.models import CheckOff, NewTask, Task, TaskEdit, Week
 from app.tasks.week import task_view, week_read
 from app.time_zone import Today
 
@@ -55,4 +55,21 @@ def update_task(
 ) -> Task:
     with database.transaction(user_id, "update task") as connection:
         rules.update(connection, user_id, task_id, body)
+        return task_view(connection, user_id, task_id)
+
+
+@router.post("/tasks/{task_id}/check-off", responses=NOT_FOUND | NOT_ALLOWED)
+def check_off_task(
+    task_id: UUID, body: CheckOff, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> Task:
+    with database.transaction(user_id, "check off task") as connection:
+        rules.check_off(connection, user_id, task_id, body, today)
+        return task_view(connection, user_id, task_id)
+
+
+@router.post("/tasks/{task_id}/uncheck", responses=NOT_FOUND | NOT_ALLOWED)
+def uncheck_task(task_id: UUID, database: CurrentDatabase, user_id: CurrentUserId) -> Task:
+    """The task goes back where its row was, on its day or in its bank."""
+    with database.transaction(user_id, "uncheck task") as connection:
+        rules.uncheck(connection, user_id, task_id)
         return task_view(connection, user_id, task_id)

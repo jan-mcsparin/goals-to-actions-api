@@ -19,7 +19,7 @@ def today(database: CurrentDatabase, user_id: CurrentUserId, now: Now) -> date:
     with database.read() as connection:
         owner = users.Querier(connection).get_user(id=user_id)
     if owner is not None and what_is_due(owner, now):
-        with database.transaction(user_id, "open week") as connection:
+        with database.transaction(user_id, "close week") as connection:
             catch_up(connection, user_id, now)
     return now.date()
 

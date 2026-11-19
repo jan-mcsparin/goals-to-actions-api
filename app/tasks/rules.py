@@ -10,14 +10,16 @@ from sqlalchemy import Connection
 from app.db import goals, models, recurring_items, task_weeks, tasks
 from app.db.models import TaskWeek
 from app.db.task_weeks import ListGoalTaskWeeksRow, ListItemTaskWeeksRow
+from app.db.turnover import ListRowsToCloseRow
 from app.errors import NotAllowed, NotFound
 from app.tasks.models import CheckOff, NewTask, Placing, Swap, TaskEdit, ToBank
+from app.turnover.endings import ending_for
 from app.users import lock_user
 from app.weeks import OpenWeeks, open_weeks, week_of
 
 # A row of a goal's or an item's open tasks, with the task's origin.
 WorkRow = ListGoalTaskWeeksRow | ListItemTaskWeeksRow
-Row = TaskWeek | WorkRow
+Row = TaskWeek | WorkRow | ListRowsToCloseRow
 
 
 @dataclass(frozen=True)
@@ -191,8 +193,8 @@ def mark_done_without_a_row_in_play(
 def uncheck(connection: Connection, user_id: UUID, task_id: UUID, today: date) -> None:
     """Puts a done task's row back as it was, on its day or in its bank, or set aside there
     if its goal isn't active or its item is off. If that row's week has closed, the task gets
-    the ending the week would have given it: a task added by hand rolls over into the current
-    week's bank; a generated one lapses. Sent again, it changes nothing more."""
+    the ending the week would have given it: rolled over into the current week's bank, or
+    lapsed. Sent again, it changes nothing more."""
     owner = lock_user(connection, user_id)
     task = get(connection, user_id, task_id)
     if task.state == "open":
@@ -207,7 +209,7 @@ def uncheck(connection: Connection, user_id: UUID, task_id: UUID, today: date) -
     in_play = None if work_is_active(connection, user_id, task) else "set_aside"
     if done_row.week >= current:
         set_outcome(connection, user_id, done_row, in_play)
-    elif task.origin == "by_hand":
+    elif ending_for(connection, user_id, task, done_row.week) == "rolls_over":
         set_outcome(connection, user_id, done_row, "rolled_over")
         add_row(connection, user_id, task_id, current, outcome=in_play)
     else:

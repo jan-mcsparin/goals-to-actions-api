@@ -22,3 +22,21 @@ where tasks.user_id = $1 and tasks.origin = 'by_hand' and tasks.state = 'open'
     select 1 from task_weeks where task_weeks.task_id = tasks.id and task_weeks.deleted_at is null
   )
 order by tasks.due_date, tasks.created_at, tasks.id;
+
+-- The rows closing a week up to `$2` has to settle, oldest week first: rows still in play,
+-- and set-aside rows that are their task's latest. Weeks closed already (`$3` and before)
+-- are left alone.
+-- name: ListRowsToClose :many
+select task_weeks.*, tasks.origin from task_weeks
+join tasks on tasks.id = task_weeks.task_id and tasks.state = 'open' and tasks.deleted_at is null
+where task_weeks.user_id = sqlc.arg(user_id) and task_weeks.week <= sqlc.arg(through)::date and task_weeks.week > sqlc.arg(after)::date
+  and task_weeks.deleted_at is null
+  and (
+    task_weeks.outcome is null
+    or (task_weeks.outcome = 'set_aside' and not exists (
+      select 1 from task_weeks later
+      where later.task_id = task_weeks.task_id and later.week > task_weeks.week
+        and later.deleted_at is null
+    ))
+  )
+order by task_weeks.week, tasks.created_at, tasks.id;

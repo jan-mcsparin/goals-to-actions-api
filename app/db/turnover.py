@@ -57,6 +57,37 @@ class ListGeneratedSlotsRow(pydantic.BaseModel):
     number: Optional[int]
 
 
+LIST_ROWS_TO_CLOSE = """-- name: list_rows_to_close \\:many
+select task_weeks.id, task_weeks.user_id, task_weeks.task_id, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand, task_weeks.outcome, task_weeks.created_at, task_weeks.updated_at, task_weeks.deleted_at, tasks.origin from task_weeks
+join tasks on tasks.id = task_weeks.task_id and tasks.state = 'open' and tasks.deleted_at is null
+where task_weeks.user_id = :p1 and task_weeks.week <= :p2\\:\\:date and task_weeks.week > :p3\\:\\:date
+  and task_weeks.deleted_at is null
+  and (
+    task_weeks.outcome is null
+    or (task_weeks.outcome = 'set_aside' and not exists (
+      select 1 from task_weeks later
+      where later.task_id = task_weeks.task_id and later.week > task_weeks.week
+        and later.deleted_at is null
+    ))
+  )
+order by task_weeks.week, tasks.created_at, tasks.id
+"""
+
+
+class ListRowsToCloseRow(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    task_id: uuid.UUID
+    week: datetime.date
+    planned_day: Optional[datetime.date]
+    placed_by_hand: bool
+    outcome: Optional[str]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+    origin: str
+
+
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
@@ -109,4 +140,21 @@ class Querier:
                 recurring_item_id=row[1],
                 period_start=row[2],
                 number=row[3],
+            )
+
+    def list_rows_to_close(self, *, user_id: uuid.UUID, through: datetime.date, after: datetime.date) -> Iterator[ListRowsToCloseRow]:
+        result = self._conn.execute(sqlalchemy.text(LIST_ROWS_TO_CLOSE), {"p1": user_id, "p2": through, "p3": after})
+        for row in result:
+            yield ListRowsToCloseRow(
+                id=row[0],
+                user_id=row[1],
+                task_id=row[2],
+                week=row[3],
+                planned_day=row[4],
+                placed_by_hand=row[5],
+                outcome=row[6],
+                created_at=row[7],
+                updated_at=row[8],
+                deleted_at=row[9],
+                origin=row[10],
             )

@@ -62,9 +62,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `catch_up` closes the weeks before the current one that have rows, oldest first, before it opens anything. Each unfinished row gets its ending from `due.ending`; set-aside rows follow the data model. Carry-overs get a row in the next open week's bank. It sets `closed_through_week`. `uncheck` asks the same rule for a row in a closed week, so a recurring task gets its proper ending.
 
 **Acceptance criteria:**
-- [ ] Each row of "How a week ends" closes as the data model says, and a week of 1 of 3 is followed by a week of 3, not 5.
-- [ ] Opened on Sunday evening and closed on Monday, the carry-overs arrive in the bank then. Never opened on Sunday, one request on Monday closes, then opens. Three weeks away: the weeks with rows close in order, no rows are made for the empty ones, and a hand-added task carries over once.
-- [ ] A check-off sent after Monday's close, dated Sunday, is done, not lapsed. A late uncheck of a fixed-day task rolls it over; of a flexible one inside its period, carries it. The audit log says `close week`.
+- [x] Each row of "How a week ends" closes as the data model says, and a week of 1 of 3 is followed by a week of 3, not 5.
+- [x] Opened on Sunday evening and closed on Monday, the carry-overs arrive in the bank then. Never opened on Sunday, one request on Monday closes, then opens. Three weeks away: the weeks with rows close in order, no rows are made for the empty ones, and a hand-added task carries over once.
+- [x] A check-off sent after Monday's close, dated Sunday, is done, not lapsed. A late uncheck of a fixed-day task rolls it over; of a flexible one inside its period, carries it. The audit log says `close week`.
 
 **Verify:** `uv run pytest tests/test_close_week.py tests/test_check_off.py`.
 

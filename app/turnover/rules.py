@@ -5,13 +5,14 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from uuid import UUID, uuid4
 
-from sqlalchemy import Connection
+from sqlalchemy import Connection, text
 
-from app.db import goals, models, recurring_items, turnover, users, weekly_targets
+from app.db import goals, models, recurring_items, tasks, turnover, users, weekly_targets
 from app.db.users import GetUserRow
 from app.planner import place_new_work
-from app.tasks.rules import add_row
-from app.turnover.due import ItemSchedule, Slot, goal_slots, item_slots
+from app.tasks.rules import add_row, set_outcome
+from app.turnover.due import Slot, goal_slots, item_slots
+from app.turnover.endings import ending_for, item_of, schedule_of
 from app.users import lock_user
 from app.weeks import current_week
 
@@ -23,18 +24,21 @@ OPENS_AT = time(18, 0)
 class Due:
     """What the weeks are due, from the user's two markers and the moment."""
 
+    close: bool
     open_current: bool
     open_next: bool
 
     def __bool__(self) -> bool:
-        return self.open_current or self.open_next
+        return self.close or self.open_current or self.open_next
 
 
 def what_is_due(owner: GetUserRow, now: datetime) -> Due:
     current = current_week(now.date(), owner.closed_through_week)
     planned = owner.planned_through_week
     opens_at = datetime.combine(current + timedelta(days=6), OPENS_AT, tzinfo=now.tzinfo)
+    closed = owner.closed_through_week
     return Due(
+        close=closed is None or closed < current - timedelta(weeks=1),
         open_current=planned is None or planned < current,
         open_next=now >= opens_at and (planned is None or planned <= current),
     )
@@ -48,11 +52,65 @@ def catch_up(connection: Connection, user_id: UUID, now: datetime) -> bool:
     if not due:
         return False
     current = current_week(now.date(), owner.closed_through_week)
+    if due.close:
+        last = current - timedelta(weeks=1)
+        close_weeks(connection, user_id, last, current, owner.closed_through_week)
+        set_action(connection, "open week")
+        mark_closed(connection, user_id, last)
     if due.open_current:
         open_week(connection, user_id, current, now.date())
     if due.open_next:
         open_week(connection, user_id, current + timedelta(weeks=1), now.date())
     return True
+
+
+SET_ACTION = text("select set_config('app.action', :action, true)")
+NEVER = date(1, 1, 1)
+
+
+def set_action(connection: Connection, action: str) -> None:
+    """Names what the audit log records for the rest of this transaction."""
+    connection.execute(SET_ACTION, {"action": action})
+
+
+def mark_closed(connection: Connection, user_id: UUID, week: date) -> None:
+    owner = users.Querier(connection).get_user(id=user_id)
+    assert owner is not None
+    if owner.closed_through_week is None or owner.closed_through_week < week:
+        users.Querier(connection).set_closed_through_week(id=user_id, closed_through_week=week)
+
+
+def close_weeks(
+    connection: Connection, user_id: UUID, through: date, carry_to: date, after: date | None
+) -> None:
+    """Closes every week up to `through` that hasn't been closed, oldest first. Each unfinished
+    row gets its ending: it rolls over into `carry_to`'s bank, or lapses and closes its task.
+    A week with no rows has nothing to close. A set-aside generated task ends with its week or
+    period and its row keeps saying set aside; one added by hand waits."""
+    queries = turnover.Querier(connection)
+    for row in queries.list_rows_to_close(user_id=user_id, through=through, after=after or NEVER):
+        task = tasks.Querier(connection).get_task(id=row.task_id, user_id=user_id)
+        assert task is not None
+        ends = ending_for(connection, user_id, task, row.week)
+        if row.outcome is None:
+            if ends == "rolls_over":
+                set_outcome(connection, user_id, row, "rolled_over")
+                add_row(connection, user_id, row.task_id, carry_to)
+            else:
+                set_outcome(connection, user_id, row, "lapsed")
+                tasks.Querier(connection).set_task_closed(
+                    id=row.task_id, user_id=user_id, state="lapsed"
+                )
+        elif task.origin == "by_hand":
+            continue
+        else:
+            item = item_of(connection, user_id, task)
+            if ends == "rolls_over" and item is not None and item.schedule_kind == "flexible":
+                add_row(connection, user_id, row.task_id, carry_to, outcome="set_aside")
+            else:
+                tasks.Querier(connection).set_task_closed(
+                    id=row.task_id, user_id=user_id, state="lapsed"
+                )
 
 
 def open_week(connection: Connection, user_id: UUID, week: date, today: date) -> list[UUID]:
@@ -71,14 +129,7 @@ def open_week(connection: Connection, user_id: UUID, week: date, today: date) ->
     for item in recurring_items.Querier(connection).list_recurring_items(user_id=user_id):
         if not item.active:
             continue
-        schedule = ItemSchedule(
-            item.schedule_kind,  # type: ignore[arg-type]
-            item.starts_on,
-            weekday=item.weekday,
-            day_of_month=item.day_of_month,
-            times=item.times,
-            period=item.period,  # type: ignore[arg-type]
-        )
+        schedule = schedule_of(item)
         for slot in item_slots(schedule, week, max(item.starts_on, today)):
             if (None, item.id, *slot) not in existing:
                 made.append(

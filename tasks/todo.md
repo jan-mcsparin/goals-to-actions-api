@@ -53,13 +53,13 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `PUT /api/tasks/{id}` (`addTask`) and `GET /api/weeks/{week}` (`getWeek`), plus `current_week` in `app/weeks.py`. The week read starts with `tasks`, `isCurrent` and `nextWeekOpen`; `goals` and its progress come in task 6.
 
 **Acceptance criteria:**
-- [ ] A task added with no day goes to the current week's bank; with a day this week, onto that day, placed by hand; with a goal, under the goal.
-- [ ] Where a task lands:
+- [x] A task added with no day goes to the current week's bank; with a day this week, onto that day, placed by hand; with a goal, under the goal.
+- [x] Where a task lands:
   - a due date in an open next week: that week's bank
   - a due date in a later week that isn't open: no row
   - a one-off step with no date: no row
   - a past day, or today before the current week: the current week's bank
-- [ ] The rest:
+- [x] The rest:
   - sent twice, it returns the task as it is
   - another owner's goal is a 404
   - a goal that isn't active is a 409

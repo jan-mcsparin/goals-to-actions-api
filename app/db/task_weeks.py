@@ -2,12 +2,30 @@
 # versions:
 #   sqlc v1.31.1
 # source: task_weeks.sql
-from typing import Iterator
+import datetime
+import pydantic
+from typing import Iterator, Optional
 import uuid
 
 import sqlalchemy
 
 from app.db import models
+
+
+ADD_TASK_WEEK = """-- name: add_task_week \\:exec
+insert into task_weeks (id, user_id, task_id, week, planned_day, placed_by_hand, outcome)
+values (:p1, :p2, :p3, :p4, :p5, :p6, :p7)
+"""
+
+
+class AddTaskWeekParams(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    task_id: uuid.UUID
+    week: datetime.date
+    planned_day: Optional[datetime.date]
+    placed_by_hand: bool
+    outcome: Optional[str]
 
 
 LIST_TASK_WEEKS = """-- name: list_task_weeks \\:many
@@ -20,6 +38,17 @@ order by week
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
+
+    def add_task_week(self, arg: AddTaskWeekParams) -> None:
+        self._conn.execute(sqlalchemy.text(ADD_TASK_WEEK), {
+            "p1": arg.id,
+            "p2": arg.user_id,
+            "p3": arg.task_id,
+            "p4": arg.week,
+            "p5": arg.planned_day,
+            "p6": arg.placed_by_hand,
+            "p7": arg.outcome,
+        })
 
     def list_task_weeks(self, *, task_id: uuid.UUID, user_id: uuid.UUID) -> Iterator[models.TaskWeek]:
         result = self._conn.execute(sqlalchemy.text(LIST_TASK_WEEKS), {"p1": task_id, "p2": user_id})

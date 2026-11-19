@@ -18,6 +18,8 @@ from app.goals import rules as goal_rules
 from app.goals.models import GoalEdit, NewGoal, WeeklyTargetInput
 from app.milestones import rules as milestone_rules
 from app.milestones.models import MilestoneEdit, MilestoneOrder, NewCheckIn, NewMilestone
+from app.tasks import rules as task_rules
+from app.tasks.models import NewTask
 
 NEW_GOAL = NewGoal(type="oneOff", label="Move house", measurable_line="Keys handed in")
 
@@ -64,6 +66,9 @@ WRITES: dict[str, Callable[[Connection], object]] = {
         date(2026, 11, 16),
     ),
     "keep milestone": lambda tx: milestone_rules.keep(tx, FIXED_USER_ID, uuid4()),
+    "add task": lambda tx: task_rules.add(
+        tx, FIXED_USER_ID, uuid4(), NewTask(title="Pack"), date(2026, 11, 16)
+    ),
 }
 
 

@@ -1,3 +1,45 @@
 -- name: GetTask :one
 select * from tasks
 where id = $1 and user_id = $2 and deleted_at is null;
+
+-- Returns nothing when the id is taken.
+-- name: AddTask :one
+insert into tasks (id, user_id, title, origin, goal_id, due_date, time_kind, time_of_day)
+values ($1, $2, $3, 'by_hand', $4, $5, $6, $7)
+on conflict (id) do nothing
+returning *;
+
+-- A task as the screens show it: with its goal's label, how often it has carried over, and
+-- its row in play, or its done row. A task that's waiting, or set aside, has no week.
+-- name: GetTaskView :one
+select tasks.*, shown.week, shown.planned_day, shown.placed_by_hand,
+  goals.label as goal_label,
+  (select count(*) from task_weeks carried
+    where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.deleted_at is null)::integer as carried_over
+from tasks
+left join task_weeks shown on shown.id = (
+  select task_weeks.id from task_weeks
+  where task_weeks.task_id = tasks.id and task_weeks.deleted_at is null
+    and (task_weeks.outcome is null or task_weeks.outcome = 'done')
+  order by task_weeks.week desc
+  limit 1
+)
+left join goals on goals.id = tasks.goal_id
+where tasks.id = $1 and tasks.user_id = $2 and tasks.deleted_at is null;
+
+-- The week read: the week's rows in play or done, by day, then the bank; timed tasks first
+-- within a day.
+-- name: ListWeekTasks :many
+select tasks.*, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand,
+  goals.label as goal_label,
+  (select count(*) from task_weeks carried
+    where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.week < task_weeks.week and carried.deleted_at is null)::integer as carried_over
+from task_weeks
+join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
+left join goals on goals.id = tasks.goal_id
+where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.deleted_at is null
+  and (task_weeks.outcome is null or task_weeks.outcome = 'done')
+order by task_weeks.planned_day nulls last, tasks.time_of_day nulls last, tasks.created_at,
+  tasks.id;

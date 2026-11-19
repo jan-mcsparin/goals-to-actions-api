@@ -11,6 +11,7 @@ from app.errors import NotAllowed, NotFound
 from app.goals.routes import router as goals_router
 from app.milestones.routes import router as milestones_router
 from app.schemas import ApiModel
+from app.tasks.routes import router as tasks_router
 
 
 def operation_id(route: APIRoute) -> str:
@@ -35,6 +36,7 @@ def health() -> Health:
 api.include_router(aspirations_router)
 api.include_router(goals_router)
 api.include_router(milestones_router)
+api.include_router(tasks_router)
 
 app = FastAPI(
     title=f"{APP_NAME} API",

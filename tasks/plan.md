@@ -87,7 +87,7 @@ PR A, `tasks-week-read-add`:
 
 - [x] 1: The tasks table
 - [x] 2: The task_weeks table, and state agreeing with rows
-- [ ] 3: Add a task, and the week read
+- [x] 3: Add a task, and the week read
 - [ ] 4: Edit a task
 - [ ] 5: Check off and uncheck
 - [ ] 6: This week's progress, and a one-off goal's steps

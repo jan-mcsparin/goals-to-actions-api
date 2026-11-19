@@ -2,12 +2,33 @@
 # versions:
 #   sqlc v1.31.1
 # source: tasks.sql
-from typing import Optional
+import datetime
+import decimal
+import pydantic
+from typing import Iterator, Optional
 import uuid
 
 import sqlalchemy
 
 from app.db import models
+
+
+ADD_TASK = """-- name: add_task \\:one
+insert into tasks (id, user_id, title, origin, goal_id, due_date, time_kind, time_of_day)
+values (:p1, :p2, :p3, 'by_hand', :p4, :p5, :p6, :p7)
+on conflict (id) do nothing
+returning id, user_id, title, origin, goal_id, recurring_item_id, state, due_date, time_kind, time_of_day, value_logged, completed_at, completed_on, period_start, number, still_matters_answered_on, created_at, updated_at, deleted_at
+"""
+
+
+class AddTaskParams(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    title: str
+    goal_id: Optional[uuid.UUID]
+    due_date: Optional[datetime.date]
+    time_kind: Optional[str]
+    time_of_day: Optional[datetime.time]
 
 
 GET_TASK = """-- name: get_task \\:one
@@ -16,9 +37,132 @@ where id = :p1 and user_id = :p2 and deleted_at is null
 """
 
 
+GET_TASK_VIEW = """-- name: get_task_view \\:one
+select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, shown.week, shown.planned_day, shown.placed_by_hand,
+  goals.label as goal_label,
+  (select count(*) from task_weeks carried
+    where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.deleted_at is null)\\:\\:integer as carried_over
+from tasks
+left join task_weeks shown on shown.id = (
+  select task_weeks.id from task_weeks
+  where task_weeks.task_id = tasks.id and task_weeks.deleted_at is null
+    and (task_weeks.outcome is null or task_weeks.outcome = 'done')
+  order by task_weeks.week desc
+  limit 1
+)
+left join goals on goals.id = tasks.goal_id
+where tasks.id = :p1 and tasks.user_id = :p2 and tasks.deleted_at is null
+"""
+
+
+class GetTaskViewRow(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    title: str
+    origin: str
+    goal_id: Optional[uuid.UUID]
+    recurring_item_id: Optional[uuid.UUID]
+    state: str
+    due_date: Optional[datetime.date]
+    time_kind: Optional[str]
+    time_of_day: Optional[datetime.time]
+    value_logged: Optional[decimal.Decimal]
+    completed_at: Optional[datetime.datetime]
+    completed_on: Optional[datetime.date]
+    period_start: Optional[datetime.date]
+    number: Optional[int]
+    still_matters_answered_on: Optional[datetime.date]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+    week: Optional[datetime.date]
+    planned_day: Optional[datetime.date]
+    placed_by_hand: Optional[bool]
+    goal_label: Optional[str]
+    carried_over: int
+
+
+LIST_WEEK_TASKS = """-- name: list_week_tasks \\:many
+select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand,
+  goals.label as goal_label,
+  (select count(*) from task_weeks carried
+    where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.week < task_weeks.week and carried.deleted_at is null)\\:\\:integer as carried_over
+from task_weeks
+join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
+left join goals on goals.id = tasks.goal_id
+where task_weeks.user_id = :p1 and task_weeks.week = :p2 and task_weeks.deleted_at is null
+  and (task_weeks.outcome is null or task_weeks.outcome = 'done')
+order by task_weeks.planned_day nulls last, tasks.time_of_day nulls last, tasks.created_at,
+  tasks.id
+"""
+
+
+class ListWeekTasksRow(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    title: str
+    origin: str
+    goal_id: Optional[uuid.UUID]
+    recurring_item_id: Optional[uuid.UUID]
+    state: str
+    due_date: Optional[datetime.date]
+    time_kind: Optional[str]
+    time_of_day: Optional[datetime.time]
+    value_logged: Optional[decimal.Decimal]
+    completed_at: Optional[datetime.datetime]
+    completed_on: Optional[datetime.date]
+    period_start: Optional[datetime.date]
+    number: Optional[int]
+    still_matters_answered_on: Optional[datetime.date]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+    week: datetime.date
+    planned_day: Optional[datetime.date]
+    placed_by_hand: bool
+    goal_label: Optional[str]
+    carried_over: int
+
+
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
+
+    def add_task(self, arg: AddTaskParams) -> Optional[models.Task]:
+        row = self._conn.execute(sqlalchemy.text(ADD_TASK), {
+            "p1": arg.id,
+            "p2": arg.user_id,
+            "p3": arg.title,
+            "p4": arg.goal_id,
+            "p5": arg.due_date,
+            "p6": arg.time_kind,
+            "p7": arg.time_of_day,
+        }).first()
+        if row is None:
+            return None
+        return models.Task(
+            id=row[0],
+            user_id=row[1],
+            title=row[2],
+            origin=row[3],
+            goal_id=row[4],
+            recurring_item_id=row[5],
+            state=row[6],
+            due_date=row[7],
+            time_kind=row[8],
+            time_of_day=row[9],
+            value_logged=row[10],
+            completed_at=row[11],
+            completed_on=row[12],
+            period_start=row[13],
+            number=row[14],
+            still_matters_answered_on=row[15],
+            created_at=row[16],
+            updated_at=row[17],
+            deleted_at=row[18],
+        )
 
     def get_task(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Task]:
         row = self._conn.execute(sqlalchemy.text(GET_TASK), {"p1": id, "p2": user_id}).first()
@@ -45,3 +189,64 @@ class Querier:
             updated_at=row[17],
             deleted_at=row[18],
         )
+
+    def get_task_view(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[GetTaskViewRow]:
+        row = self._conn.execute(sqlalchemy.text(GET_TASK_VIEW), {"p1": id, "p2": user_id}).first()
+        if row is None:
+            return None
+        return GetTaskViewRow(
+            id=row[0],
+            user_id=row[1],
+            title=row[2],
+            origin=row[3],
+            goal_id=row[4],
+            recurring_item_id=row[5],
+            state=row[6],
+            due_date=row[7],
+            time_kind=row[8],
+            time_of_day=row[9],
+            value_logged=row[10],
+            completed_at=row[11],
+            completed_on=row[12],
+            period_start=row[13],
+            number=row[14],
+            still_matters_answered_on=row[15],
+            created_at=row[16],
+            updated_at=row[17],
+            deleted_at=row[18],
+            week=row[19],
+            planned_day=row[20],
+            placed_by_hand=row[21],
+            goal_label=row[22],
+            carried_over=row[23],
+        )
+
+    def list_week_tasks(self, *, user_id: uuid.UUID, week: datetime.date) -> Iterator[ListWeekTasksRow]:
+        result = self._conn.execute(sqlalchemy.text(LIST_WEEK_TASKS), {"p1": user_id, "p2": week})
+        for row in result:
+            yield ListWeekTasksRow(
+                id=row[0],
+                user_id=row[1],
+                title=row[2],
+                origin=row[3],
+                goal_id=row[4],
+                recurring_item_id=row[5],
+                state=row[6],
+                due_date=row[7],
+                time_kind=row[8],
+                time_of_day=row[9],
+                value_logged=row[10],
+                completed_at=row[11],
+                completed_on=row[12],
+                period_start=row[13],
+                number=row[14],
+                still_matters_answered_on=row[15],
+                created_at=row[16],
+                updated_at=row[17],
+                deleted_at=row[18],
+                week=row[19],
+                planned_day=row[20],
+                placed_by_hand=row[21],
+                goal_label=row[22],
+                carried_over=row[23],
+            )

@@ -1,122 +1,87 @@
-# Implementation Plan: Tasks and the week (#7)
+# Implementation Plan: Recurring items (#8)
 
-Spec: [`../specs/tasks-week.md`](../specs/tasks-week.md). Tasks: [`todo.md`](todo.md).
+Spec: [`../specs/recurring-items.md`](../specs/recurring-items.md). Tasks: [`todo.md`](todo.md).
 
 ## Overview
 
-The `tasks` and `task_weeks` tables, the week read, and every write a person makes on Today, Week, the bank and a one-off goal's page. Pausing and coming back finally move a goal's tasks, and goal reads gain this week's progress and a one-off goal's steps. Nothing is generated or drafted yet.
+The `recurring_items` table and its routes: create, edit, list, turn off and on. Turning an item off sets its open tasks aside, the way pausing a goal does. Retiring an aspiration now reaches its items: "pause" turns them off, "keep" moves them to Keep life running. No tasks are made yet; `week-turnover` does that.
 
-The spec asks for a split past about ten tasks. This plan has twelve, so it ships as **two PRs**, as the spec suggests:
-
-- **PR A, `tasks-week-read-add`** (part of #7): the tables, `getWeek`, `addTask`, `updateTask`, check off and uncheck, progress and steps.
-- **PR B, `tasks-week-moves`** (closes #7): place, bank, swap, drop, setting aside and returning, docs, and the front end's types.
+Six tasks, so **one PR** in the API, `recurring-items` (closes #8), then the front end's types regenerated in its own PR.
 
 ## The contract
 
 | Operation | Route | Body | Returns |
 | --- | --- | --- | --- |
-| `getWeek` | `GET /api/weeks/{week}` | | the week (below); 422 if `week` isn't a Monday |
-| `addTask` | `PUT /api/tasks/{id}` | `title`, `goalId?`, `dueDate?`, `timeOfDay?`, `day?` | the task |
-| `updateTask` | `PATCH /api/tasks/{id}` | `title`, `dueDate`, `timeOfDay`, sent whole | the task |
-| `checkOffTask` | `POST /api/tasks/{id}/check-off` | `completedAt`, `completedOn`, `valueLogged?` | the task |
-| `uncheckTask` | `POST /api/tasks/{id}/uncheck` | | the task |
-| `placeTask` | `POST /api/tasks/{id}/place` | `week`, `day` | the task |
-| `moveTaskToBank` | `POST /api/tasks/{id}/bank` | `week` | the task |
-| `swapTasks` | `POST /api/tasks/{id}/swap` | `week`, `bankTaskId`, `day`; `{id}` goes to the bank | both tasks |
-| `dropTask` | `POST /api/tasks/{id}/drop` | | the task |
+| `listRecurringItems` | `GET /api/recurring-items` | | `{ "recurringItems": [...] }`, on and off |
+| `createRecurringItem` | `PUT /api/recurring-items/{id}` | `name`, `aspirationId?`, `fromGoalId?`, `schedule`, `startsOn` | the item |
+| `updateRecurringItem` | `PATCH /api/recurring-items/{id}` | `name`, `aspirationId`, `schedule`, `startsOn`, sent whole | the item |
+| `turnOffRecurringItem` | `POST /api/recurring-items/{id}/turn-off` | | the item |
+| `turnOnRecurringItem` | `POST /api/recurring-items/{id}/turn-on` | | the item |
 
-**The week:** `week`, `isCurrent`, `nextWeekOpen`, `tasks`, `goals`.
+**The item:** `id`, `name`, `aspirationId`, `fromGoalId`, `schedule`, `startsOn`, `active`, `createdAt`.
 
-- `tasks`: the week's rows with no outcome or done; set-aside rows aren't shown. Each task has `id`, `title`, `origin`, `state`, `goalId`, `goalLabel`, `recurringItemId`, `dueDate`, `timeOfDay` (`kind`, `time`), `valueLogged`, `completedAt`, `completedOn`, `plannedDay` (null in the bank), `placedByHand`, and `carriedOver` (its rolled-over rows).
-- `goals`: every active building goal with a target that week, with `id`, `label`, `target`, `progress` (`done` and `of`, by count or by amount). This is what Week's bars need.
+**The schedule** is one of three shapes, told apart by `kind`:
 
-**The task** (every write returns it) is the same object, plus `week`: the week of its row in play or of its done row, or null while it waits.
+- `{ "kind": "weekly", "weekday": "tuesday" }`
+- `{ "kind": "monthly", "dayOfMonth": 1 }`, from 1 to 28
+- `{ "kind": "flexible", "times": 3, "period": "week" }`: 1 to 6 times a `week`, or once a `twoWeeks` or `month` (`times` is 1)
 
-**`addTask`'s `day`** is the phone's end result, in place of the mock's `onToday`. With no day the task goes to the bank of the current week, or of its due date's week when that week is open. A due date in a later week that isn't open yet leaves the task waiting with no row (the upcoming list). A one-off goal's step with no date waits with no row too. A day that's no longer allowed (a past day, or today when today is before the current week) puts the task in the current week's bank.
+There's no repeat text and no next due day. The front end words the repeat from these fields (its #34). Working out which days or periods are due is built in `week-turnover`, the first thing that uses it.
 
-**Goal reads gain:**
-
-- `weekProgress` on every goal: a building goal's `done` and `of` this week, by count or by amount; null for other types.
-- A one-off goal's `progress` counts steps: `hit` is the steps done, `of` is the steps not dropped.
-- The goal's page gains `steps` for a one-off goal: its tasks, done and not done, in the order added.
+**The list is flat.** The front end groups it by `aspirationId` (none means Keep life running), as it does with `listGoals`. That's one read for the Recurring tab and an aspiration's page.
 
 ## Architecture decisions
 
-- **`tasks` has every column the data model lists**, including `recurring_item_id`, `period_start` and `number`. `recurring_items` adds the foreign key. The unique rule for generated tasks is a plain unique index (no `where deleted_at is null`), so it counts deleted rows.
-- **A task points at `goals (id, user_id)`; a `task_weeks` row points at `tasks (id, user_id)`.** The owner rides on every foreign key, as in earlier slices.
-- **Rules the database holds:**
-  - goal or item or neither, never both
-  - a week is a Monday
-  - a planned day falls inside its row's week
-  - one row per task per week, and one with no outcome (a partial unique index)
-  - the time of day's kind and time come together
-- **"A task's state and its rows agree" is a deferred constraint trigger** on both tables, checked at commit:
-  - an open task has at most one row in play
-  - done, dropped and lapsed tasks have none
-  - a done task's last row is done
-
-  A route that gets it wrong fails its own test, not quietly.
-- **The current week is the phone's week** for now. `week-turnover` adds `closed_through_week` and moves this to `app/weeks.py` (`current_week`), the one function every task rule calls. Next week is open when `planned_through_week` is after it.
-- **`numeric` is `decimal.Decimal`** in sqlc's generated code. That's how `weekly_targets.amount` already works. The API sends the value as a JSON number and turns it back into a Decimal on the way in, as `WeeklyTargetInput` does. This is recorded in ADR-007.
-- **`app/tasks/`** holds routes, models and rules; `app/tasks/week.py` builds the week read. Goal progress is one query per read, not per goal.
-- **No new dependency.**
+- **One table, schedule as columns:** `schedule_kind` (text with a check), `weekday` (smallint 1–7, ISO: Monday is 1), `day_of_month` (1–28), `times` (1–6), `period` (`week`, `two_weeks`, `month`), `starts_on`, `active`. One check constraint says which columns each kind fills; the rest are null. Weekdays are names in JSON (`"tuesday"`) so nobody mixes up Sunday-is-0 and Monday-is-1.
+- **Foreign keys carry the owner:** `(aspiration_id, user_id)` → aspirations, `(from_goal_id, user_id)` → goals, and `tasks (recurring_item_id, user_id)` → recurring_items, the key `tasks` left for this slice.
+- **`startsOn` is the first day the item can be due.** It doesn't have to fall on the weekday or day of month; `week-turnover` takes the first matching day on or after it. It also anchors a two-week period. This loosens the data model's "the day it's first due", so editing the weekday doesn't also force a new start day. The data model is updated to match.
+- **Create rules:** the aspiration, if given, is one of the owner's active aspirations (404 if not found, 409 if retired); the from-goal, if given, is the owner's goal (404). The goal's status isn't checked: the offer is made when a goal is reached, and the item stands even if the goal is reopened later. Sent twice, create returns the row as it is.
+- **Edit** changes everything but `fromGoalId` and `active`. The same aspiration rule applies. What an edit does to tasks already made is left to `week-turnover`, as the spec says.
+- **Off and on reuse the goal code.** `set_aside_goal_tasks` and `bring_back_goal_tasks` take the rows to act on, so a goal's and an item's tasks go through the same code. Off sets the open rows in every open week aside; on returns those whose week is still open. A recurring task from a closed week doesn't come back (it's generated). Both take `lock_user` and are safe to repeat.
+- **Turning on an item whose aspiration is retired** clears its aspiration, so it carries on as maintenance. That's the same end state as retiring with "keep".
+- **Retiring an aspiration:**
+  - "pause": its active items turn off and their tasks are set aside. **This also fixes a gap:** today "pause" pauses the goals but leaves their tasks on the days. Setting those aside goes in the same change.
+  - "keep": its items lose their aspiration and become maintenance (Jan, 2026-11-18). Its goals keep theirs, as now.
+  - Bringing an aspiration back leaves its items off and unlinked (flows.md).
+- **Tests make recurring tasks directly in the database,** with origin `recurring_item`, a period start and a number, because no route makes them yet. That lets off and on be tested here instead of waiting for `week-turnover`.
 
 ## Dependency graph
 
 ```
-1 tasks ──► 2 task_weeks (+ agreement trigger)
-                 │
-                 ▼
-            3 addTask + getWeek ──► 4 updateTask
-                 │
-                 ▼
-            5 check off / uncheck ──► 6 progress + steps ──► [PR A]
-                 │
-                 ▼
-            7 place + bank ──► 8 swap ──► 9 drop
-                 │
-                 ▼
-            10 set aside + return ──► 11 closed-week check-off and uncheck ──► 12 docs, ADR-007, front-end types ──► [PR B]
+recurring_items table + tasks FK (1)
+    ├── create + list (2)
+    │      └── edit (3)
+    └── off / on, set-aside shared with goals (4)
+               └── retire reaches items and goal tasks (5)
+                        └── docs, openapi.json, front-end types (6)
 ```
 
 ## Task list
 
-See [`todo.md`](todo.md).
+- [ ] Task 1: The recurring_items table, and the tasks foreign key
+- [ ] Task 2: Create and list
+- [ ] Task 3: Edit
+- [ ] Task 4: Turn off and on
+- [ ] Task 5: Retiring an aspiration reaches its items and its goals' tasks
+- [ ] Task 6: Docs, the contract and the front end's types
 
-PR A, `tasks-week-read-add`:
-
-- [x] 1: The tasks table
-- [x] 2: The task_weeks table, and state agreeing with rows
-- [x] 3: Add a task, and the week read
-- [x] 4: Edit a task
-- [x] 5: Check off and uncheck
-- [x] 6: This week's progress, and a one-off goal's steps
-- [x] **Checkpoint A:** tasks can be added, read, edited, checked off; checks pass; PR A opened
-
-PR B, `tasks-week-moves`:
-
-- [x] 7: Place on a day, and back to the bank
-- [x] 8: Swap
-- [x] 9: Drop
-- [x] 10: Pausing sets tasks aside; coming back returns them
-- [x] 11: Check-offs and unchecks that arrive after their week closed
-- [x] 12: Docs, ADR-007 and the front end's types
-- [x] **Checkpoint B:** every spec criterion met; checks pass; PR B opened
+Checkpoint after task 3 (items can be made and edited) and after task 6 (the slice).
 
 ## Risks and mitigations
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| Nothing closes a week until slice 7, so the closed-week cases can't happen through the API yet | Medium | Tests make closed rows directly in SQL. Slice 7 then reuses the same endings. |
-| The agreement trigger rejects a valid step between two writes in one transaction | Medium | It is deferred to commit; each write's tests commit through the trigger. |
-| `getWeek` differs from the mock's `WeekPlan` (`weekOf`, `status`, `rolloverCount`, `onToday`) | Low | The front end keeps its hand-written types until #42 switches the screens. Only regenerating and compiling is in scope here. |
-| PR B changes goal status writes from slice 3 | Low | The existing status tests stay; new ones cover tasks. |
+| Pydantic's union for `schedule` comes out awkward in the generated TypeScript | Med | Use a discriminated union on `kind`. Check the generated type in task 2 and again in the front end in task 6. |
+| Sharing the set-aside code changes what pausing a goal does | Med | The goal status tests stay as they are and must pass without edits. |
+| `week-turnover` finds `startsOn` meaning the wrong thing | Low | It's written down in the data model and the spec, and that slice's plan rereads it. |
 
-## Decisions (approved 2026-11-18)
+## Decisions (Jan, 2026-11-18)
 
-1. **Uncheck has one rule** (settled with Jan 2026-11-18): the task's row goes back in play as it was. A waiting step checked off on the goal's page made a row on the day it was done, so unchecking it leaves it on that day rather than waiting. No new column; `data-model.md`'s "Unchecking removes the row" changes.
-2. **A swap trades a task on a day for one from the bank.** The day's task goes to the bank and the bank task takes its day, as the front end's `swapTask` does today (spec open question 2). Two day tasks trading days is out.
-3. **No placing a task in a later week that isn't open** (spec open question 1, the spec's own recommendation). It waits on the upcoming list.
-4. **`addTask` takes `day`, not `onToday`,** so a queued add states where it ends up. The phone sends today's date.
-5. **Writes return the task, not the week.** The phone fetches the week again once its queue is empty (ADR-010). `swapTasks` returns both tasks.
-6. **Uncheck clears the value logged** along with the completion, as the mock does.
+- The API sends the schedule fields only. No repeat text, no next due day.
+- Retire with "keep" clears the items' aspiration.
+
+## Assumed, for review with this plan
+
+- `startsOn` is "can be due from", not "first due" (above).
+- Turning on an item whose aspiration is retired clears the aspiration.
+- Retire's "pause" now sets its goals' tasks aside too.

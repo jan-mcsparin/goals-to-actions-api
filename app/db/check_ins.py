@@ -4,7 +4,7 @@
 # source: check_ins.sql
 import datetime
 import pydantic
-from typing import Optional
+from typing import Iterator, Optional
 import uuid
 
 import sqlalchemy
@@ -34,6 +34,19 @@ GET_CHECK_IN = """-- name: get_check_in \\:one
 select id, user_id, goal_id, milestone_id, outcome, result, checked_in_on, created_at, updated_at, deleted_at from check_ins
 where id = :p1 and user_id = :p2 and deleted_at is null
 """
+
+
+HIT_RESULTS = """-- name: hit_results \\:many
+select distinct on (milestone_id) milestone_id, result from check_ins
+where goal_id = :p1 and user_id = :p2 and outcome = 'hit' and milestone_id is not null
+  and deleted_at is null
+order by milestone_id, checked_in_on desc, created_at desc
+"""
+
+
+class HitResultsRow(pydantic.BaseModel):
+    milestone_id: Optional[uuid.UUID]
+    result: Optional[str]
 
 
 LATEST_RESULT = """-- name: latest_result \\:one
@@ -89,6 +102,14 @@ class Querier:
             updated_at=row[8],
             deleted_at=row[9],
         )
+
+    def hit_results(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> Iterator[HitResultsRow]:
+        result = self._conn.execute(sqlalchemy.text(HIT_RESULTS), {"p1": goal_id, "p2": user_id})
+        for row in result:
+            yield HitResultsRow(
+                milestone_id=row[0],
+                result=row[1],
+            )
 
     def latest_result(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.CheckIn]:
         row = self._conn.execute(sqlalchemy.text(LATEST_RESULT), {"p1": goal_id, "p2": user_id}).first()

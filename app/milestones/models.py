@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import AfterValidator, Field, StringConstraints
 
 from app.db import models as rows
-from app.goals.models import Goal
+from app.goals.models import Goal, Progress
 from app.schemas import ApiModel, NoNul
 
 MilestoneStatus = Literal["upcoming", "hit", "notYet"]
@@ -25,23 +25,18 @@ class Milestone(ApiModel):
     measurable_line: str
     target_date: date | None
     status: MilestoneStatus
+    result: str | None = Field(description="Its hit check-in's result. Empty until it's hit.")
 
     @classmethod
-    def from_row(cls, row: rows.Milestone) -> Milestone:
+    def from_row(cls, row: rows.Milestone, result: str | None) -> Milestone:
         return cls(
             id=row.id,
             position=row.position,
             measurable_line=row.measurable_line,
             target_date=row.target_date,
             status=STATUS_IN_JSON[row.status],
+            result=result,
         )
-
-
-class Progress(ApiModel):
-    """ "2 of 6": the goal's milestones plus one for the goal, which counts once reached."""
-
-    hit: int
-    of: int
 
 
 class LatestResult(ApiModel):
@@ -51,10 +46,18 @@ class LatestResult(ApiModel):
     checked_in_on: date
 
 
+class AspirationRef(ApiModel):
+    """The aspiration a goal is under, named on its page."""
+
+    id: UUID
+    name: str
+
+
 class GoalPage(ApiModel):
     """Everything a goal's page reads."""
 
     goal: Goal
+    aspiration: AspirationRef | None
     milestones: list[Milestone] = Field(description="In the order they're checked in.")
     progress: Progress
     latest: LatestResult | None

@@ -43,3 +43,10 @@ where milestones.id = new_order.id
 -- name: SetMilestoneStatus :exec
 update milestones set status = $3
 where id = $1 and user_id = $2 and deleted_at is null;
+
+-- Each of the owner's goals with milestones: how many, and how many are hit. One read for the list.
+-- name: CountMilestones :many
+select goal_id, count(*)::int as milestones, (count(*) filter (where status = 'hit'))::int as hit
+from milestones
+where user_id = $1 and deleted_at is null
+group by goal_id;

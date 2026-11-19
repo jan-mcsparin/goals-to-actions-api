@@ -32,6 +32,20 @@ class AddMilestoneParams(pydantic.BaseModel):
     target_date: Optional[datetime.date]
 
 
+COUNT_MILESTONES = """-- name: count_milestones \\:many
+select goal_id, count(*)\\:\\:int as milestones, (count(*) filter (where status = 'hit'))\\:\\:int as hit
+from milestones
+where user_id = :p1 and deleted_at is null
+group by goal_id
+"""
+
+
+class CountMilestonesRow(pydantic.BaseModel):
+    goal_id: uuid.UUID
+    milestones: int
+    hit: int
+
+
 GET_MILESTONE = """-- name: get_milestone \\:one
 select id, user_id, goal_id, goal_type, position, measurable_line, target_date, status, created_at, updated_at, deleted_at from milestones
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -106,6 +120,15 @@ class Querier:
             updated_at=row[9],
             deleted_at=row[10],
         )
+
+    def count_milestones(self, *, user_id: uuid.UUID) -> Iterator[CountMilestonesRow]:
+        result = self._conn.execute(sqlalchemy.text(COUNT_MILESTONES), {"p1": user_id})
+        for row in result:
+            yield CountMilestonesRow(
+                goal_id=row[0],
+                milestones=row[1],
+                hit=row[2],
+            )
 
     def get_milestone(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Milestone]:
         row = self._conn.execute(sqlalchemy.text(GET_MILESTONE), {"p1": id, "p2": user_id}).first()

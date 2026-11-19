@@ -269,7 +269,7 @@ def test_list_orders_goals_by_their_aspirations(
         under_retired["label"],
         no_aspiration["label"],
     ]
-    assert listed[0] == under_first
+    assert listed[0] == under_first | {"progress": {"hit": 0, "of": 1}}
 
 
 # updateGoal

@@ -63,7 +63,7 @@ As shared. **Never:** infer a goal's type; add a "missed" status or a hard-deadl
 | `pauseGoal`, `resumeGoal`, `endGoal`, `markGoalReached`, `reopenGoal`, `goAgain` | `POST /api/goals/{id}/pause`, `/resume`, `/end`, `/mark-reached`, `/reopen`, `/go-again` | |
 | `retireAspiration` | `POST /api/aspirations/{id}/retire` | gains `itsWork`: `pause` or `keep`, required |
 
-Every goal route needs the `X-Time-Zone` header and returns the goal: `id`, `aspirationId`, `type` (`building`, `quitting`, `oneOff`), `label`, `measurableLine`, `baseline`, `status`, `startDate`, `deadline`, `endedOn`, `slipped`, `weeklyTarget`, `createdAt`. `weeklyTarget` is the latest row (`kind`, `sessions`, `amount`, `unit`, `effectiveFrom`), so a change waiting for next week shows with an `effectiveFrom` after this week; it is `null` for quitting and one-off goals. The list is `{ "goals": [...] }`: under active aspirations by priority, then under retired ones, then those with none; within each, oldest first.
+Every goal route needs the `X-Time-Zone` header and returns the goal: `id`, `aspirationId`, `type` (`building`, `quitting`, `oneOff`), `label`, `measurableLine`, `baseline`, `status`, `startDate`, `deadline`, `endedOn`, `slipped`, `weeklyTarget`, `createdAt`. `weeklyTarget` is the latest row (`kind`, `sessions`, `amount`, `unit`, `effectiveFrom`), so a change waiting for next week shows with an `effectiveFrom` after this week; it is `null` for quitting and one-off goals. The list is `{ "goals": [...] }`: under active aspirations by priority, then under retired ones, then those with none; within each, oldest first. Each listed goal also carries `progress` (`hit` and `of`), counted as on its page (added for the front end's #41, issue #26).
 
 ## Settled
 
@@ -91,4 +91,4 @@ Every goal route needs the `X-Time-Zone` header and returns the goal: `id`, `asp
 - Setting a goal's tasks aside on pause, end and reached, and returning them on resume, reopen and go again (`tasks-week`).
 - "The current week" after a wrap-up, when `week-turnover` adds `closed_through_week` to `target_week`.
 - Pausing an aspiration's recurring items on retire (`recurring-items`).
-- `listAspirations` still returns aspirations alone. The Aspirations tab and an aspiration's page can draw their goals from `listGoals`; whether either needs a combined read is settled when the front end wires them.
+- `listAspirations` still returns aspirations alone. The Aspirations tab and an aspiration's page can draw their goals from `listGoals`; whether either needs a combined read is settled when the front end wires them. Settled for its #41 (issue #26): no combined read; each listed goal carries its `progress`, so the counts come in the same call.

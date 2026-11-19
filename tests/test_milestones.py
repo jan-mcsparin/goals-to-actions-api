@@ -52,6 +52,7 @@ def test_a_goal_with_no_milestones_reads_0_of_1(goals_client: TestClient) -> Non
 
     assert page(goals_client, goal["id"]) == {
         "goal": goal,
+        "aspiration": None,
         "milestones": [],
         "progress": {"hit": 0, "of": 1},
         "latest": None,
@@ -77,6 +78,7 @@ def test_add_puts_the_milestone_last_and_returns_the_page(goals_client: TestClie
         "measurableLine": "Bench 155",
         "targetDate": day(30),
         "status": "upcoming",
+        "result": None,
     }
     assert added["progress"] == {"hit": 0, "of": 3}
 

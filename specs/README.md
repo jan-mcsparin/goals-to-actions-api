@@ -69,6 +69,10 @@ Tried from the front end's client on 2026-11-18 (its #40, aspirations only, thro
 - **10 confirmed.** A 404 reaches the screens as "not found", anything else as a failed request. A reorder missing an active id is a 409.
 - **11 not yet met for aspirations.** There's no read for one aspiration's page or for the whole tab, so the front end builds both from `listAspirations`, with no goals, until its #41. The read that tab and page need is decided there.
 
+Tried again on 2026-11-18 (its #41, the aspiration and goal screens):
+
+- **11 met for the goal screens.** `listGoals` carries each goal's `progress`, and the goal's page carries its aspiration and each milestone's result (#26, #30), so the tab and an aspiration's page are two reads, `listAspirations` and `listGoals` side by side, and a goal's page is one. Recurring items and this week's tasks join them in the front end's #42.
+
 Settled 2026-11-16 (ADR-010):
 
 13. **The week is the only plan read.** The phone stores it as one document and draws Today, a day and the bank from it.

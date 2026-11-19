@@ -442,7 +442,27 @@
             "type": "array"
           },
           "progress": {
-            "$ref": "#/components/schemas/Progress"
+            "$ref": "#/components/schemas/Progress",
+            "description": "Milestones hit, or a one-off goal's steps done."
+          },
+          "steps": {
+            "description": "A one-off goal's tasks, done and not, in the order added; dropped ones left out. Empty for other goals.",
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "weekProgress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeekProgress"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "This week against its target. Empty without a target this week."
           }
         },
         "required": [
@@ -450,6 +470,8 @@
           "aspiration",
           "milestones",
           "progress",
+          "weekProgress",
+          "steps",
           "latest"
         ],
         "title": "GoalPage",
@@ -570,7 +592,8 @@
             "type": "string"
           },
           "progress": {
-            "$ref": "#/components/schemas/Progress"
+            "$ref": "#/components/schemas/Progress",
+            "description": "Milestones hit, or a one-off goal's steps done, as on the goal's page."
           },
           "slipped": {
             "description": "Active, with its deadline before today.",
@@ -601,6 +624,17 @@
             "title": "Type",
             "type": "string"
           },
+          "weekProgress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeekProgress"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "This week against its target. Empty without a target this week."
+          },
           "weeklyTarget": {
             "anyOf": [
               {
@@ -627,7 +661,8 @@
           "slipped",
           "weeklyTarget",
           "createdAt",
-          "progress"
+          "progress",
+          "weekProgress"
         ],
         "title": "ListedGoal",
         "type": "object"
@@ -1298,6 +1333,14 @@
       "Week": {
         "description": "The plan read (ADR-010). The phone keeps it and draws Today, any day and the bank\nfrom it.",
         "properties": {
+          "goals": {
+            "description": "Every active building goal with a target that week, and its progress.",
+            "items": {
+              "$ref": "#/components/schemas/WeekGoal"
+            },
+            "title": "Goals",
+            "type": "array"
+          },
           "isCurrent": {
             "title": "Iscurrent",
             "type": "boolean"
@@ -1325,9 +1368,57 @@
           "week",
           "isCurrent",
           "nextWeekOpen",
-          "tasks"
+          "tasks",
+          "goals"
         ],
         "title": "Week",
+        "type": "object"
+      },
+      "WeekGoal": {
+        "description": "A bar on Week: a goal's target that week and how far along it is.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/WeekProgress"
+          },
+          "weeklyTarget": {
+            "$ref": "#/components/schemas/WeeklyTarget"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "weeklyTarget",
+          "progress"
+        ],
+        "title": "WeekGoal",
+        "type": "object"
+      },
+      "WeekProgress": {
+        "description": "This week against a building goal's target: tasks done out of sessions (count), or\nthe values logged out of the amount (amount).",
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "number"
+          },
+          "of": {
+            "title": "Of",
+            "type": "number"
+          }
+        },
+        "required": [
+          "done",
+          "of"
+        ],
+        "title": "WeekProgress",
         "type": "object"
       },
       "WeeklyTarget": {

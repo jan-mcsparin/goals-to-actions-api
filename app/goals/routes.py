@@ -17,6 +17,7 @@ from app.goals.models import (
 from app.milestones.models import GoalPage
 from app.milestones.page import goal_page
 from app.schemas import NOT_ALLOWED, NOT_FOUND
+from app.tasks import progress
 from app.time_zone import Today
 
 router = APIRouter(prefix="/goals", tags=["goals"])
@@ -34,9 +35,19 @@ def list_goals(database: CurrentDatabase, user_id: CurrentUserId, today: Today) 
             count.goal_id: count
             for count in milestones.Querier(connection).count_milestones(user_id=user_id)
         }
+        steps = progress.steps(connection, user_id)
+        this_week = progress.week_progress(
+            connection, user_id, progress.current_week(connection, user_id, today)
+        )
     return GoalList(
         goals=[
-            ListedGoal.from_rows(row, targets.get(row.id), counts.get(row.id), today)
+            ListedGoal.from_rows(
+                row,
+                targets.get(row.id),
+                progress.goal_progress(row, counts.get(row.id), steps.get(row.id)),
+                this_week.get(row.id),
+                today,
+            )
             for row in rows
         ]
     )

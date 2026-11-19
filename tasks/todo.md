@@ -114,11 +114,11 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `weekProgress` on goal reads; a one-off goal's `progress` from its steps; `steps` on the goal's page; `goals` on the week read.
 
 **Acceptance criteria:**
-- [ ] Count progress is the tasks done in this week's rows, out of sessions. Amount progress is the sum of the values logged, out of the amount.
-- [ ] A task counts for the week of the row it was done in.
-- [ ] A one-off goal reads "3 of 6" with dropped steps left out, and its page lists its steps.
-- [ ] `getWeek.goals` lists the active building goals with a target that week, with progress.
-- [ ] One query for the whole list's progress.
+- [x] Count progress is the tasks done in this week's rows, out of sessions. Amount progress is the sum of the values logged, out of the amount.
+- [x] A task counts for the week of the row it was done in.
+- [x] A one-off goal reads "3 of 6" with dropped steps left out, and its page lists its steps.
+- [x] `getWeek.goals` lists the active building goals with a target that week, with progress.
+- [x] One query for the whole list's progress.
 
 **Verify:** `uv run pytest tests/test_goal_reads.py tests/test_week_read.py`.
 
@@ -128,8 +128,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ## Checkpoint A
 
-- [ ] The four checks pass.
-- [ ] PR A opened (part of #7).
+- [x] The four checks pass.
+- [x] PR A opened (part of #7).
 
 # PR B: `tasks-week-moves` (closes #7)
 

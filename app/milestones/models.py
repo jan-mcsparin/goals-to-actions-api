@@ -5,8 +5,9 @@ from uuid import UUID
 from pydantic import AfterValidator, Field, StringConstraints
 
 from app.db import models as rows
-from app.goals.models import Goal, Progress
+from app.goals.models import Goal, Progress, WeekProgress
 from app.schemas import ApiModel, NoNul
+from app.tasks.models import Task
 
 MilestoneStatus = Literal["upcoming", "hit", "notYet"]
 
@@ -61,7 +62,14 @@ class GoalPage(ApiModel):
     goal: Goal
     aspiration: AspirationRef | None
     milestones: list[Milestone] = Field(description="In the order they're checked in.")
-    progress: Progress
+    progress: Progress = Field(description="Milestones hit, or a one-off goal's steps done.")
+    week_progress: WeekProgress | None = Field(
+        description="This week against its target. Empty without a target this week."
+    )
+    steps: list[Task] = Field(
+        description="A one-off goal's tasks, done and not, in the order added; dropped ones "
+        "left out. Empty for other goals."
+    )
     latest: LatestResult | None
 
 

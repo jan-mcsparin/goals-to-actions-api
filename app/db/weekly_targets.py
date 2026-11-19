@@ -51,6 +51,13 @@ class SetWeeklyTargetParams(pydantic.BaseModel):
     effective_from: datetime.date
 
 
+WEEKLY_TARGETS_FOR = """-- name: weekly_targets_for \\:many
+select distinct on (goal_id) id, user_id, goal_id, goal_type, kind, sessions, amount, unit, effective_from, created_at, updated_at, deleted_at from weekly_targets
+where user_id = :p1 and effective_from <= :p2 and deleted_at is null
+order by goal_id, effective_from desc
+"""
+
+
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
@@ -119,3 +126,21 @@ class Querier:
             updated_at=row[10],
             deleted_at=row[11],
         )
+
+    def weekly_targets_for(self, *, user_id: uuid.UUID, effective_from: datetime.date) -> Iterator[models.WeeklyTarget]:
+        result = self._conn.execute(sqlalchemy.text(WEEKLY_TARGETS_FOR), {"p1": user_id, "p2": effective_from})
+        for row in result:
+            yield models.WeeklyTarget(
+                id=row[0],
+                user_id=row[1],
+                goal_id=row[2],
+                goal_type=row[3],
+                kind=row[4],
+                sessions=row[5],
+                amount=row[6],
+                unit=row[7],
+                effective_from=row[8],
+                created_at=row[9],
+                updated_at=row[10],
+                deleted_at=row[11],
+            )

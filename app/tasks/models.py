@@ -6,8 +6,8 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, Field, StringConstraints
 
-from app.db.tasks import GetTaskViewRow, ListWeekTasksRow
-from app.goals.models import Label
+from app.db.tasks import GetTaskViewRow, ListStepsRow, ListWeekTasksRow
+from app.goals.models import Label, WeeklyTarget, WeekProgress
 from app.schemas import ApiModel
 
 TaskOrigin = Literal["byHand", "weeklyTarget", "recurringItem"]
@@ -67,7 +67,7 @@ class Task(ApiModel):
     carried_over: int = Field(description="How many weeks it rolled over before this one.")
 
     @classmethod
-    def from_row(cls, row: GetTaskViewRow | ListWeekTasksRow) -> Task:
+    def from_row(cls, row: GetTaskViewRow | ListWeekTasksRow | ListStepsRow) -> Task:
         return cls(
             id=row.id,
             title=row.title,
@@ -102,6 +102,15 @@ class NewTask(ApiModel):
     )
 
 
+class WeekGoal(ApiModel):
+    """A bar on Week: a goal's target that week and how far along it is."""
+
+    id: UUID
+    label: str
+    weekly_target: WeeklyTarget
+    progress: WeekProgress
+
+
 class Week(ApiModel):
     """The plan read (ADR-010). The phone keeps it and draws Today, any day and the bank
     from it."""
@@ -112,6 +121,9 @@ class Week(ApiModel):
     tasks: list[Task] = Field(
         description="On a day, then in the bank; with no outcome or done. Set-aside rows "
         "aren't shown."
+    )
+    goals: list[WeekGoal] = Field(
+        description="Every active building goal with a target that week, and its progress."
     )
 
 

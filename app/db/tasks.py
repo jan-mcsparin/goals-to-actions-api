@@ -31,6 +31,22 @@ class AddTaskParams(pydantic.BaseModel):
     time_of_day: Optional[datetime.time]
 
 
+COUNT_STEPS = """-- name: count_steps \\:many
+select tasks.goal_id\\:\\:uuid as goal_id, count(*)\\:\\:integer as steps,
+  (count(*) filter (where tasks.state = 'done'))\\:\\:integer as done
+from tasks
+join goals on goals.id = tasks.goal_id and goals.type = 'one_off'
+where tasks.user_id = :p1 and tasks.state <> 'dropped' and tasks.deleted_at is null
+group by tasks.goal_id
+"""
+
+
+class CountStepsRow(pydantic.BaseModel):
+    goal_id: uuid.UUID
+    steps: int
+    done: int
+
+
 GET_TASK = """-- name: get_task \\:one
 select id, user_id, title, origin, goal_id, recurring_item_id, state, due_date, time_kind, time_of_day, value_logged, completed_at, completed_on, period_start, number, still_matters_answered_on, created_at, updated_at, deleted_at from tasks
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -80,6 +96,54 @@ class GetTaskViewRow(pydantic.BaseModel):
     planned_day: Optional[datetime.date]
     placed_by_hand: Optional[bool]
     goal_label: Optional[str]
+    carried_over: int
+
+
+LIST_STEPS = """-- name: list_steps \\:many
+select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, shown.week, shown.planned_day, shown.placed_by_hand,
+  goals.label as goal_label,
+  (select count(*) from task_weeks carried
+    where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.deleted_at is null)\\:\\:integer as carried_over
+from tasks
+left join task_weeks shown on shown.id = (
+  select task_weeks.id from task_weeks
+  where task_weeks.task_id = tasks.id and task_weeks.deleted_at is null
+    and (task_weeks.outcome is null or task_weeks.outcome = 'done')
+  order by task_weeks.week desc
+  limit 1
+)
+join goals on goals.id = tasks.goal_id
+where tasks.goal_id = :p1 and tasks.user_id = :p2 and tasks.state <> 'dropped'
+  and tasks.deleted_at is null
+order by tasks.created_at, tasks.id
+"""
+
+
+class ListStepsRow(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    title: str
+    origin: str
+    goal_id: Optional[uuid.UUID]
+    recurring_item_id: Optional[uuid.UUID]
+    state: str
+    due_date: Optional[datetime.date]
+    time_kind: Optional[str]
+    time_of_day: Optional[datetime.time]
+    value_logged: Optional[decimal.Decimal]
+    completed_at: Optional[datetime.datetime]
+    completed_on: Optional[datetime.date]
+    period_start: Optional[datetime.date]
+    number: Optional[int]
+    still_matters_answered_on: Optional[datetime.date]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+    week: Optional[datetime.date]
+    planned_day: Optional[datetime.date]
+    placed_by_hand: Optional[bool]
+    goal_label: str
     carried_over: int
 
 
@@ -164,6 +228,23 @@ class UpdateTaskParams(pydantic.BaseModel):
     time_of_day: Optional[datetime.time]
 
 
+WEEK_DONE = """-- name: week_done \\:many
+select tasks.goal_id\\:\\:uuid as goal_id, count(*)\\:\\:integer as done,
+  coalesce(sum(tasks.value_logged), 0)\\:\\:numeric as logged
+from task_weeks
+join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
+where task_weeks.user_id = :p1 and task_weeks.week = :p2 and task_weeks.outcome = 'done'
+  and task_weeks.deleted_at is null and tasks.goal_id is not null
+group by tasks.goal_id
+"""
+
+
+class WeekDoneRow(pydantic.BaseModel):
+    goal_id: uuid.UUID
+    done: int
+    logged: decimal.Decimal
+
+
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
@@ -201,6 +282,15 @@ class Querier:
             updated_at=row[17],
             deleted_at=row[18],
         )
+
+    def count_steps(self, *, user_id: uuid.UUID) -> Iterator[CountStepsRow]:
+        result = self._conn.execute(sqlalchemy.text(COUNT_STEPS), {"p1": user_id})
+        for row in result:
+            yield CountStepsRow(
+                goal_id=row[0],
+                steps=row[1],
+                done=row[2],
+            )
 
     def get_task(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Task]:
         row = self._conn.execute(sqlalchemy.text(GET_TASK), {"p1": id, "p2": user_id}).first()
@@ -258,6 +348,36 @@ class Querier:
             goal_label=row[22],
             carried_over=row[23],
         )
+
+    def list_steps(self, *, goal_id: Optional[uuid.UUID], user_id: uuid.UUID) -> Iterator[ListStepsRow]:
+        result = self._conn.execute(sqlalchemy.text(LIST_STEPS), {"p1": goal_id, "p2": user_id})
+        for row in result:
+            yield ListStepsRow(
+                id=row[0],
+                user_id=row[1],
+                title=row[2],
+                origin=row[3],
+                goal_id=row[4],
+                recurring_item_id=row[5],
+                state=row[6],
+                due_date=row[7],
+                time_kind=row[8],
+                time_of_day=row[9],
+                value_logged=row[10],
+                completed_at=row[11],
+                completed_on=row[12],
+                period_start=row[13],
+                number=row[14],
+                still_matters_answered_on=row[15],
+                created_at=row[16],
+                updated_at=row[17],
+                deleted_at=row[18],
+                week=row[19],
+                planned_day=row[20],
+                placed_by_hand=row[21],
+                goal_label=row[22],
+                carried_over=row[23],
+            )
 
     def list_week_tasks(self, *, user_id: uuid.UUID, week: datetime.date) -> Iterator[ListWeekTasksRow]:
         result = self._conn.execute(sqlalchemy.text(LIST_WEEK_TASKS), {"p1": user_id, "p2": week})
@@ -333,3 +453,12 @@ class Querier:
             updated_at=row[17],
             deleted_at=row[18],
         )
+
+    def week_done(self, *, user_id: uuid.UUID, week: datetime.date) -> Iterator[WeekDoneRow]:
+        result = self._conn.execute(sqlalchemy.text(WEEK_DONE), {"p1": user_id, "p2": week})
+        for row in result:
+            yield WeekDoneRow(
+                goal_id=row[0],
+                done=row[1],
+                logged=row[2],
+            )

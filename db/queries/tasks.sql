@@ -59,3 +59,43 @@ where id = $1 and user_id = $2 and deleted_at is null;
 update tasks
 set state = 'open', completed_at = null, completed_on = null, value_logged = null
 where id = $1 and user_id = $2 and deleted_at is null;
+
+-- What each goal's tasks did in a week: a task counts for the week of the row it was done
+-- in, not the day it was checked off.
+-- name: WeekDone :many
+select tasks.goal_id::uuid as goal_id, count(*)::integer as done,
+  coalesce(sum(tasks.value_logged), 0)::numeric as logged
+from task_weeks
+join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
+where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.outcome = 'done'
+  and task_weeks.deleted_at is null and tasks.goal_id is not null
+group by tasks.goal_id;
+
+-- A one-off goal's steps: its tasks that weren't dropped.
+-- name: CountSteps :many
+select tasks.goal_id::uuid as goal_id, count(*)::integer as steps,
+  (count(*) filter (where tasks.state = 'done'))::integer as done
+from tasks
+join goals on goals.id = tasks.goal_id and goals.type = 'one_off'
+where tasks.user_id = $1 and tasks.state <> 'dropped' and tasks.deleted_at is null
+group by tasks.goal_id;
+
+-- A one-off goal's steps as its page lists them, in the order they were added.
+-- name: ListSteps :many
+select tasks.*, shown.week, shown.planned_day, shown.placed_by_hand,
+  goals.label as goal_label,
+  (select count(*) from task_weeks carried
+    where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.deleted_at is null)::integer as carried_over
+from tasks
+left join task_weeks shown on shown.id = (
+  select task_weeks.id from task_weeks
+  where task_weeks.task_id = tasks.id and task_weeks.deleted_at is null
+    and (task_weeks.outcome is null or task_weeks.outcome = 'done')
+  order by task_weeks.week desc
+  limit 1
+)
+join goals on goals.id = tasks.goal_id
+where tasks.goal_id = $1 and tasks.user_id = $2 and tasks.state <> 'dropped'
+  and tasks.deleted_at is null
+order by tasks.created_at, tasks.id;

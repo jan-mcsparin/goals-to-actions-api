@@ -5,11 +5,13 @@ from uuid import UUID
 
 from sqlalchemy import Connection
 
-from app.db import aspirations, check_ins, goals, milestones
+from app.db import aspirations, check_ins, goals, milestones, tasks
 from app.errors import NotFound
 from app.goals.models import Goal, Progress
 from app.goals.rules import latest_target
 from app.milestones.models import AspirationRef, GoalPage, LatestResult, Milestone
+from app.tasks import progress
+from app.tasks.models import Task
 
 
 def goal_page(connection: Connection, user_id: UUID, goal_id: UUID, today: date) -> GoalPage:
@@ -23,6 +25,13 @@ def goal_page(connection: Connection, user_id: UUID, goal_id: UUID, today: date)
     }
     latest = check_ins.Querier(connection).latest_result(goal_id=goal_id, user_id=user_id)
     hit = sum(row.status == "hit" for row in rows)
+    one_off = goal.type == "one_off"
+    steps = (
+        list(tasks.Querier(connection).list_steps(goal_id=goal_id, user_id=user_id))
+        if one_off
+        else []
+    )
+    week = progress.current_week(connection, user_id, today)
     return GoalPage(
         goal=Goal.from_row(goal, latest_target(connection, user_id, goal_id), today),
         aspiration=aspiration_of(connection, user_id, goal.aspiration_id),
@@ -30,7 +39,13 @@ def goal_page(connection: Connection, user_id: UUID, goal_id: UUID, today: date)
             Milestone.from_row(row, None if row.status == "upcoming" else results.get(row.id))
             for row in rows
         ],
-        progress=Progress.counted(len(rows), hit, goal.status),
+        progress=progress.step_progress(
+            (sum(step.state == "done" for step in steps), len(steps)), goal.status
+        )
+        if one_off
+        else Progress.counted(len(rows), hit, goal.status),
+        week_progress=progress.week_progress(connection, user_id, week).get(goal_id),
+        steps=[Task.from_row(step) for step in steps],
         latest=None
         if latest is None or latest.result is None
         else LatestResult(result=latest.result, checked_in_on=latest.checked_in_on),

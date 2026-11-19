@@ -90,8 +90,8 @@ PR A, `tasks-week-read-add`:
 - [x] 3: Add a task, and the week read
 - [x] 4: Edit a task
 - [x] 5: Check off and uncheck
-- [ ] 6: This week's progress, and a one-off goal's steps
-- [ ] **Checkpoint A:** tasks can be added, read, edited, checked off; checks pass; PR A opened
+- [x] 6: This week's progress, and a one-off goal's steps
+- [x] **Checkpoint A:** tasks can be added, read, edited, checked off; checks pass; PR A opened
 
 PR B, `tasks-week-moves`:
 

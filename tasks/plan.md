@@ -62,7 +62,7 @@ recurring_items table + tasks FK (1)
 - [x] Task 2: Create and list
 - [x] Task 3: Edit
 - [x] Task 4: Turn off and on
-- [ ] Task 5: Retiring an aspiration reaches its items and its goals' tasks
+- [x] Task 5: Retiring an aspiration reaches its items and its goals' tasks
 - [ ] Task 6: Docs, the contract and the front end's types
 
 Checkpoint after task 3 (items can be made and edited) and after task 6 (the slice).

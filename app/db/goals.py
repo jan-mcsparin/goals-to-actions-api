@@ -48,9 +48,10 @@ order by goals.aspiration_id is null, aspirations.position nulls last,
 """
 
 
-PAUSE_ASPIRATION_GOALS = """-- name: pause_aspiration_goals \\:exec
+PAUSE_ASPIRATION_GOALS = """-- name: pause_aspiration_goals \\:many
 update goals set status = 'paused'
 where aspiration_id = :p1 and user_id = :p2 and status = 'active' and deleted_at is null
+returning id
 """
 
 
@@ -155,8 +156,10 @@ class Querier:
                 deleted_at=row[13],
             )
 
-    def pause_aspiration_goals(self, *, aspiration_id: Optional[uuid.UUID], user_id: uuid.UUID) -> None:
-        self._conn.execute(sqlalchemy.text(PAUSE_ASPIRATION_GOALS), {"p1": aspiration_id, "p2": user_id})
+    def pause_aspiration_goals(self, *, aspiration_id: Optional[uuid.UUID], user_id: uuid.UUID) -> Iterator[uuid.UUID]:
+        result = self._conn.execute(sqlalchemy.text(PAUSE_ASPIRATION_GOALS), {"p1": aspiration_id, "p2": user_id})
+        for row in result:
+            yield row[0]
 
     def set_goal_status(self, *, id: uuid.UUID, user_id: uuid.UUID, status: str, ended_on: Optional[datetime.date]) -> Optional[models.Goal]:
         row = self._conn.execute(sqlalchemy.text(SET_GOAL_STATUS), {

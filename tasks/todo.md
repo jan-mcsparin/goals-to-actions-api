@@ -73,15 +73,15 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `aspirations.rules.retire`: "pause" turns its active items off and sets aside the tasks of the goals and items it paused; "keep" clears its items' aspiration.
 
 **Acceptance criteria:**
-- [ ] With "pause", the aspiration's goals' and items' open tasks leave the days and the bank in every open week; done ones stay.
-- [ ] With "keep", its items have no aspiration and its goals keep theirs. Bringing it back leaves items off and unlinked.
-- [ ] Retiring twice changes nothing.
+- [x] With "pause", the aspiration's goals' and items' open tasks leave the days and the bank in every open week; done ones stay.
+- [x] With "keep", its items have no aspiration and its goals keep theirs. Bringing it back leaves items off and unlinked.
+- [x] Retiring twice changes nothing.
 
 **Verify:** `uv run pytest tests/test_aspirations.py`.
 
 **Dependencies:** 4.
 
-**Files:** `app/aspirations/rules.py`, `db/queries/goals.sql`, `db/queries/recurring_items.sql`, `app/db/`, `tests/test_aspirations.py`.
+**Files:** `app/aspirations/rules.py`, `db/queries/goals.sql`, `db/queries/recurring_items.sql`, `app/db/`, `tests/test_recurring_items.py`, `tests/test_goal_tasks.py`.
 
 ### Task 6: Docs, the contract and the front end's types
 

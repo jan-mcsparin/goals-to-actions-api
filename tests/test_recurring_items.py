@@ -463,3 +463,70 @@ def test_turning_an_unknown_or_another_owners_item_is_not_found(
     response = items_client.post(f"/api/recurring-items/{item_id}/turn-{way}")
 
     assert response.status_code == 404, response.text
+
+
+# Retiring an aspiration
+
+
+def retire(client: TestClient, aspiration_id: str, its_work: str) -> None:
+    response = client.post(f"/api/aspirations/{aspiration_id}/retire", json={"itsWork": its_work})
+    assert response.status_code == 200, response.text
+
+
+def test_retiring_with_its_work_paused_turns_its_items_off(
+    items_client: TestClient, connection: Connection
+) -> None:
+    home = create_aspiration(items_client, "Keep a home")
+    fit = create_aspiration(items_client, "Be fit")
+    rent = create(items_client, item(**RENT, aspirationId=home["id"]))
+    stretch = create(items_client, item(name="Stretch", aspirationId=fit["id"]))
+    trash = create(items_client, item())
+    this_week = week_of(today())
+    task = recurring_task(connection, rent["id"], this_week, today(), by_hand=True)
+
+    retire(items_client, home["id"], "pause")
+
+    assert {row["name"]: (row["active"], row["aspirationId"]) for row in listed(items_client)} == {
+        rent["name"]: (False, home["id"]),
+        stretch["name"]: (True, fit["id"]),
+        trash["name"]: (True, None),
+    }
+    assert rows(connection, task) == [(this_week, today(), True, "set_aside")]
+
+
+def test_retiring_keeping_its_work_makes_its_items_maintenance(
+    items_client: TestClient, connection: Connection
+) -> None:
+    home = create_aspiration(items_client, "Keep a home")
+    rent = create(items_client, item(**RENT, aspirationId=home["id"]))
+    off = create(items_client, item(aspirationId=home["id"]))
+    turn(items_client, off["id"], "off")
+    task = recurring_task(connection, rent["id"], week_of(today()), today(), by_hand=True)
+
+    retire(items_client, home["id"], "keep")
+
+    assert {row["name"]: (row["active"], row["aspirationId"]) for row in listed(items_client)} == {
+        rent["name"]: (True, None),
+        off["name"]: (False, None),
+    }
+    assert rows(connection, task) == [(week_of(today()), today(), True, None)]
+
+
+def test_bringing_an_aspiration_back_leaves_its_items_off(items_client: TestClient) -> None:
+    home = create_aspiration(items_client, "Keep a home")
+    rent = create(items_client, item(**RENT, aspirationId=home["id"]))
+    retire(items_client, home["id"], "pause")
+
+    items_client.post(f"/api/aspirations/{home['id']}/bring-back")
+
+    assert listed(items_client) == [rent | {"active": False}]
+
+
+def test_retiring_again_changes_no_item(items_client: TestClient) -> None:
+    home = create_aspiration(items_client, "Keep a home")
+    rent = create(items_client, item(**RENT, aspirationId=home["id"]))
+    retire(items_client, home["id"], "pause")
+
+    retire(items_client, home["id"], "keep")
+
+    assert listed(items_client) == [rent | {"active": False}]

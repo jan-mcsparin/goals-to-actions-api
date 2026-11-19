@@ -12,6 +12,12 @@ import sqlalchemy
 from app.db import models
 
 
+CLEAR_ASPIRATION_ITEMS = """-- name: clear_aspiration_items \\:exec
+update recurring_items set aspiration_id = null
+where aspiration_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 CREATE_RECURRING_ITEM = """-- name: create_recurring_item \\:one
 insert into recurring_items (
   id, user_id, name, aspiration_id, from_goal_id, schedule_kind, weekday, day_of_month, times,
@@ -56,6 +62,13 @@ returning id, user_id, name, aspiration_id, from_goal_id, schedule_kind, weekday
 """
 
 
+TURN_OFF_ASPIRATION_ITEMS = """-- name: turn_off_aspiration_items \\:many
+update recurring_items set active = false
+where aspiration_id = :p1 and user_id = :p2 and active and deleted_at is null
+returning id
+"""
+
+
 UPDATE_RECURRING_ITEM = """-- name: update_recurring_item \\:one
 update recurring_items
 set name = :p3, aspiration_id = :p4, schedule_kind = :p5, weekday = :p6, day_of_month = :p7,
@@ -81,6 +94,9 @@ class UpdateRecurringItemParams(pydantic.BaseModel):
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
+
+    def clear_aspiration_items(self, *, aspiration_id: Optional[uuid.UUID], user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(CLEAR_ASPIRATION_ITEMS), {"p1": aspiration_id, "p2": user_id})
 
     def create_recurring_item(self, arg: CreateRecurringItemParams) -> Optional[models.RecurringItem]:
         row = self._conn.execute(sqlalchemy.text(CREATE_RECURRING_ITEM), {
@@ -185,6 +201,11 @@ class Querier:
             updated_at=row[13],
             deleted_at=row[14],
         )
+
+    def turn_off_aspiration_items(self, *, aspiration_id: Optional[uuid.UUID], user_id: uuid.UUID) -> Iterator[uuid.UUID]:
+        result = self._conn.execute(sqlalchemy.text(TURN_OFF_ASPIRATION_ITEMS), {"p1": aspiration_id, "p2": user_id})
+        for row in result:
+            yield row[0]
 
     def update_recurring_item(self, arg: UpdateRecurringItemParams) -> Optional[models.RecurringItem]:
         row = self._conn.execute(sqlalchemy.text(UPDATE_RECURRING_ITEM), {

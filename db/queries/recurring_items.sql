@@ -29,3 +29,14 @@ returning *;
 update recurring_items set active = $3, aspiration_id = $4
 where id = $1 and user_id = $2 and deleted_at is null
 returning *;
+
+-- Retiring an aspiration with its work paused. Returns the items it turned off.
+-- name: TurnOffAspirationItems :many
+update recurring_items set active = false
+where aspiration_id = $1 and user_id = $2 and active and deleted_at is null
+returning id;
+
+-- Retiring an aspiration and keeping its work going: its items become maintenance.
+-- name: ClearAspirationItems :exec
+update recurring_items set aspiration_id = null
+where aspiration_id = $1 and user_id = $2 and deleted_at is null;

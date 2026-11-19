@@ -4379,6 +4379,69 @@
           "tasks"
         ]
       }
+    },
+    "/api/weeks/{week}/wrap-up": {
+      "post": {
+        "description": "Closes the current week early, once next week is open, and returns the new current\nweek. Sent again, it returns the current week as it is.",
+        "operationId": "wrapUpWeek",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "week",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Week",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Week"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wrap Up Week",
+        "tags": [
+          "weeks"
+        ]
+      }
     }
   }
 }

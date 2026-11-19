@@ -9,12 +9,13 @@ from sqlalchemy import Connection, text
 
 from app.db import goals, models, recurring_items, tasks, turnover, users, weekly_targets
 from app.db.users import GetUserRow
+from app.errors import NotAllowed
 from app.planner import place_new_work
 from app.tasks.rules import add_row, set_outcome
 from app.turnover.due import Slot, goal_slots, item_slots
 from app.turnover.endings import ending_for, item_of, schedule_of
 from app.users import lock_user
-from app.weeks import current_week
+from app.weeks import current_week, open_weeks
 
 # The hour next week opens on Sunday (ADR-009), by the phone's clock.
 OPENS_AT = time(18, 0)
@@ -111,6 +112,23 @@ def close_weeks(
                 tasks.Querier(connection).set_task_closed(
                     id=row.task_id, user_id=user_id, state="lapsed"
                 )
+
+
+def wrap_up(connection: Connection, user_id: UUID, week: date, today: date) -> date:
+    """The person closes the current week early, once next week is open: the same close as
+    Monday's, and next week becomes the current one. Returns the current week afterwards.
+    Sent again, the week is already closed and nothing changes."""
+    owner = lock_user(connection, user_id)
+    weeks = open_weeks(today, owner.planned_through_week, owner.closed_through_week)
+    if week < weeks.current:
+        return weeks.current
+    if week > weeks.current:
+        raise NotAllowed("Only the current week can be wrapped up.")
+    if not weeks.next_open:
+        raise NotAllowed("A week can be wrapped up once next week is open.")
+    close_weeks(connection, user_id, week, weeks.next, owner.closed_through_week)
+    mark_closed(connection, user_id, week)
+    return weeks.next
 
 
 def open_week(connection: Connection, user_id: UUID, week: date, today: date) -> list[UUID]:

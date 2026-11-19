@@ -79,9 +79,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `wrapUpWeek`, `POST /api/weeks/{week}/wrap-up`, in `app/turnover/routes.py`. The same close as Monday's, run once next week is open. Returns the new current week.
 
 **Acceptance criteria:**
-- [ ] Wrapped up on Sunday evening, next week becomes the current week: its tasks can be checked off, and a task added to "today" goes to its bank.
-- [ ] Before next week is open it's a 409, and so is a week after the current one. Sent twice, the second finds the week closed and returns the current week unchanged. The audit log says `wrap up week`.
-- [ ] Monday's close after a wrap-up finds nothing to do.
+- [x] Wrapped up on Sunday evening, next week becomes the current week: its tasks can be checked off, and a task added to "today" goes to its bank.
+- [x] Before next week is open it's a 409, and so is a week after the current one. Sent twice, the second finds the week closed and returns the current week unchanged. The audit log says `wrap up week`.
+- [x] Monday's close after a wrap-up finds nothing to do.
 
 **Verify:** `uv run pytest tests/test_wrap_up.py`.
 

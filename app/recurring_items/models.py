@@ -138,3 +138,13 @@ class NewRecurringItem(ApiModel):
     )
     schedule: Schedule
     starts_on: date
+
+
+class RecurringItemEdit(ApiModel):
+    """Sent whole on every edit. The goal it came from, and whether it's on, don't change
+    here."""
+
+    name: Name
+    aspiration_id: UUID | None = None
+    schedule: Schedule
+    starts_on: date

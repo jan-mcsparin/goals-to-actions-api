@@ -7,7 +7,7 @@ from sqlalchemy import Connection
 
 from app.db import aspirations, goals, models, recurring_items
 from app.errors import NotAllowed, NotFound
-from app.recurring_items.models import NewRecurringItem, StoredSchedule
+from app.recurring_items.models import NewRecurringItem, RecurringItemEdit, StoredSchedule
 from app.users import lock_user
 
 
@@ -44,6 +44,37 @@ def create(
     if created is None:
         raise NotAllowed("That id is already in use.")
     return created
+
+
+def update(
+    connection: Connection, user_id: UUID, item_id: UUID, edit: RecurringItemEdit
+) -> models.RecurringItem:
+    """Changes the name, the aspiration, the schedule and the start. An item can stay under
+    its retired aspiration, but can't be moved under one."""
+    lock_user(connection, user_id)
+    queries = recurring_items.Querier(connection)
+    item = queries.get_recurring_item(id=item_id, user_id=user_id)
+    if item is None:
+        raise NotFound
+    if edit.aspiration_id is not None and edit.aspiration_id != item.aspiration_id:
+        check_aspiration(connection, user_id, edit.aspiration_id)
+    stored = StoredSchedule.of(edit.schedule)
+    updated = queries.update_recurring_item(
+        recurring_items.UpdateRecurringItemParams(
+            id=item_id,
+            user_id=user_id,
+            name=edit.name,
+            aspiration_id=edit.aspiration_id,
+            schedule_kind=stored.schedule_kind,
+            weekday=stored.weekday,
+            day_of_month=stored.day_of_month,
+            times=stored.times,
+            period=stored.period,
+            starts_on=edit.starts_on,
+        )
+    )
+    assert updated is not None
+    return updated
 
 
 def check_aspiration(connection: Connection, user_id: UUID, aspiration_id: UUID) -> None:

@@ -16,3 +16,10 @@ insert into recurring_items (
 ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 on conflict (id) do nothing
 returning *;
+
+-- name: UpdateRecurringItem :one
+update recurring_items
+set name = $3, aspiration_id = $4, schedule_kind = $5, weekday = $6, day_of_month = $7,
+  times = $8, period = $9, starts_on = $10
+where id = $1 and user_id = $2 and deleted_at is null
+returning *;

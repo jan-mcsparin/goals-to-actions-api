@@ -49,6 +49,28 @@ order by created_at, id
 """
 
 
+UPDATE_RECURRING_ITEM = """-- name: update_recurring_item \\:one
+update recurring_items
+set name = :p3, aspiration_id = :p4, schedule_kind = :p5, weekday = :p6, day_of_month = :p7,
+  times = :p8, period = :p9, starts_on = :p10
+where id = :p1 and user_id = :p2 and deleted_at is null
+returning id, user_id, name, aspiration_id, from_goal_id, schedule_kind, weekday, day_of_month, times, period, starts_on, active, created_at, updated_at, deleted_at
+"""
+
+
+class UpdateRecurringItemParams(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    name: str
+    aspiration_id: Optional[uuid.UUID]
+    schedule_kind: str
+    weekday: Optional[int]
+    day_of_month: Optional[int]
+    times: Optional[int]
+    period: Optional[str]
+    starts_on: datetime.date
+
+
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
@@ -129,3 +151,36 @@ class Querier:
                 updated_at=row[13],
                 deleted_at=row[14],
             )
+
+    def update_recurring_item(self, arg: UpdateRecurringItemParams) -> Optional[models.RecurringItem]:
+        row = self._conn.execute(sqlalchemy.text(UPDATE_RECURRING_ITEM), {
+            "p1": arg.id,
+            "p2": arg.user_id,
+            "p3": arg.name,
+            "p4": arg.aspiration_id,
+            "p5": arg.schedule_kind,
+            "p6": arg.weekday,
+            "p7": arg.day_of_month,
+            "p8": arg.times,
+            "p9": arg.period,
+            "p10": arg.starts_on,
+        }).first()
+        if row is None:
+            return None
+        return models.RecurringItem(
+            id=row[0],
+            user_id=row[1],
+            name=row[2],
+            aspiration_id=row[3],
+            from_goal_id=row[4],
+            schedule_kind=row[5],
+            weekday=row[6],
+            day_of_month=row[7],
+            times=row[8],
+            period=row[9],
+            starts_on=row[10],
+            active=row[11],
+            created_at=row[12],
+            updated_at=row[13],
+            deleted_at=row[14],
+        )

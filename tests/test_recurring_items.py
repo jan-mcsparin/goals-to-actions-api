@@ -234,3 +234,86 @@ def test_the_list_leaves_out_deleted_items_and_other_owners(
     )
 
     assert listed(items_client) == []
+
+
+# updateRecurringItem
+
+
+def edit(client: TestClient, item_id: str, body: dict[str, Any]) -> Any:
+    response = client.patch(f"/api/recurring-items/{item_id}", json=body)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_an_edit_changes_name_schedule_and_start(items_client: TestClient) -> None:
+    created = create(items_client, item())
+
+    edited = edit(items_client, created["id"], item(**RENT, startsOn="2026-12-01"))
+
+    assert edited == created | {
+        "name": "Pay rent",
+        "schedule": {"kind": "monthly", "dayOfMonth": 1},
+        "startsOn": "2026-12-01",
+    }
+    assert listed(items_client) == [edited]
+
+
+def test_an_edit_can_move_an_item_to_and_from_an_aspiration(items_client: TestClient) -> None:
+    aspiration = create_aspiration(items_client, "Keep a home")
+    created = create(items_client, item())
+
+    moved = edit(items_client, created["id"], item(aspirationId=aspiration["id"]))
+    back = edit(items_client, created["id"], item())
+
+    assert moved["aspirationId"] == aspiration["id"]
+    assert back["aspirationId"] is None
+
+
+def test_an_edit_keeps_the_goal_it_came_from(items_client: TestClient) -> None:
+    goal = create_goal(items_client, lifting())
+    created = create(items_client, item(fromGoalId=goal["id"]))
+
+    edited = edit(items_client, created["id"], item(name="Lifting"))
+
+    assert edited["fromGoalId"] == goal["id"]
+
+
+def test_an_item_cannot_be_moved_under_a_retired_aspiration(items_client: TestClient) -> None:
+    aspiration = create_aspiration(items_client, "Be fit")
+    items_client.post(f"/api/aspirations/{aspiration['id']}/retire", json={"itsWork": "keep"})
+    created = create(items_client, item())
+
+    response = items_client.patch(
+        f"/api/recurring-items/{created['id']}", json=item(aspirationId=aspiration["id"])
+    )
+
+    assert response.status_code == 409, response.text
+
+
+@pytest.mark.parametrize("owner", ["nobody", "someone else"])
+def test_an_edit_to_an_unknown_or_another_owners_item_is_not_found(
+    items_client: TestClient, connection: Connection, owner: str
+) -> None:
+    item_id = uuid4() if owner == "nobody" else add_item_for(connection, add_other_user(connection))
+
+    response = items_client.patch(f"/api/recurring-items/{item_id}", json=item())
+
+    assert response.status_code == 404, response.text
+
+
+def test_an_edit_sent_twice_changes_nothing_more(items_client: TestClient) -> None:
+    created = create(items_client, item())
+    first = edit(items_client, created["id"], item(**LAUNDRY))
+
+    assert edit(items_client, created["id"], item(**LAUNDRY)) == first
+
+
+def test_an_edit_is_in_the_audit_log(items_client: TestClient, connection: Connection) -> None:
+    created = create(items_client, item())
+
+    edit(items_client, created["id"], item(name="Trash and recycling"))
+
+    assert [row.action for row in audit_rows(connection, created["id"])] == [
+        "create recurring item",
+        "update recurring item",
+    ]

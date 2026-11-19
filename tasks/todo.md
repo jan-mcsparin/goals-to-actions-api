@@ -41,8 +41,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `updateRecurringItem`, sent whole: name, aspiration, schedule, starts on.
 
 **Acceptance criteria:**
-- [ ] Changing kind clears the old kind's fields; moving to no aspiration makes it maintenance.
-- [ ] A retired aspiration is a 409; an unknown or another owner's item is a 404; sent twice, the second changes nothing.
+- [x] Changing kind clears the old kind's fields; moving to no aspiration makes it maintenance.
+- [x] A retired aspiration is a 409; an unknown or another owner's item is a 404; sent twice, the second changes nothing.
 
 **Verify:** `uv run pytest tests/test_recurring_items.py`.
 
@@ -51,7 +51,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Files:** `app/recurring_items/{models,rules,routes}.py`, `db/queries/recurring_items.sql`, `app/db/`, `tests/test_recurring_items.py`.
 
 ## Checkpoint: items can be made and edited
-- [ ] The four checks pass.
+- [x] The four checks pass.
 
 ### Task 4: Turn off and on
 

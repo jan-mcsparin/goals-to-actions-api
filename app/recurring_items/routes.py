@@ -5,7 +5,12 @@ from fastapi import APIRouter
 from app.db import recurring_items
 from app.dependencies import CurrentDatabase, CurrentUserId
 from app.recurring_items import rules
-from app.recurring_items.models import NewRecurringItem, RecurringItem, RecurringItemList
+from app.recurring_items.models import (
+    NewRecurringItem,
+    RecurringItem,
+    RecurringItemEdit,
+    RecurringItemList,
+)
 from app.schemas import NOT_ALLOWED, NOT_FOUND
 
 router = APIRouter(prefix="/recurring-items", tags=["recurring items"])
@@ -25,3 +30,11 @@ def create_recurring_item(
 ) -> RecurringItem:
     with database.transaction(user_id, "create recurring item") as connection:
         return RecurringItem.from_row(rules.create(connection, user_id, item_id, body))
+
+
+@router.patch("/{item_id}", responses=NOT_FOUND | NOT_ALLOWED)
+def update_recurring_item(
+    item_id: UUID, body: RecurringItemEdit, database: CurrentDatabase, user_id: CurrentUserId
+) -> RecurringItem:
+    with database.transaction(user_id, "update recurring item") as connection:
+        return RecurringItem.from_row(rules.update(connection, user_id, item_id, body))

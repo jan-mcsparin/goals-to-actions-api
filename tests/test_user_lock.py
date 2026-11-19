@@ -19,7 +19,7 @@ from app.goals.models import GoalEdit, NewGoal, WeeklyTargetInput
 from app.milestones import rules as milestone_rules
 from app.milestones.models import MilestoneEdit, MilestoneOrder, NewCheckIn, NewMilestone
 from app.recurring_items import rules as item_rules
-from app.recurring_items.models import NewRecurringItem, WeeklySchedule
+from app.recurring_items.models import NewRecurringItem, RecurringItemEdit, WeeklySchedule
 from app.tasks import rules as task_rules
 from app.tasks.models import CheckOff, NewTask, Placing, Swap, ToBank
 
@@ -103,6 +103,12 @@ WRITES: dict[str, Callable[[Connection], object]] = {
     ),
     "drop task": lambda tx: task_rules.drop(tx, FIXED_USER_ID, uuid4()),
     "create recurring item": lambda tx: item_rules.create(tx, FIXED_USER_ID, uuid4(), NEW_ITEM),
+    "update recurring item": lambda tx: item_rules.update(
+        tx,
+        FIXED_USER_ID,
+        uuid4(),
+        RecurringItemEdit(name="Trash", schedule=NEW_ITEM.schedule, starts_on=date(2026, 11, 17)),
+    ),
 }
 
 

@@ -117,9 +117,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** An item created or turned on gets its tasks for each open week if it has none. An edit makes nothing and moves nothing; it takes effect from the item's next period.
 
 **Acceptance criteria:**
-- [ ] A weekly item for Thursday created on Wednesday has this week's task; one for Tuesday has none until next week. A flexible "3 times a week" created on Saturday has two.
-- [ ] Turned off and on in the same week, it gets its old tasks back, not new ones. Turned on in a later week, it gets that week's.
-- [ ] Editing Tuesday to Thursday leaves this week's task where it is, and next week's is on Thursday's schedule.
+- [x] A weekly item for Thursday created on Wednesday has this week's task; one for Tuesday has none until next week. A flexible "3 times a week" created on Saturday has two.
+- [x] Turned off and on in the same week, it gets its old tasks back, not new ones. Turned on in a later week, it gets that week's.
+- [x] Editing Tuesday to Thursday leaves this week's task where it is, and next week's is on Thursday's schedule.
 
 **Verify:** `uv run pytest tests/test_recurring_items.py`.
 

@@ -3529,6 +3529,7 @@
         ]
       },
       "put": {
+        "description": "Adds the item, with the tasks each open week is due.",
         "operationId": "createRecurringItem",
         "parameters": [
           {
@@ -3538,6 +3539,15 @@
             "schema": {
               "format": "uuid",
               "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
               "type": "string"
             }
           }

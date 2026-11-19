@@ -27,10 +27,15 @@ def list_recurring_items(database: CurrentDatabase, user_id: CurrentUserId) -> R
 
 @router.put("/{item_id}", responses=NOT_FOUND | NOT_ALLOWED)
 def create_recurring_item(
-    item_id: UUID, body: NewRecurringItem, database: CurrentDatabase, user_id: CurrentUserId
+    item_id: UUID,
+    body: NewRecurringItem,
+    database: CurrentDatabase,
+    user_id: CurrentUserId,
+    today: Today,
 ) -> RecurringItem:
+    """Adds the item, with the tasks each open week is due."""
     with database.transaction(user_id, "create recurring item") as connection:
-        return RecurringItem.from_row(rules.create(connection, user_id, item_id, body))
+        return RecurringItem.from_row(rules.create(connection, user_id, item_id, body, today))
 
 
 @router.patch("/{item_id}", responses=NOT_FOUND | NOT_ALLOWED)

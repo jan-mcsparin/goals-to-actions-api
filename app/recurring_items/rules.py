@@ -10,15 +10,17 @@ from app.db import aspirations, goals, models, recurring_items
 from app.errors import NotAllowed, NotFound
 from app.recurring_items.models import NewRecurringItem, RecurringItemEdit, StoredSchedule
 from app.tasks import rules as task_rules
+from app.turnover.rules import fill_item
 from app.users import lock_user
 from app.weeks import open_weeks
 
 
 def create(
-    connection: Connection, user_id: UUID, item_id: UUID, new: NewRecurringItem
+    connection: Connection, user_id: UUID, item_id: UUID, new: NewRecurringItem, today: date
 ) -> models.RecurringItem:
-    """Adds the item, turned on. Sent again, it returns the item as it is."""
-    lock_user(connection, user_id)
+    """Adds the item, turned on, with the tasks each open week is due. Sent again, it returns
+    the item as it is."""
+    owner = lock_user(connection, user_id)
     queries = recurring_items.Querier(connection)
     existing = queries.get_recurring_item(id=item_id, user_id=user_id)
     if existing:
@@ -46,6 +48,8 @@ def create(
     )
     if created is None:
         raise NotAllowed("That id is already in use.")
+    weeks = open_weeks(today, owner.planned_through_week, owner.closed_through_week)
+    fill_item(connection, user_id, item_id, weeks, today)
     return created
 
 
@@ -108,6 +112,8 @@ def turn(
     rows = task_rules.item_task_weeks(connection, user_id, item_id)
     if on:
         task_rules.bring_back(connection, user_id, rows, current)
+        weeks = open_weeks(today, owner.planned_through_week, owner.closed_through_week)
+        fill_item(connection, user_id, item_id, weeks, today)
     else:
         task_rules.set_aside(connection, user_id, rows, current)
     return updated

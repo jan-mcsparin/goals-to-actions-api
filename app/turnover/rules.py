@@ -140,14 +140,8 @@ def open_week(connection: Connection, user_id: UUID, week: date, today: date) ->
     for goal, sessions in active_goals(connection, user_id, week):
         made += make_sessions(connection, user_id, goal, sessions, week, today, existing)
     for item in recurring_items.Querier(connection).list_recurring_items(user_id=user_id):
-        if not item.active:
-            continue
-        schedule = schedule_of(item)
-        for slot in item_slots(schedule, week, max(item.starts_on, today)):
-            if (None, item.id, *slot) not in existing:
-                made.append(
-                    add_generated(connection, user_id, week, item.name, None, item.id, slot)
-                )
+        if item.active:
+            made += make_item_tasks(connection, user_id, item, week, today, existing)
     for due in turnover.Querier(connection).list_due_tasks_without_rows(
         user_id=user_id, due_date=week + timedelta(days=6)
     ):
@@ -172,6 +166,37 @@ def make_sessions(
         for slot in goal_slots(sessions, week, max(goal.start_date, today))
         if (goal.id, None, *slot) not in existing
     ]
+
+
+def make_item_tasks(
+    connection: Connection,
+    user_id: UUID,
+    item: models.RecurringItem,
+    week: date,
+    today: date,
+    existing: set[tuple[UUID | None, UUID | None, date, int]],
+) -> list[UUID]:
+    """The item's tasks for the period `week` is in that aren't there yet."""
+    return [
+        add_generated(connection, user_id, week, item.name, None, item.id, slot)
+        for slot in item_slots(schedule_of(item), week, max(item.starts_on, today))
+        if (None, item.id, *slot) not in existing
+    ]
+
+
+def fill_item(
+    connection: Connection, user_id: UUID, item_id: UUID, weeks: OpenWeeks, today: date
+) -> None:
+    """An item created or turned on: each open week gets the tasks it's missing. An edit
+    makes nothing; it takes effect from the item's next period."""
+    item = recurring_items.Querier(connection).get_recurring_item(id=item_id, user_id=user_id)
+    if item is None or not item.active:
+        return
+    made: list[UUID] = []
+    for week in (weeks.current, weeks.next) if weeks.next_open else (weeks.current,):
+        existing = existing_slots(connection, user_id, week)
+        made += make_item_tasks(connection, user_id, item, week, today, existing)
+    place_new_work(connection, user_id, made, today + timedelta(days=1))
 
 
 def fill_goal(

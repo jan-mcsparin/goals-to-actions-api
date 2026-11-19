@@ -104,7 +104,9 @@ WRITES: dict[str, Callable[[Connection], object]] = {
     ),
     "drop task": lambda tx: task_rules.drop(tx, FIXED_USER_ID, uuid4()),
     "catch up": lambda tx: catch_up(tx, FIXED_USER_ID, datetime(2026, 11, 18, 12, tzinfo=UTC)),
-    "create recurring item": lambda tx: item_rules.create(tx, FIXED_USER_ID, uuid4(), NEW_ITEM),
+    "create recurring item": lambda tx: item_rules.create(
+        tx, FIXED_USER_ID, uuid4(), NEW_ITEM, date(2026, 11, 16)
+    ),
     "turn recurring item": lambda tx: item_rules.turn(
         tx, FIXED_USER_ID, uuid4(), date(2026, 11, 16), on=False
     ),

@@ -195,6 +195,45 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: tasks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tasks (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    title text NOT NULL,
+    origin text NOT NULL,
+    goal_id uuid,
+    recurring_item_id uuid,
+    state text DEFAULT 'open'::text NOT NULL,
+    due_date date,
+    time_kind text,
+    time_of_day time without time zone,
+    value_logged numeric,
+    completed_at timestamp with time zone,
+    completed_on date,
+    period_start date,
+    number integer,
+    still_matters_answered_on date,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT tasks_done_has_completion CHECK ((((state = 'done'::text) = (completed_on IS NOT NULL)) AND ((completed_on IS NULL) = (completed_at IS NULL)) AND ((value_logged IS NULL) OR (state = 'done'::text)))),
+    CONSTRAINT tasks_generated_has_period CHECK ((((origin = 'by_hand'::text) = (period_start IS NULL)) AND ((period_start IS NULL) = (number IS NULL)))),
+    CONSTRAINT tasks_goal_or_item CHECK (((goal_id IS NULL) OR (recurring_item_id IS NULL))),
+    CONSTRAINT tasks_item_means_its_origin CHECK (((recurring_item_id IS NULL) OR (origin = 'recurring_item'::text))),
+    CONSTRAINT tasks_number_check CHECK ((number >= 1)),
+    CONSTRAINT tasks_origin_check CHECK ((origin = ANY (ARRAY['by_hand'::text, 'weekly_target'::text, 'recurring_item'::text]))),
+    CONSTRAINT tasks_state_check CHECK ((state = ANY (ARRAY['open'::text, 'done'::text, 'dropped'::text, 'lapsed'::text]))),
+    CONSTRAINT tasks_time_kind_and_time CHECK (((time_kind IS NULL) = (time_of_day IS NULL))),
+    CONSTRAINT tasks_time_kind_check CHECK ((time_kind = ANY (ARRAY['by'::text, 'at'::text]))),
+    CONSTRAINT tasks_title_not_blank CHECK ((btrim(title) <> ''::text)),
+    CONSTRAINT tasks_value_logged_check CHECK ((value_logged >= (0)::numeric)),
+    CONSTRAINT tasks_weekly_target_has_goal CHECK (((origin <> 'weekly_target'::text) OR (goal_id IS NOT NULL)))
+);
+
+
+--
 -- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -333,6 +372,38 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: tasks tasks_goal_period_number; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_goal_period_number UNIQUE (goal_id, period_start, number);
+
+
+--
+-- Name: tasks tasks_id_owner; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_id_owner UNIQUE (id, user_id);
+
+
+--
+-- Name: tasks tasks_item_period_number; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_item_period_number UNIQUE (recurring_item_id, period_start, number);
+
+
+--
+-- Name: tasks tasks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -410,6 +481,20 @@ CREATE TRIGGER milestones_audit AFTER INSERT OR DELETE OR UPDATE ON public.miles
 --
 
 CREATE TRIGGER milestones_set_updated_at BEFORE UPDATE ON public.milestones FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: tasks tasks_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER tasks_audit AFTER INSERT OR DELETE OR UPDATE ON public.tasks FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: tasks tasks_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER tasks_set_updated_at BEFORE UPDATE ON public.tasks FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -505,6 +590,22 @@ ALTER TABLE ONLY public.milestones
 
 
 --
+-- Name: tasks tasks_goal_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_goal_same_owner FOREIGN KEY (goal_id, user_id) REFERENCES public.goals(id, user_id);
+
+
+--
+-- Name: tasks tasks_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: weekly_targets weekly_targets_building_goal_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -538,4 +639,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261116230000'),
     ('20261116230100'),
     ('20261117000000'),
-    ('20261117000100');
+    ('20261117000100'),
+    ('20261118000000');

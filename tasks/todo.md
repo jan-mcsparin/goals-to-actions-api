@@ -11,15 +11,15 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** The migration: the shared columns; title, origin, goal, recurring item (no foreign key yet), state, due date, time-of-day kind and time, value logged (`numeric`), completed at and on, period start, number, still matters answered on; both triggers. Queries in `db/queries/tasks.sql`.
 
 **Acceptance criteria:**
-- [ ] The database refuses:
+- [x] The database refuses:
   - a task with both a goal and a recurring item
   - another owner's goal
   - a weekly-target task with no goal
   - an unknown origin or state
   - a blank title
   - a time-of-day kind with no time, or a time with no kind
-- [ ] A generated task can't be made twice for the same goal or item, period and number, even after the first is deleted.
-- [ ] Up, rollback, up leaves `db/schema.sql` unchanged.
+- [x] A generated task can't be made twice for the same goal or item, period and number, even after the first is deleted.
+- [x] Up, rollback, up leaves `db/schema.sql` unchanged.
 
 **Verify:** `uv run pytest tests/test_tasks_table.py`.
 

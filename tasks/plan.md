@@ -85,7 +85,7 @@ See [`todo.md`](todo.md).
 
 PR A, `tasks-week-read-add`:
 
-- [ ] 1: The tasks table
+- [x] 1: The tasks table
 - [ ] 2: The task_weeks table, and state agreeing with rows
 - [ ] 3: Add a task, and the week read
 - [ ] 4: Edit a task

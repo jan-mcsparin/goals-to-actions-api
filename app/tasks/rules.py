@@ -9,10 +9,14 @@ from sqlalchemy import Connection
 
 from app.db import goals, models, task_weeks, tasks
 from app.db.models import TaskWeek
+from app.db.task_weeks import ListGoalTaskWeeksRow
 from app.errors import NotAllowed, NotFound
 from app.tasks.models import CheckOff, NewTask, Placing, Swap, TaskEdit, ToBank
 from app.users import lock_user
 from app.weeks import OpenWeeks, open_weeks, week_of
+
+# A row of task_weeks, as either query that reads them returns it.
+Row = TaskWeek | ListGoalTaskWeeksRow
 
 
 @dataclass(frozen=True)
@@ -175,7 +179,7 @@ def in_play(rows: list[TaskWeek]) -> TaskWeek | None:
     return next((row for row in rows if row.outcome is None), None)
 
 
-def set_outcome(connection: Connection, user_id: UUID, row: TaskWeek, outcome: str | None) -> None:
+def set_outcome(connection: Connection, user_id: UUID, row: Row, outcome: str | None) -> None:
     """Closes a row, or puts it back in play, on the day it had."""
     set_row(connection, user_id, row, row.planned_day, row.placed_by_hand, outcome)
 
@@ -183,7 +187,7 @@ def set_outcome(connection: Connection, user_id: UUID, row: TaskWeek, outcome: s
 def set_row(
     connection: Connection,
     user_id: UUID,
-    row: TaskWeek,
+    row: Row,
     day: date | None,
     placed_by_hand: bool,
     outcome: str | None,
@@ -261,3 +265,34 @@ def drop(connection: Connection, user_id: UUID, task_id: UUID) -> None:
     if row is not None:
         set_outcome(connection, user_id, row, "dropped")
     tasks.Querier(connection).set_task_closed(id=task_id, user_id=user_id, state="dropped")
+
+
+def set_aside_goal_tasks(
+    connection: Connection, user_id: UUID, goal_id: UUID, current: date
+) -> None:
+    """Pausing, ending or reaching a goal: its unfinished tasks' rows in every open week are
+    set aside. They keep their day, but no day shows them."""
+    for row in task_weeks.Querier(connection).list_goal_task_weeks(
+        goal_id=goal_id, user_id=user_id
+    ):
+        if row.outcome is None and row.week >= current:
+            set_outcome(connection, user_id, row, "set_aside")
+
+
+def bring_back_goal_tasks(
+    connection: Connection, user_id: UUID, goal_id: UUID, current: date
+) -> None:
+    """Resume, reopen, go again. A set-aside task whose week is still open returns to that
+    week's bank; one added by hand whose week has closed gets a row in the current week's
+    bank. Last week's generated tasks don't come back."""
+    rows = list(
+        task_weeks.Querier(connection).list_goal_task_weeks(goal_id=goal_id, user_id=user_id)
+    )
+    latest = {row.task_id: row for row in rows}  # oldest week first, so the last one wins
+    for row in latest.values():
+        if row.outcome != "set_aside":
+            continue
+        if row.week >= current:
+            set_row(connection, user_id, row, None, False, None)
+        elif row.origin == "by_hand":
+            add_row(connection, user_id, row.task_id, current)

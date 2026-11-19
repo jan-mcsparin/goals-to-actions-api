@@ -186,17 +186,17 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `change_status` in `app/goals/rules.py` calls new task rules.
 
 **Acceptance criteria:**
-- [ ] Pause, end and reach set the goal's unfinished rows aside in every open week: on days, placed by hand, and in the bank. They keep their day.
-- [ ] Resume, reopen and go again bring them back:
+- [x] Pause, end and reach set the goal's unfinished rows aside in every open week: on days, placed by hand, and in the bank. They keep their day.
+- [x] Resume, reopen and go again bring them back:
   - a set-aside row whose week is open returns to that week's bank
   - a task added by hand whose week has closed gets a row in the current week's bank
-- [ ] Sent twice, each changes nothing more.
+- [x] Sent twice, each changes nothing more.
 
-**Verify:** `uv run pytest tests/test_goal_status.py`.
+**Verify:** `uv run pytest tests/test_goal_tasks.py`.
 
 **Dependencies:** 7.
 
-**Files:** `app/goals/rules.py`, `app/tasks/rules.py`, `db/queries/task_weeks.sql`, `tests/test_goal_status.py`.
+**Files:** `app/goals/rules.py`, `app/tasks/rules.py`, `db/queries/task_weeks.sql`, `tests/test_goal_tasks.py`.
 
 ### Task 11: Check-offs and unchecks that arrive after their week closed
 

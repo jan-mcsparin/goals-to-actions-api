@@ -28,6 +28,28 @@ class AddTaskWeekParams(pydantic.BaseModel):
     outcome: Optional[str]
 
 
+LIST_GOAL_TASK_WEEKS = """-- name: list_goal_task_weeks \\:many
+select task_weeks.id, task_weeks.user_id, task_weeks.task_id, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand, task_weeks.outcome, task_weeks.created_at, task_weeks.updated_at, task_weeks.deleted_at, tasks.origin from task_weeks
+join tasks on tasks.id = task_weeks.task_id and tasks.state = 'open' and tasks.deleted_at is null
+where tasks.goal_id = :p1 and task_weeks.user_id = :p2 and task_weeks.deleted_at is null
+order by task_weeks.task_id, task_weeks.week
+"""
+
+
+class ListGoalTaskWeeksRow(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    task_id: uuid.UUID
+    week: datetime.date
+    planned_day: Optional[datetime.date]
+    placed_by_hand: bool
+    outcome: Optional[str]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+    origin: str
+
+
 LIST_TASK_WEEKS = """-- name: list_task_weeks \\:many
 select id, user_id, task_id, week, planned_day, placed_by_hand, outcome, created_at, updated_at, deleted_at from task_weeks
 where task_id = :p1 and user_id = :p2 and deleted_at is null
@@ -63,6 +85,23 @@ class Querier:
             "p6": arg.placed_by_hand,
             "p7": arg.outcome,
         })
+
+    def list_goal_task_weeks(self, *, goal_id: Optional[uuid.UUID], user_id: uuid.UUID) -> Iterator[ListGoalTaskWeeksRow]:
+        result = self._conn.execute(sqlalchemy.text(LIST_GOAL_TASK_WEEKS), {"p1": goal_id, "p2": user_id})
+        for row in result:
+            yield ListGoalTaskWeeksRow(
+                id=row[0],
+                user_id=row[1],
+                task_id=row[2],
+                week=row[3],
+                planned_day=row[4],
+                placed_by_hand=row[5],
+                outcome=row[6],
+                created_at=row[7],
+                updated_at=row[8],
+                deleted_at=row[9],
+                origin=row[10],
+            )
 
     def list_task_weeks(self, *, task_id: uuid.UUID, user_id: uuid.UUID) -> Iterator[models.TaskWeek]:
         result = self._conn.execute(sqlalchemy.text(LIST_TASK_WEEKS), {"p1": task_id, "p2": user_id})

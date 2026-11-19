@@ -99,3 +99,8 @@ join goals on goals.id = tasks.goal_id
 where tasks.goal_id = $1 and tasks.user_id = $2 and tasks.state <> 'dropped'
   and tasks.deleted_at is null
 order by tasks.created_at, tasks.id;
+
+-- Dropped or lapsed: closed without being done.
+-- name: SetTaskClosed :exec
+update tasks set state = $3
+where id = $1 and user_id = $2 and deleted_at is null;

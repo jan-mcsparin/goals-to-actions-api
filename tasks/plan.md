@@ -97,7 +97,7 @@ PR B, `tasks-week-moves`:
 
 - [x] 7: Place on a day, and back to the bank
 - [x] 8: Swap
-- [ ] 9: Drop
+- [x] 9: Drop
 - [ ] 10: Pausing sets tasks aside; coming back returns them
 - [ ] 11: Check-offs and unchecks that arrive after their week closed
 - [ ] 12: Docs, ADR-007 and the front end's types

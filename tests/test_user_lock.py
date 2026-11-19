@@ -94,6 +94,7 @@ WRITES: dict[str, Callable[[Connection], object]] = {
         Swap(week=date(2026, 11, 16), bank_task_id=uuid4(), day=date(2026, 11, 16)),
         date(2026, 11, 16),
     ),
+    "drop task": lambda tx: task_rules.drop(tx, FIXED_USER_ID, uuid4()),
 }
 
 

@@ -172,8 +172,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `POST /api/tasks/{id}/drop`: the task becomes dropped, and its row in play closes as dropped.
 
 **Acceptance criteria:**
-- [ ] A dropped task leaves the week read. A done task can't be dropped (409).
-- [ ] Sent twice, it changes nothing more.
+- [x] A dropped task leaves the week read. A done task can't be dropped (409).
+- [x] Sent twice, it changes nothing more.
 
 **Verify:** `uv run pytest tests/test_task_moves.py`.
 

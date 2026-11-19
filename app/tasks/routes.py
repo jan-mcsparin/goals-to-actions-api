@@ -116,3 +116,11 @@ def swap_tasks(
             to_bank=task_view(connection, user_id, task_id),
             placed=task_view(connection, user_id, body.bank_task_id),
         )
+
+
+@router.post("/tasks/{task_id}/drop", responses=NOT_FOUND | NOT_ALLOWED)
+def drop_task(task_id: UUID, database: CurrentDatabase, user_id: CurrentUserId) -> Task:
+    """ "I decided not to do this": the answer No to "Still matter?". Not a delete."""
+    with database.transaction(user_id, "drop task") as connection:
+        rules.drop(connection, user_id, task_id)
+        return task_view(connection, user_id, task_id)

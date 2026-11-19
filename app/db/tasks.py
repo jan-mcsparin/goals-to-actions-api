@@ -190,6 +190,12 @@ class ListWeekTasksRow(pydantic.BaseModel):
     carried_over: int
 
 
+SET_TASK_CLOSED = """-- name: set_task_closed \\:exec
+update tasks set state = :p3
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 SET_TASK_DONE = """-- name: set_task_done \\:exec
 update tasks
 set state = 'done', completed_at = :p3, completed_on = :p4, value_logged = :p5
@@ -408,6 +414,9 @@ class Querier:
                 goal_label=row[22],
                 carried_over=row[23],
             )
+
+    def set_task_closed(self, *, id: uuid.UUID, user_id: uuid.UUID, state: str) -> None:
+        self._conn.execute(sqlalchemy.text(SET_TASK_CLOSED), {"p1": id, "p2": user_id, "p3": state})
 
     def set_task_done(self, arg: SetTaskDoneParams) -> None:
         self._conn.execute(sqlalchemy.text(SET_TASK_DONE), {

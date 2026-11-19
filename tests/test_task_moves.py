@@ -225,3 +225,46 @@ def test_a_swap_with_another_users_task_is_not_found(
 
     assert swap(tasks_client, on_today["id"], theirs, today()).status_code == 404
     assert swap(tasks_client, theirs, on_today["id"], today()).status_code == 404
+
+
+# dropTask
+
+
+def drop(client: TestClient, task_id: str) -> Any:
+    return client.post(f"/api/tasks/{task_id}/drop")
+
+
+def test_a_dropped_task_closes_its_row_and_leaves_the_week(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    task = add_task(tasks_client, day=today().isoformat())
+
+    response = drop(tasks_client, task["id"])
+
+    assert response.status_code == 200, response.text
+    assert response.json() == task | {
+        "state": "dropped",
+        "week": None,
+        "plannedDay": None,
+        "placedByHand": False,
+    }
+    assert rows(connection, task["id"]) == [(this_week(), today(), True, "dropped")]
+    week = tasks_client.get(f"/api/weeks/{this_week().isoformat()}").json()
+    assert week["tasks"] == []
+    assert drop(tasks_client, task["id"]).json() == response.json()
+
+
+def test_a_waiting_task_can_be_dropped(tasks_client: TestClient, connection: Connection) -> None:
+    waiting = add_task(tasks_client, dueDate=(today() + timedelta(days=8)).isoformat())
+
+    assert drop(tasks_client, waiting["id"]).json()["state"] == "dropped"
+    assert rows(connection, waiting["id"]) == []
+
+
+def test_a_done_task_cannot_be_dropped(tasks_client: TestClient, connection: Connection) -> None:
+    task = add_task(tasks_client)
+    check_off(tasks_client, task["id"])
+
+    assert drop(tasks_client, task["id"]).status_code == 409
+    theirs = str(add_task_for(connection, add_other_user(connection)))
+    assert drop(tasks_client, theirs).status_code == 404

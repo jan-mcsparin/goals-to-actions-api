@@ -245,3 +245,19 @@ def swap(connection: Connection, user_id: UUID, task_id: UUID, swap: Swap, today
     check_day(swap.day, swap.week, today, open_weeks(today, owner.planned_through_week))
     set_row(connection, user_id, to_bank, None, False, None)
     set_row(connection, user_id, placed, swap.day, True, None)
+
+
+def drop(connection: Connection, user_id: UUID, task_id: UUID) -> None:
+    """ "I decided not to do this." The task stays in history, and its row in play closes.
+    Sent again, it changes nothing more."""
+    lock_user(connection, user_id)
+    task = get(connection, user_id, task_id)
+    if task.state == "dropped":
+        return
+    if task.state != "open":
+        raise NotAllowed(f"A {task.state} task can't be dropped.")
+    rows = list(task_weeks.Querier(connection).list_task_weeks(task_id=task_id, user_id=user_id))
+    row = in_play(rows)
+    if row is not None:
+        set_outcome(connection, user_id, row, "dropped")
+    tasks.Querier(connection).set_task_closed(id=task_id, user_id=user_id, state="dropped")

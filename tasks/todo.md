@@ -32,15 +32,15 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** The migration: the shared columns; task, week, planned day, placed by hand, outcome; the checks; the deferred constraint trigger tying a task's state to its rows. Queries in `db/queries/task_weeks.sql`.
 
 **Acceptance criteria:**
-- [ ] The database refuses:
+- [x] The database refuses:
   - a week that isn't a Monday
   - a planned day outside its week
   - two rows for one task in one week
   - two rows in play for one task
   - another owner's task
   - an unknown outcome
-- [ ] At commit, it also refuses a done, dropped or lapsed task with a row in play, and a done task whose last row isn't done. Within the transaction, both are allowed.
-- [ ] Up, rollback, up leaves `db/schema.sql` unchanged.
+- [x] At commit, it also refuses a done, dropped or lapsed task with a row in play, and a done task whose last row isn't done. Within the transaction, both are allowed.
+- [x] Up, rollback, up leaves `db/schema.sql` unchanged.
 
 **Verify:** `uv run pytest tests/test_task_weeks_table.py`.
 

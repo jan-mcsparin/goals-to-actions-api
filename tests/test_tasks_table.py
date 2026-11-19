@@ -107,13 +107,7 @@ def test_an_unknown_origin_is_refused(database: Database) -> None:
 
 
 def test_a_done_task_has_its_moment_and_day(database: Database) -> None:
-    add_task(
-        database,
-        state="done",
-        completed_at="2026-11-18T07:30:00Z",
-        completed_on="2026-11-18",
-        value_logged=3.1,
-    )
+    # A done task with its moment and day, and its done row, is in test_task_weeks_table.py.
     with pytest.raises(IntegrityError, match="tasks_done_has_completion"):
         add_task(database, state="done")
 

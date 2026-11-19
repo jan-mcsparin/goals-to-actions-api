@@ -99,6 +99,19 @@ class Task(pydantic.BaseModel):
     deleted_at: Optional[datetime.datetime]
 
 
+class TaskWeek(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    task_id: uuid.UUID
+    week: datetime.date
+    planned_day: Optional[datetime.date]
+    placed_by_hand: bool
+    outcome: Optional[str]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+
+
 class User(pydantic.BaseModel):
     id: uuid.UUID
     intensity: str

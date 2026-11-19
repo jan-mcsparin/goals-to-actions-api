@@ -11,6 +11,9 @@ SET_AUDIT_CONTEXT = text(
     "select set_config('app.user_id', :user_id, true), set_config('app.action', :action, true)"
 )
 SET_READ_ONLY = text("set transaction read only")
+# The checks Postgres runs at commit (constraints declared `initially deferred`).
+CHECK_AS_AT_COMMIT = text("set constraints tasks_rows_agree, task_weeks_rows_agree immediate")
+DEFER_AGAIN = text("set constraints tasks_rows_agree, task_weeks_rows_agree deferred")
 
 
 class Database:
@@ -52,6 +55,9 @@ class Database:
         if isinstance(self._bind, Connection):
             with self._bind.begin_nested():
                 yield self._bind
+                # A savepoint never commits, so run the checks a commit would run.
+                self._bind.execute(CHECK_AS_AT_COMMIT)
+                self._bind.execute(DEFER_AGAIN)
             return
         with self._bind.begin() as connection:
             yield connection

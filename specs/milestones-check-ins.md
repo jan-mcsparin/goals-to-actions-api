@@ -54,7 +54,7 @@ As shared. **Never:** store "passed on the way" or the goal as a milestone row; 
 | `keepMilestone` | `POST /api/milestones/{id}/keep` | |
 | `checkIn` | `PUT /api/check-ins/{id}` | `goalId`, `milestoneId` (`null` for the goal's own line), `outcome` (`hit` or `notYet`), `result` (optional) |
 
-Each returns the goal's page, and needs `X-Time-Zone`: `goal` (as `goals-targets` returns it), `aspiration` (`id` and `name`, or `null`), `milestones` in order (`id`, `position`, `measurableLine`, `targetDate`, `status`: `upcoming`, `hit` or `notYet`, and `result`: its hit check-in's result, `null` until it's hit or when the hit had none), `progress` (`hit` and `of`; a reached goal counts complete, `hit` equal to `of`, since milestones never checked in were passed on the way), and `latest` (`result` and `checkedInOn`, or `null`). Goal writes keep returning the goal alone. `aspiration` and each milestone's `result` were added for the front end's #41 (issue #26).
+Each returns the goal's page, and needs `X-Time-Zone`: `goal` (as `goals-targets` returns it), `aspiration` (`id` and `name`, or `null`), `milestones` in order (`id`, `position`, `measurableLine`, `targetDate`, `status`: `upcoming`, `hit` or `notYet`, and `result`: its latest check-in's result, hit or not yet, `null` while it's upcoming or when that check-in had none), `progress` (`hit` and `of`; a reached goal counts complete, `hit` equal to `of`, since milestones never checked in were passed on the way), and `latest` (`result` and `checkedInOn`, or `null`). Goal writes keep returning the goal alone. `aspiration` and each milestone's `result` were added for the front end's #41 (issue #26).
 
 ## Settled
 

@@ -98,12 +98,14 @@ def test_a_milestone_write_returns_the_aspiration_too(goals_client: TestClient) 
     assert response.json()["aspiration"] == {"id": be_strong["id"], "name": "Be strong"}
 
 
-def test_each_hit_milestone_carries_its_result(goals_client: TestClient) -> None:
+def test_each_checked_in_milestone_carries_its_latest_result(goals_client: TestClient) -> None:
+    """ "Hit · 155" and "Not yet · 160" on the timeline, and "Now: 160" on the not-yet card."""
     before = goal_with_milestones(goals_client, 4)
     goal_id = before["goal"]["id"]
     first, second, third, _ = (m["id"] for m in before["milestones"])
     check_in(goals_client, goal_id, first, "notYet", "150")
     check_in(goals_client, goal_id, first, "hit", "155")
+    check_in(goals_client, goal_id, second, "notYet", "158")
     check_in(goals_client, goal_id, second, "hit")
     check_in(goals_client, goal_id, third, "notYet", "160")
 
@@ -112,6 +114,17 @@ def test_each_hit_milestone_carries_its_result(goals_client: TestClient) -> None
     assert [(m["status"], m["result"]) for m in after["milestones"]] == [
         ("hit", "155"),
         ("hit", None),
-        ("notYet", None),
+        ("notYet", "160"),
         ("upcoming", None),
     ]
+
+
+def test_a_kept_milestone_is_upcoming_with_no_result(goals_client: TestClient) -> None:
+    before = goal_with_milestones(goals_client, 2)
+    goal_id = before["goal"]["id"]
+    first = before["milestones"][0]["id"]
+    check_in(goals_client, goal_id, first, "notYet", "150")
+
+    goals_client.post(f"/api/milestones/{first}/keep")
+
+    assert page(goals_client, goal_id)["milestones"][0]["result"] is None

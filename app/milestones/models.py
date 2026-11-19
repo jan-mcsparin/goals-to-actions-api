@@ -25,7 +25,9 @@ class Milestone(ApiModel):
     measurable_line: str
     target_date: date | None
     status: MilestoneStatus
-    result: str | None = Field(description="Its hit check-in's result. Empty until it's hit.")
+    result: str | None = Field(
+        description="Its latest check-in's result, hit or not yet. Empty while it's upcoming."
+    )
 
     @classmethod
     def from_row(cls, row: rows.Milestone, result: str | None) -> Milestone:

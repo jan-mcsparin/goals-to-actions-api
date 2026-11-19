@@ -619,7 +619,7 @@
                 "type": "null"
               }
             ],
-            "description": "Its hit check-in's result. Empty until it's hit.",
+            "description": "Its latest check-in's result, hit or not yet. Empty while it's upcoming.",
             "title": "Result"
           },
           "status": {

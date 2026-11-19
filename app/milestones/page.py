@@ -19,7 +19,7 @@ def goal_page(connection: Connection, user_id: UUID, goal_id: UUID, today: date)
     rows = list(milestones.Querier(connection).list_milestones(goal_id=goal_id, user_id=user_id))
     results = {
         row.milestone_id: row.result
-        for row in check_ins.Querier(connection).hit_results(goal_id=goal_id, user_id=user_id)
+        for row in check_ins.Querier(connection).milestone_results(goal_id=goal_id, user_id=user_id)
     }
     latest = check_ins.Querier(connection).latest_result(goal_id=goal_id, user_id=user_id)
     hit = sum(row.status == "hit" for row in rows)
@@ -27,7 +27,7 @@ def goal_page(connection: Connection, user_id: UUID, goal_id: UUID, today: date)
         goal=Goal.from_row(goal, latest_target(connection, user_id, goal_id), today),
         aspiration=aspiration_of(connection, user_id, goal.aspiration_id),
         milestones=[
-            Milestone.from_row(row, results.get(row.id) if row.status == "hit" else None)
+            Milestone.from_row(row, None if row.status == "upcoming" else results.get(row.id))
             for row in rows
         ],
         progress=Progress.counted(len(rows), hit, goal.status),

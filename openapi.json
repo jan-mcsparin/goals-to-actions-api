@@ -155,6 +155,43 @@
         "title": "AspirationRef",
         "type": "object"
       },
+      "CheckOff": {
+        "description": "What the phone saw when the task was checked off. Its day wins, even for a week that\nhas since closed.",
+        "properties": {
+          "completedAt": {
+            "description": "The moment, as the phone recorded it.",
+            "format": "date-time",
+            "title": "Completedat",
+            "type": "string"
+          },
+          "completedOn": {
+            "description": "The day it counts for, as the phone saw it: 12:30 a.m. is the new day.",
+            "format": "date",
+            "title": "Completedon",
+            "type": "string"
+          },
+          "valueLogged": {
+            "anyOf": [
+              {
+                "maximum": 1000000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Miles, minutes: counts towards an amount target.",
+            "title": "Valuelogged"
+          }
+        },
+        "required": [
+          "completedAt",
+          "completedOn"
+        ],
+        "title": "CheckOff",
+        "type": "object"
+      },
       "ErrorMessage": {
         "description": "FastAPI's error shape, for the errors the API raises itself.",
         "properties": {
@@ -405,7 +442,27 @@
             "type": "array"
           },
           "progress": {
-            "$ref": "#/components/schemas/Progress"
+            "$ref": "#/components/schemas/Progress",
+            "description": "Milestones hit, or a one-off goal's steps done."
+          },
+          "steps": {
+            "description": "A one-off goal's tasks, done and not, in the order added; dropped ones left out. Empty for other goals.",
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "weekProgress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeekProgress"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "This week against its target. Empty without a target this week."
           }
         },
         "required": [
@@ -413,6 +470,8 @@
           "aspiration",
           "milestones",
           "progress",
+          "weekProgress",
+          "steps",
           "latest"
         ],
         "title": "GoalPage",
@@ -533,7 +592,8 @@
             "type": "string"
           },
           "progress": {
-            "$ref": "#/components/schemas/Progress"
+            "$ref": "#/components/schemas/Progress",
+            "description": "Milestones hit, or a one-off goal's steps done, as on the goal's page."
           },
           "slipped": {
             "description": "Active, with its deadline before today.",
@@ -564,6 +624,17 @@
             "title": "Type",
             "type": "string"
           },
+          "weekProgress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeekProgress"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "This week against its target. Empty without a target this week."
+          },
           "weeklyTarget": {
             "anyOf": [
               {
@@ -590,7 +661,8 @@
           "slipped",
           "weeklyTarget",
           "createdAt",
-          "progress"
+          "progress",
+          "weekProgress"
         ],
         "title": "ListedGoal",
         "type": "object"
@@ -876,6 +948,69 @@
         "title": "NewMilestone",
         "type": "object"
       },
+      "NewTask": {
+        "description": "A task added by hand. `day` is where the phone put it; with none, it goes to the bank.",
+        "properties": {
+          "day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A day to put it on, placed by hand. A day no longer allowed (a past day, or one outside the open weeks) saves it in the current week's bank instead.",
+            "title": "Day"
+          },
+          "dueDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duedate"
+          },
+          "goalId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goalid"
+          },
+          "timeOfDay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimeOfDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "NewTask",
+        "type": "object"
+      },
       "Progress": {
         "description": "\"2 of 6\": the goal's milestones plus one for the goal. A reached goal counts complete:\nmilestones never checked in were passed on the way.",
         "properties": {
@@ -911,6 +1046,248 @@
           "itsWork"
         ],
         "title": "Retirement",
+        "type": "object"
+      },
+      "Task": {
+        "properties": {
+          "carriedOver": {
+            "description": "How many weeks it rolled over before this one.",
+            "title": "Carriedover",
+            "type": "integer"
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completedat"
+          },
+          "completedOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completedon"
+          },
+          "dueDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duedate"
+          },
+          "goalId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goalid"
+          },
+          "goalLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goallabel"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "byHand",
+              "weeklyTarget",
+              "recurringItem"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "placedByHand": {
+            "title": "Placedbyhand",
+            "type": "boolean"
+          },
+          "plannedDay": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Empty in the bank.",
+            "title": "Plannedday"
+          },
+          "recurringItemId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurringitemid"
+          },
+          "state": {
+            "enum": [
+              "open",
+              "done",
+              "dropped",
+              "lapsed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "timeOfDay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimeOfDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "valueLogged": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valuelogged"
+          },
+          "week": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The week of its row in play, or of its done row. Empty while it waits (the upcoming list, a one-off goal's waiting steps) or is set aside.",
+            "title": "Week"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "origin",
+          "state",
+          "goalId",
+          "goalLabel",
+          "recurringItemId",
+          "dueDate",
+          "timeOfDay",
+          "valueLogged",
+          "completedAt",
+          "completedOn",
+          "week",
+          "plannedDay",
+          "placedByHand",
+          "carriedOver"
+        ],
+        "title": "Task",
+        "type": "object"
+      },
+      "TaskEdit": {
+        "description": "Sent whole on every edit. Where the task is doesn't change.",
+        "properties": {
+          "dueDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duedate"
+          },
+          "timeOfDay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimeOfDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "TaskEdit",
+        "type": "object"
+      },
+      "TimeOfDay": {
+        "description": "\"By 6 p.m.\" or \"at 6 p.m.\", wherever the phone is.",
+        "properties": {
+          "kind": {
+            "enum": [
+              "by",
+              "at"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "time": {
+            "description": "HH:MM, 24-hour.",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "time"
+        ],
+        "title": "TimeOfDay",
         "type": "object"
       },
       "ValidationError": {
@@ -951,6 +1328,97 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "Week": {
+        "description": "The plan read (ADR-010). The phone keeps it and draws Today, any day and the bank\nfrom it.",
+        "properties": {
+          "goals": {
+            "description": "Every active building goal with a target that week, and its progress.",
+            "items": {
+              "$ref": "#/components/schemas/WeekGoal"
+            },
+            "title": "Goals",
+            "type": "array"
+          },
+          "isCurrent": {
+            "title": "Iscurrent",
+            "type": "boolean"
+          },
+          "nextWeekOpen": {
+            "description": "Next week has been opened (from Sunday evening).",
+            "title": "Nextweekopen",
+            "type": "boolean"
+          },
+          "tasks": {
+            "description": "On a day, then in the bank; with no outcome or done. Set-aside rows aren't shown.",
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "week": {
+            "format": "date",
+            "title": "Week",
+            "type": "string"
+          }
+        },
+        "required": [
+          "week",
+          "isCurrent",
+          "nextWeekOpen",
+          "tasks",
+          "goals"
+        ],
+        "title": "Week",
+        "type": "object"
+      },
+      "WeekGoal": {
+        "description": "A bar on Week: a goal's target that week and how far along it is.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/WeekProgress"
+          },
+          "weeklyTarget": {
+            "$ref": "#/components/schemas/WeeklyTarget"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "weeklyTarget",
+          "progress"
+        ],
+        "title": "WeekGoal",
+        "type": "object"
+      },
+      "WeekProgress": {
+        "description": "This week against a building goal's target: tasks done out of sessions (count), or\nthe values logged out of the amount (amount).",
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "number"
+          },
+          "of": {
+            "title": "Of",
+            "type": "number"
+          }
+        },
+        "required": [
+          "done",
+          "of"
+        ],
+        "title": "WeekProgress",
         "type": "object"
       },
       "WeeklyTarget": {
@@ -2569,6 +3037,347 @@
         "summary": "Keep Milestone",
         "tags": [
           "milestones"
+        ]
+      }
+    },
+    "/api/tasks/{task_id}": {
+      "patch": {
+        "operationId": "updateTask",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Task",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "put": {
+        "operationId": "addTask",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewTask"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/tasks/{task_id}/check-off": {
+      "post": {
+        "operationId": "checkOffTask",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckOff"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Off Task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/tasks/{task_id}/uncheck": {
+      "post": {
+        "description": "The task goes back where its row was, on its day or in its bank.",
+        "operationId": "uncheckTask",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Uncheck Task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/weeks/{week}": {
+      "get": {
+        "operationId": "getWeek",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "week",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Week",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Week"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Week",
+        "tags": [
+          "tasks"
         ]
       }
     }

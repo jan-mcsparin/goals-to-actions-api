@@ -3,7 +3,7 @@ user's row, so two arriving together run one after the other. Needs two real con
 so it uses the engine; the write under test is rolled back, so nothing is kept."""
 
 from collections.abc import Callable
-from datetime import date
+from datetime import UTC, date, datetime
 from threading import Thread
 from uuid import uuid4
 
@@ -18,6 +18,8 @@ from app.goals import rules as goal_rules
 from app.goals.models import GoalEdit, NewGoal, WeeklyTargetInput
 from app.milestones import rules as milestone_rules
 from app.milestones.models import MilestoneEdit, MilestoneOrder, NewCheckIn, NewMilestone
+from app.tasks import rules as task_rules
+from app.tasks.models import CheckOff, NewTask
 
 NEW_GOAL = NewGoal(type="oneOff", label="Move house", measurable_line="Keys handed in")
 
@@ -64,6 +66,17 @@ WRITES: dict[str, Callable[[Connection], object]] = {
         date(2026, 11, 16),
     ),
     "keep milestone": lambda tx: milestone_rules.keep(tx, FIXED_USER_ID, uuid4()),
+    "add task": lambda tx: task_rules.add(
+        tx, FIXED_USER_ID, uuid4(), NewTask(title="Pack"), date(2026, 11, 16)
+    ),
+    "check off task": lambda tx: task_rules.check_off(
+        tx,
+        FIXED_USER_ID,
+        uuid4(),
+        CheckOff(completed_at=datetime(2026, 11, 16, tzinfo=UTC), completed_on=date(2026, 11, 16)),
+        date(2026, 11, 16),
+    ),
+    "uncheck task": lambda tx: task_rules.uncheck(tx, FIXED_USER_ID, uuid4()),
 }
 
 

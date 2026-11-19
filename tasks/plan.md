@@ -1,80 +1,122 @@
-# Implementation Plan: Milestones and check-ins (#6)
+# Implementation Plan: Tasks and the week (#7)
 
-Spec: [`../specs/milestones-check-ins.md`](../specs/milestones-check-ins.md). Tasks: [`todo.md`](todo.md).
+Spec: [`../specs/tasks-week.md`](../specs/tasks-week.md). Tasks: [`todo.md`](todo.md).
 
 ## Overview
 
-The `milestones` and `check_ins` tables; adding, editing and reordering milestones; checking in against Next; keeping a "not yet"; and the goal's page read (milestones, "2 of 6", latest result). After this slice the Aspirations tab, an aspiration's page and a goal's page have everything they read.
+The `tasks` and `task_weeks` tables, the week read, and every write a person makes on Today, Week, the bank and a one-off goal's page. Pausing and coming back finally move a goal's tasks, and goal reads gain this week's progress and a one-off goal's steps. Nothing is generated or drafted yet.
 
-One PR, `milestones-check-ins` (closes #6).
+The spec asks for a split past about ten tasks. This plan has twelve, so it ships as **two PRs**, as the spec suggests:
+
+- **PR A, `tasks-week-read-add`** (part of #7): the tables, `getWeek`, `addTask`, `updateTask`, check off and uncheck, progress and steps.
+- **PR B, `tasks-week-moves`** (closes #7): place, bank, swap, drop, setting aside and returning, docs, and the front end's types.
 
 ## The contract
 
 | Operation | Route | Body | Returns |
 | --- | --- | --- | --- |
-| `getGoal` | `GET /api/goals/{id}` | | **changes shape:** `{ goal, milestones, progress, latest }` |
-| `addMilestone` | `PUT /api/milestones/{id}` | `goalId`, `measurableLine`, `targetDate` (optional) | the goal's page; the milestone goes last |
-| `updateMilestone` | `PATCH /api/milestones/{id}` | `measurableLine`, `targetDate`, sent whole | the goal's page |
-| `reorderMilestones` | `POST /api/goals/{id}/milestones/reorder` | `ids`: every milestone of the goal, in order | the goal's page |
-| `keepMilestone` | `POST /api/milestones/{id}/keep` | | the goal's page |
-| `checkIn` | `PUT /api/check-ins/{id}` | `goalId`, `milestoneId` (`null` for the goal's own line), `outcome` (`hit` or `notYet`), `result` (optional) | the goal's page |
+| `getWeek` | `GET /api/weeks/{week}` | | the week (below); 422 if `week` isn't a Monday |
+| `addTask` | `PUT /api/tasks/{id}` | `title`, `goalId?`, `dueDate?`, `timeOfDay?`, `day?` | the task |
+| `updateTask` | `PATCH /api/tasks/{id}` | `title`, `dueDate`, `timeOfDay`, sent whole | the task |
+| `checkOffTask` | `POST /api/tasks/{id}/check-off` | `completedAt`, `completedOn`, `valueLogged?` | the task |
+| `uncheckTask` | `POST /api/tasks/{id}/uncheck` | | the task |
+| `placeTask` | `POST /api/tasks/{id}/place` | `week`, `day` | the task |
+| `moveTaskToBank` | `POST /api/tasks/{id}/bank` | `week` | the task |
+| `swapTasks` | `POST /api/tasks/{id}/swap` | `week`, `bankTaskId`, `day`; `{id}` goes to the bank | both tasks |
+| `dropTask` | `POST /api/tasks/{id}/drop` | | the task |
 
-**The goal's page** is `goal` (as in slice 3), `milestones` in order (`id`, `position`, `measurableLine`, `targetDate`, `status`: `upcoming`, `hit` or `notYet`), `progress` (`hit` and `of`: the goal's milestones plus one for the goal, which counts as hit once reached), and `latest` (the most recent check-in with a result: `result`, `checkedInOn`; or `null`). Every milestone write returns it, because moving one date can move others, and a check-in can reach the goal.
+**The week:** `week`, `isCurrent`, `nextWeekOpen`, `tasks`, `goals`.
 
-- **Only Next can be checked in** (`flows.md`, flow 6): the first milestone that isn't hit, or the goal's own line once every milestone is hit. A check-in naming anything else is a 409, so a stale screen can't pass over a milestone. A check-in needs an active or paused goal.
-- **A hit sets the milestone to hit; a not yet sets it to not yet.** It stays Next either way until it's hit.
-- **A hit on the goal's own line marks the goal reached,** in the same transaction, exactly as `markGoalReached` does (`flows.md`, flow 6 step 4). A not yet on the goal's line is kept as a check-in and changes nothing else.
-- **`checkedInOn` is the phone's today**, from `X-Time-Zone`, not sent in the body.
-- **The same check-in sent twice** returns the page as it is and adds nothing.
-- **Dates:** a milestone's date falls between the goal's start and its deadline (409 otherwise). Moving a date later pushes every later dated milestone out by the same number of days, capped at the deadline; undated ones stay undated, and moving earlier pulls nothing in (`flows.md`, decided Nov 10).
-- Milestones only on building and quitting goals: refused by the database, and a 409 from the route. They can be added and edited whatever the goal's status (Go again is "ready to adjust").
+- `tasks`: the week's rows with no outcome or done; set-aside rows aren't shown. Each task has `id`, `title`, `origin`, `state`, `goalId`, `goalLabel`, `recurringItemId`, `dueDate`, `timeOfDay` (`kind`, `time`), `valueLogged`, `completedAt`, `completedOn`, `plannedDay` (null in the bank), `placedByHand`, and `carriedOver` (its rolled-over rows).
+- `goals`: every active building goal with a target that week, with `id`, `label`, `target`, `progress` (`done` and `of`, by count or by amount). This is what Week's bars need.
+
+**The task** (every write returns it) is the same object, plus `week`: the week of its row in play or of its done row, or null while it waits.
+
+**`addTask`'s `day`** is the phone's end result, in place of the mock's `onToday`. With no day the task goes to the bank of the current week, or of its due date's week when that week is open. A due date in a later week that isn't open yet leaves the task waiting with no row (the upcoming list). A one-off goal's step with no date waits with no row too. A day that's no longer allowed (a past day, or today when today is before the current week) puts the task in the current week's bank.
+
+**Goal reads gain:**
+
+- `weekProgress` on every goal: a building goal's `done` and `of` this week, by count or by amount; null for other types.
+- A one-off goal's `progress` counts steps: `hit` is the steps done, `of` is the steps not dropped.
+- The goal's page gains `steps` for a one-off goal: its tasks, done and not done, in the order added.
 
 ## Architecture decisions
 
-- **`milestones` points at `goals (id, user_id, type)`** with `goal_type` in (`building`, `quitting`), as weekly targets do. Position is unique per goal by a deferrable constraint, as aspirations' is; writes that number them take the user lock.
-- **`check_ins` points at its milestone and goal together:** `milestones` gets `unique (id, goal_id)`, and `check_ins (milestone_id, goal_id)` references it, so a check-in can't name another goal's milestone. The goal reference carries the owner.
-- **"Between start and deadline" is a rule in `rules.py`,** not a constraint: it spans two tables. Tested through the routes.
-- **`app/milestones/`** holds the routes, models and rules for milestones and check-ins, and the goal's page read (`goal_page`), which `getGoal` and every milestone write return.
+- **`tasks` has every column the data model lists**, including `recurring_item_id`, `period_start` and `number`. `recurring_items` adds the foreign key. The unique rule for generated tasks is a plain unique index (no `where deleted_at is null`), so it counts deleted rows.
+- **A task points at `goals (id, user_id)`; a `task_weeks` row points at `tasks (id, user_id)`.** The owner rides on every foreign key, as in earlier slices.
+- **Rules the database holds:**
+  - goal or item or neither, never both
+  - a week is a Monday
+  - a planned day falls inside its row's week
+  - one row per task per week, and one with no outcome (a partial unique index)
+  - the time of day's kind and time come together
+- **"A task's state and its rows agree" is a deferred constraint trigger** on both tables, checked at commit:
+  - an open task has at most one row in play
+  - done, dropped and lapsed tasks have none
+  - a done task's last row is done
+
+  A route that gets it wrong fails its own test, not quietly.
+- **The current week is the phone's week** for now. `week-turnover` adds `closed_through_week` and moves this to `app/weeks.py` (`current_week`), the one function every task rule calls. Next week is open when `planned_through_week` is after it.
+- **`numeric` is `decimal.Decimal`** in sqlc's generated code. That's how `weekly_targets.amount` already works. The API sends the value as a JSON number and turns it back into a Decimal on the way in, as `WeeklyTargetInput` does. This is recorded in ADR-007.
+- **`app/tasks/`** holds routes, models and rules; `app/tasks/week.py` builds the week read. Goal progress is one query per read, not per goal.
 - **No new dependency.**
 
 ## Dependency graph
 
 ```
-1 milestones ──► 2 check_ins
-      │                │
-      ▼                │
-3 add + goal page ──► 4 edit (dates push out; deadline guard) 
-      │                │
-      ├──► 5 reorder   │
-      └──► 6 check in ◄┘──► 7 keep ──► 8 docs and contract
+1 tasks ──► 2 task_weeks (+ agreement trigger)
+                 │
+                 ▼
+            3 addTask + getWeek ──► 4 updateTask
+                 │
+                 ▼
+            5 check off / uncheck ──► 6 progress + steps ──► [PR A]
+                 │
+                 ▼
+            7 place + bank ──► 8 swap ──► 9 drop
+                 │
+                 ▼
+            10 set aside + return ──► 11 closed-week check-off and uncheck ──► 12 docs, ADR-007, front-end types ──► [PR B]
 ```
 
 ## Task list
 
 See [`todo.md`](todo.md).
 
-- [x] 1: The milestones table
-- [x] 2: The check_ins table
-- [x] 3: Add a milestone, and the goal's page
-- [x] 4: Edit a milestone, with dates pushed out
-- [x] **Checkpoint A:** milestones can be added and edited; the goal's page reads them; checks pass
-- [x] 5: Reorder milestones
-- [x] 6: Check in
-- [x] 7: Keep a "not yet"
-- [x] 8: Docs and the contract
-- [x] **Checkpoint B:** every spec criterion met; checks pass; PR opened
+PR A, `tasks-week-read-add`:
+
+- [x] 1: The tasks table
+- [x] 2: The task_weeks table, and state agreeing with rows
+- [x] 3: Add a task, and the week read
+- [x] 4: Edit a task
+- [x] 5: Check off and uncheck
+- [x] 6: This week's progress, and a one-off goal's steps
+- [x] **Checkpoint A:** tasks can be added, read, edited, checked off; checks pass; PR A opened
+
+PR B, `tasks-week-moves`:
+
+- [ ] 7: Place on a day, and back to the bank
+- [ ] 8: Swap
+- [ ] 9: Drop
+- [ ] 10: Pausing sets tasks aside; coming back returns them
+- [ ] 11: Check-offs and unchecks that arrive after their week closed
+- [ ] 12: Docs, ADR-007 and the front end's types
+- [ ] **Checkpoint B:** every spec criterion met; checks pass; PR B opened
 
 ## Risks and mitigations
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| `getGoal` changes shape after slice 3 | Low | The front end isn't wired yet; the #40 comment is updated |
-| Pushing dates out and the deadline guard interact | Medium | One function computes the new dates; tests at the cap, with undated milestones between, and moving earlier |
-| Reordering puts a hit milestone after one that isn't | Low | Next is always the first not-hit by position, so it stays well defined |
+| Nothing closes a week until slice 7, so the closed-week cases can't happen through the API yet | Medium | Tests make closed rows directly in SQL. Slice 7 then reuses the same endings. |
+| The agreement trigger rejects a valid step between two writes in one transaction | Medium | It is deferred to commit; each write's tests commit through the trigger. |
+| `getWeek` differs from the mock's `WeekPlan` (`weekOf`, `status`, `rolloverCount`, `onToday`) | Low | The front end keeps its hand-written types until #42 switches the screens. Only regenerating and compiling is in scope here. |
+| PR B changes goal status writes from slice 3 | Low | The existing status tests stay; new ones cover tasks. |
 
-## Decisions to confirm
+## Decisions (approved 2026-11-18)
 
-1. **Move and adjust are `updateMilestone`.** Editing a "not yet" milestone's line or date puts it back to upcoming, which is what move and adjust do. Only keep needs its own route. That's one route fewer than the spec lists, and editing from anywhere answers the card.
-2. **A goal's deadline can't be moved before a milestone's date** (spec open question 3): `updateGoal` answers 409. The person moves the milestone first. Pulling dates in silently would change something they didn't touch.
-3. **`getGoal` returns the goal's page** (`{ goal, milestones, progress, latest }`), while every goal write keeps returning the goal alone.
-4. **The goal's line counts as hit only when the goal is reached,** so a reached goal reads "6 of 6" whatever was passed on the way, and an ended one doesn't count it.
+1. **Uncheck has one rule** (settled with Jan 2026-11-18): the task's row goes back in play as it was. A waiting step checked off on the goal's page made a row on the day it was done, so unchecking it leaves it on that day rather than waiting. No new column; `data-model.md`'s "Unchecking removes the row" changes.
+2. **A swap trades a task on a day for one from the bank.** The day's task goes to the bank and the bank task takes its day, as the front end's `swapTask` does today (spec open question 2). Two day tasks trading days is out.
+3. **No placing a task in a later week that isn't open** (spec open question 1, the spec's own recommendation). It waits on the upcoming list.
+4. **`addTask` takes `day`, not `onToday`,** so a queued add states where it ends up. The phone sends today's date.
+5. **Writes return the task, not the week.** The phone fetches the week again once its queue is empty (ADR-010). `swapTasks` returns both tasks.
+6. **Uncheck clears the value logged** along with the completion, as the mock does.

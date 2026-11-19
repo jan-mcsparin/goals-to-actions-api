@@ -22,3 +22,9 @@ set kind = excluded.kind, sessions = excluded.sessions, amount = excluded.amount
 where (weekly_targets.kind, weekly_targets.sessions, weekly_targets.amount, weekly_targets.unit)
   is distinct from (excluded.kind, excluded.sessions, excluded.amount, excluded.unit)
 returning *;
+
+-- Each of the owner's goals' target for a week: the one set latest on or before it.
+-- name: WeeklyTargetsFor :many
+select distinct on (goal_id) * from weekly_targets
+where user_id = $1 and effective_from <= $2 and deleted_at is null
+order by goal_id, effective_from desc;

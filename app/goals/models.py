@@ -6,7 +6,6 @@ from uuid import UUID
 from pydantic import AfterValidator, Field, StringConstraints, model_validator
 
 from app.db import models as rows
-from app.db.milestones import CountMilestonesRow
 from app.schemas import ApiModel, NoNul
 
 GoalType = Literal["building", "quitting", "oneOff"]
@@ -105,22 +104,33 @@ class Progress(ApiModel):
         return cls(hit=of if status == "reached" else hit, of=of)
 
 
+class WeekProgress(ApiModel):
+    """This week against a building goal's target: tasks done out of sessions (count), or
+    the values logged out of the amount (amount)."""
+
+    done: float
+    of: float
+
+
 class ListedGoal(Goal):
-    progress: Progress
+    progress: Progress = Field(
+        description="Milestones hit, or a one-off goal's steps done, as on the goal's page."
+    )
+    week_progress: WeekProgress | None = Field(
+        description="This week against its target. Empty without a target this week."
+    )
 
     @classmethod
     def from_rows(
         cls,
         row: rows.Goal,
         target: rows.WeeklyTarget | None,
-        counts: CountMilestonesRow | None,
+        progress: Progress,
+        week_progress: WeekProgress | None,
         today: date,
     ) -> ListedGoal:
         goal = Goal.from_row(row, target, today)
-        progress = Progress.counted(
-            counts.milestones if counts else 0, counts.hit if counts else 0, row.status
-        )
-        return cls(**goal.model_dump(), progress=progress)
+        return cls(**goal.model_dump(), progress=progress, week_progress=week_progress)
 
 
 class GoalList(ApiModel):

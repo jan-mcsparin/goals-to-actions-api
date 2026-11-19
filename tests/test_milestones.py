@@ -55,6 +55,8 @@ def test_a_goal_with_no_milestones_reads_0_of_1(goals_client: TestClient) -> Non
         "aspiration": None,
         "milestones": [],
         "progress": {"hit": 0, "of": 1},
+        "weekProgress": {"done": 0, "of": 3},
+        "steps": [],
         "latest": None,
     }
 

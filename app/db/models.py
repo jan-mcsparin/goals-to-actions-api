@@ -77,6 +77,41 @@ class Milestone(pydantic.BaseModel):
     deleted_at: Optional[datetime.datetime]
 
 
+class Task(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    title: str
+    origin: str
+    goal_id: Optional[uuid.UUID]
+    recurring_item_id: Optional[uuid.UUID]
+    state: str
+    due_date: Optional[datetime.date]
+    time_kind: Optional[str]
+    time_of_day: Optional[datetime.time]
+    value_logged: Optional[decimal.Decimal]
+    completed_at: Optional[datetime.datetime]
+    completed_on: Optional[datetime.date]
+    period_start: Optional[datetime.date]
+    number: Optional[int]
+    still_matters_answered_on: Optional[datetime.date]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+
+
+class TaskWeek(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    task_id: uuid.UUID
+    week: datetime.date
+    planned_day: Optional[datetime.date]
+    placed_by_hand: bool
+    outcome: Optional[str]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+
+
 class User(pydantic.BaseModel):
     id: uuid.UUID
     intensity: str

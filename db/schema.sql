@@ -59,6 +59,54 @@ end;
 $$;
 
 
+--
+-- Name: task_rows_agree(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.task_rows_agree() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+declare
+  checked_task uuid;
+  task_state text;
+  last_outcome text;
+begin
+  if tg_table_name = 'tasks' then
+    checked_task := new.id;
+  elsif tg_op = 'DELETE' then
+    checked_task := old.task_id;
+  else
+    checked_task := new.task_id;
+  end if;
+
+  select state into task_state from tasks where id = checked_task and deleted_at is null;
+  if not found then
+    return null;
+  end if;
+
+  if task_state <> 'open' and exists (
+    select from task_weeks
+    where task_id = checked_task and outcome is null and deleted_at is null
+  ) then
+    raise exception 'A % task can''t have a row in play.', task_state
+      using errcode = 'check_violation', constraint = 'task_rows_agree';
+  end if;
+
+  if task_state = 'done' then
+    select outcome into last_outcome from task_weeks
+    where task_id = checked_task and deleted_at is null
+    order by week desc limit 1;
+    if last_outcome is distinct from 'done' then
+      raise exception 'A done task''s last row is done.'
+        using errcode = 'check_violation', constraint = 'task_rows_agree';
+    end if;
+  end if;
+
+  return null;
+end;
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -191,6 +239,67 @@ CREATE TABLE public.milestones (
 
 CREATE TABLE public.schema_migrations (
     version character varying NOT NULL
+);
+
+
+--
+-- Name: task_weeks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.task_weeks (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    task_id uuid NOT NULL,
+    week date NOT NULL,
+    planned_day date,
+    placed_by_hand boolean DEFAULT false NOT NULL,
+    outcome text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT task_weeks_day_in_week CHECK (((planned_day >= week) AND (planned_day <= (week + 6)))),
+    CONSTRAINT task_weeks_outcome_check CHECK ((outcome = ANY (ARRAY['done'::text, 'rolled_over'::text, 'lapsed'::text, 'dropped'::text, 'set_aside'::text]))),
+    CONSTRAINT task_weeks_placed_on_a_day CHECK (((NOT placed_by_hand) OR (planned_day IS NOT NULL))),
+    CONSTRAINT task_weeks_week_is_monday CHECK ((EXTRACT(isodow FROM week) = (1)::numeric))
+);
+
+
+--
+-- Name: tasks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tasks (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    title text NOT NULL,
+    origin text NOT NULL,
+    goal_id uuid,
+    recurring_item_id uuid,
+    state text DEFAULT 'open'::text NOT NULL,
+    due_date date,
+    time_kind text,
+    time_of_day time without time zone,
+    value_logged numeric,
+    completed_at timestamp with time zone,
+    completed_on date,
+    period_start date,
+    number integer,
+    still_matters_answered_on date,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT tasks_done_has_completion CHECK ((((state = 'done'::text) = (completed_on IS NOT NULL)) AND ((completed_on IS NULL) = (completed_at IS NULL)) AND ((value_logged IS NULL) OR (state = 'done'::text)))),
+    CONSTRAINT tasks_generated_has_period CHECK ((((origin = 'by_hand'::text) = (period_start IS NULL)) AND ((period_start IS NULL) = (number IS NULL)))),
+    CONSTRAINT tasks_goal_or_item CHECK (((goal_id IS NULL) OR (recurring_item_id IS NULL))),
+    CONSTRAINT tasks_item_means_its_origin CHECK (((recurring_item_id IS NULL) OR (origin = 'recurring_item'::text))),
+    CONSTRAINT tasks_number_check CHECK ((number >= 1)),
+    CONSTRAINT tasks_origin_check CHECK ((origin = ANY (ARRAY['by_hand'::text, 'weekly_target'::text, 'recurring_item'::text]))),
+    CONSTRAINT tasks_state_check CHECK ((state = ANY (ARRAY['open'::text, 'done'::text, 'dropped'::text, 'lapsed'::text]))),
+    CONSTRAINT tasks_time_kind_and_time CHECK (((time_kind IS NULL) = (time_of_day IS NULL))),
+    CONSTRAINT tasks_time_kind_check CHECK ((time_kind = ANY (ARRAY['by'::text, 'at'::text]))),
+    CONSTRAINT tasks_title_not_blank CHECK ((btrim(title) <> ''::text)),
+    CONSTRAINT tasks_value_logged_check CHECK ((value_logged >= (0)::numeric)),
+    CONSTRAINT tasks_weekly_target_has_goal CHECK (((origin <> 'weekly_target'::text) OR (goal_id IS NOT NULL)))
 );
 
 
@@ -333,6 +442,54 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: task_weeks task_weeks_one_per_week; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_weeks
+    ADD CONSTRAINT task_weeks_one_per_week UNIQUE (task_id, week);
+
+
+--
+-- Name: task_weeks task_weeks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_weeks
+    ADD CONSTRAINT task_weeks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tasks tasks_goal_period_number; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_goal_period_number UNIQUE (goal_id, period_start, number);
+
+
+--
+-- Name: tasks tasks_id_owner; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_id_owner UNIQUE (id, user_id);
+
+
+--
+-- Name: tasks tasks_item_period_number; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_item_period_number UNIQUE (recurring_item_id, period_start, number);
+
+
+--
+-- Name: tasks tasks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -354,6 +511,13 @@ ALTER TABLE ONLY public.weekly_targets
 
 ALTER TABLE ONLY public.weekly_targets
     ADD CONSTRAINT weekly_targets_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: task_weeks_one_in_play; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX task_weeks_one_in_play ON public.task_weeks USING btree (task_id) WHERE ((outcome IS NULL) AND (deleted_at IS NULL));
 
 
 --
@@ -410,6 +574,48 @@ CREATE TRIGGER milestones_audit AFTER INSERT OR DELETE OR UPDATE ON public.miles
 --
 
 CREATE TRIGGER milestones_set_updated_at BEFORE UPDATE ON public.milestones FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: task_weeks task_weeks_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER task_weeks_audit AFTER INSERT OR DELETE OR UPDATE ON public.task_weeks FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: task_weeks task_weeks_rows_agree; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER task_weeks_rows_agree AFTER INSERT OR DELETE OR UPDATE ON public.task_weeks DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.task_rows_agree();
+
+
+--
+-- Name: task_weeks task_weeks_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER task_weeks_set_updated_at BEFORE UPDATE ON public.task_weeks FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: tasks tasks_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER tasks_audit AFTER INSERT OR DELETE OR UPDATE ON public.tasks FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: tasks tasks_rows_agree; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE CONSTRAINT TRIGGER tasks_rows_agree AFTER INSERT OR UPDATE ON public.tasks DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.task_rows_agree();
+
+
+--
+-- Name: tasks tasks_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER tasks_set_updated_at BEFORE UPDATE ON public.tasks FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -505,6 +711,38 @@ ALTER TABLE ONLY public.milestones
 
 
 --
+-- Name: task_weeks task_weeks_task_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_weeks
+    ADD CONSTRAINT task_weeks_task_same_owner FOREIGN KEY (task_id, user_id) REFERENCES public.tasks(id, user_id);
+
+
+--
+-- Name: task_weeks task_weeks_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.task_weeks
+    ADD CONSTRAINT task_weeks_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: tasks tasks_goal_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_goal_same_owner FOREIGN KEY (goal_id, user_id) REFERENCES public.goals(id, user_id);
+
+
+--
+-- Name: tasks tasks_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: weekly_targets weekly_targets_building_goal_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -538,4 +776,6 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261116230000'),
     ('20261116230100'),
     ('20261117000000'),
-    ('20261117000100');
+    ('20261117000100'),
+    ('20261118000000'),
+    ('20261118000100');

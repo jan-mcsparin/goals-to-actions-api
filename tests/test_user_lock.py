@@ -21,7 +21,7 @@ from app.milestones.models import MilestoneEdit, MilestoneOrder, NewCheckIn, New
 from app.recurring_items import rules as item_rules
 from app.recurring_items.models import NewRecurringItem, RecurringItemEdit, WeeklySchedule
 from app.tasks import rules as task_rules
-from app.tasks.models import CheckOff, NewTask, Placing, Swap, ToBank
+from app.tasks.models import CheckOff, KeepIt, NewTask, Placing, Swap, ToBank
 from app.turnover.rules import catch_up
 
 NEW_GOAL = NewGoal(type="oneOff", label="Move house", measurable_line="Keys handed in")
@@ -103,6 +103,9 @@ WRITES: dict[str, Callable[[Connection], object]] = {
         date(2026, 11, 16),
     ),
     "drop task": lambda tx: task_rules.drop(tx, FIXED_USER_ID, uuid4()),
+    "answer still matters": lambda tx: task_rules.answer_still_matters(
+        tx, FIXED_USER_ID, uuid4(), KeepIt(answer="keep"), date(2026, 11, 16)
+    ),
     "catch up": lambda tx: catch_up(tx, FIXED_USER_ID, datetime(2026, 11, 18, 12, tzinfo=UTC)),
     "create recurring item": lambda tx: item_rules.create(
         tx, FIXED_USER_ID, uuid4(), NEW_ITEM, date(2026, 11, 16)

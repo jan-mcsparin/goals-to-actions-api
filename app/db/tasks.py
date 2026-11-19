@@ -282,6 +282,12 @@ class ListWeekTasksRow(pydantic.BaseModel):
     carried_over: int
 
 
+SET_STILL_MATTERS_ANSWERED = """-- name: set_still_matters_answered \\:exec
+update tasks set still_matters_answered_on = :p3
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 SET_TASK_CLOSED = """-- name: set_task_closed \\:exec
 update tasks set state = :p3
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -557,6 +563,9 @@ class Querier:
                 rolled_since_answer=row[25],
                 carried_over=row[26],
             )
+
+    def set_still_matters_answered(self, *, id: uuid.UUID, user_id: uuid.UUID, still_matters_answered_on: Optional[datetime.date]) -> None:
+        self._conn.execute(sqlalchemy.text(SET_STILL_MATTERS_ANSWERED), {"p1": id, "p2": user_id, "p3": still_matters_answered_on})
 
     def set_task_closed(self, *, id: uuid.UUID, user_id: uuid.UUID, state: str) -> None:
         self._conn.execute(sqlalchemy.text(SET_TASK_CLOSED), {"p1": id, "p2": user_id, "p3": state})

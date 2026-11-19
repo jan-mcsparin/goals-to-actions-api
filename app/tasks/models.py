@@ -218,6 +218,27 @@ class ToBank(ApiModel):
     )
 
 
+class KeepIt(ApiModel):
+    answer: Literal["keep"]
+
+
+class ScheduleIt(ApiModel):
+    """Onto a day, placed by hand, as `placeTask` does."""
+
+    answer: Literal["schedule"]
+    week: date = Field(
+        description="The week the change was made in. Refused once the task has left it."
+    )
+    day: date
+
+
+class DropIt(ApiModel):
+    answer: Literal["drop"]
+
+
+StillMattersAnswer = Annotated[KeepIt | ScheduleIt | DropIt, Field(discriminator="answer")]
+
+
 class Swap(ApiModel):
     """The task in the route goes to the bank; the bank task goes onto the day."""
 

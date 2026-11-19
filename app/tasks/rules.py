@@ -12,7 +12,16 @@ from app.db.models import TaskWeek
 from app.db.task_weeks import ListGoalTaskWeeksRow, ListItemTaskWeeksRow
 from app.db.turnover import ListRowsToCloseRow
 from app.errors import NotAllowed, NotFound
-from app.tasks.models import CheckOff, NewTask, Placing, Swap, TaskEdit, ToBank
+from app.tasks.models import (
+    CheckOff,
+    NewTask,
+    Placing,
+    ScheduleIt,
+    StillMattersAnswer,
+    Swap,
+    TaskEdit,
+    ToBank,
+)
 from app.turnover.endings import ending_for
 from app.users import lock_user
 from app.weeks import OpenWeeks, open_weeks, week_of
@@ -351,6 +360,25 @@ def drop(connection: Connection, user_id: UUID, task_id: UUID) -> None:
     if row is not None:
         set_outcome(connection, user_id, row, "dropped")
     tasks.Querier(connection).set_task_closed(id=task_id, user_id=user_id, state="dropped")
+
+
+def answer_still_matters(
+    connection: Connection, user_id: UUID, task_id: UUID, answer: StillMattersAnswer, today: date
+) -> None:
+    """ "Still matter?": keep it, put it on a day, or drop it. Keep and schedule start the
+    count of rollovers again. Each answer sent again changes nothing more."""
+    lock_user(connection, user_id)
+    task = get(connection, user_id, task_id)
+    if answer.answer == "drop":
+        drop(connection, user_id, task_id)
+        return
+    if task.state != "open":
+        raise NotAllowed(f"A {task.state} task can't be asked.")
+    if isinstance(answer, ScheduleIt):
+        place(connection, user_id, task_id, Placing(week=answer.week, day=answer.day), today)
+    tasks.Querier(connection).set_still_matters_answered(
+        id=task_id, user_id=user_id, still_matters_answered_on=today
+    )
 
 
 def goal_task_weeks(connection: Connection, user_id: UUID, goal_id: UUID) -> list[WorkRow]:

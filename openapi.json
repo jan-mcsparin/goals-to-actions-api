@@ -192,6 +192,20 @@
         "title": "CheckOff",
         "type": "object"
       },
+      "DropIt": {
+        "properties": {
+          "answer": {
+            "const": "drop",
+            "title": "Answer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "title": "DropIt",
+        "type": "object"
+      },
       "ErrorMessage": {
         "description": "FastAPI's error shape, for the errors the API raises itself.",
         "properties": {
@@ -534,6 +548,20 @@
           "status"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "KeepIt": {
+        "properties": {
+          "answer": {
+            "const": "keep",
+            "title": "Answer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "title": "KeepIt",
         "type": "object"
       },
       "LatestResult": {
@@ -1352,6 +1380,34 @@
           "itsWork"
         ],
         "title": "Retirement",
+        "type": "object"
+      },
+      "ScheduleIt": {
+        "description": "Onto a day, placed by hand, as `placeTask` does.",
+        "properties": {
+          "answer": {
+            "const": "schedule",
+            "title": "Answer",
+            "type": "string"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "week": {
+            "description": "The week the change was made in. Refused once the task has left it.",
+            "format": "date",
+            "title": "Week",
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer",
+          "week",
+          "day"
+        ],
+        "title": "ScheduleIt",
         "type": "object"
       },
       "Swap": {
@@ -4239,6 +4295,108 @@
           }
         },
         "summary": "Place Task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/tasks/{task_id}/still-matters": {
+      "post": {
+        "description": "The answer to \"Still matter?\": keep it, put it on a day, or drop it. Drop is the same\nas `dropTask`.",
+        "operationId": "answerStillMatters",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "discriminator": {
+                  "mapping": {
+                    "drop": "#/components/schemas/DropIt",
+                    "keep": "#/components/schemas/KeepIt",
+                    "schedule": "#/components/schemas/ScheduleIt"
+                  },
+                  "propertyName": "answer"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/KeepIt"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ScheduleIt"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DropIt"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Answer Still Matters",
         "tags": [
           "tasks"
         ]

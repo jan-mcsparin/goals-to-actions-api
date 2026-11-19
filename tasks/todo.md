@@ -151,9 +151,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `answerStillMatters`, `POST /api/tasks/{id}/still-matters`. Keep records the answer. Schedule records it and places the task by hand on the day. Drop records it and drops the task.
 
 **Acceptance criteria:**
-- [ ] After keep or schedule, `stillMatters` is false until two more rollovers. Schedule follows `placeTask`'s rules for the day and the week.
-- [ ] Drop closes the task as dropped and keeps it in history. Sent twice, each answer changes nothing more.
-- [ ] Another owner's task is a 404; a done or dropped task is a 409 (keep and schedule) or as `dropTask` (drop).
+- [x] After keep or schedule, `stillMatters` is false until two more rollovers. Schedule follows `placeTask`'s rules for the day and the week.
+- [x] Drop closes the task as dropped and keeps it in history. Sent twice, each answer changes nothing more.
+- [x] Another owner's task is a 404; a done or dropped task is a 409 (keep and schedule) or as `dropTask` (drop).
 
 **Verify:** `uv run pytest tests/test_still_matters.py`.
 

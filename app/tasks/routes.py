@@ -13,6 +13,7 @@ from app.tasks.models import (
     CheckOff,
     NewTask,
     Placing,
+    StillMattersAnswer,
     Swap,
     Swapped,
     Task,
@@ -136,4 +137,19 @@ def drop_task(task_id: UUID, database: CurrentDatabase, user_id: CurrentUserId) 
     """ "I decided not to do this": the answer No to "Still matter?". Not a delete."""
     with database.transaction(user_id, "drop task") as connection:
         rules.drop(connection, user_id, task_id)
+        return task_view(connection, user_id, task_id)
+
+
+@router.post("/tasks/{task_id}/still-matters", responses=NOT_FOUND | NOT_ALLOWED)
+def answer_still_matters(
+    task_id: UUID,
+    body: StillMattersAnswer,
+    database: CurrentDatabase,
+    user_id: CurrentUserId,
+    today: Today,
+) -> Task:
+    """The answer to "Still matter?": keep it, put it on a day, or drop it. Drop is the same
+    as `dropTask`."""
+    with database.transaction(user_id, "answer still matters") as connection:
+        rules.answer_still_matters(connection, user_id, task_id, body, today)
         return task_view(connection, user_id, task_id)

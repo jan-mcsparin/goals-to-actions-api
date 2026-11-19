@@ -150,3 +150,8 @@ where tasks.user_id = $1 and tasks.origin = 'by_hand' and tasks.state = 'open'
     select 1 from task_weeks where task_weeks.task_id = tasks.id and task_weeks.deleted_at is null
   )
 order by tasks.due_date, tasks.created_at, tasks.id;
+
+-- "Still matter?" answered with keep or a day: the count of rollovers starts again.
+-- name: SetStillMattersAnswered :exec
+update tasks set still_matters_answered_on = $3
+where id = $1 and user_id = $2 and deleted_at is null;

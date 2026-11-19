@@ -60,6 +60,15 @@ Settled with Jan on 2026-11-13, and used from slice 2 on. The front end's client
 10. **Errors use FastAPI's shape** (`{"detail": ...}`): 404 for a row that doesn't exist or belongs to someone else, 409 for a change the rules don't allow (resuming a goal that isn't paused), 422 for a body that doesn't validate.
 11. **Reads return whole screens' worth, not rows to stitch.** The week comes back with each task's goal label, not a list of ids to look up. Lists aren't paged at one user's volume.
 
+Tried from the front end's client on 2026-11-18 (its #40, aspirations only, through the dev proxy):
+
+- **6 confirmed.** The same `PUT /api/aspirations/{id}` sent twice made one aspiration and returned it both times. The phone makes the id (a v4 UUID).
+- **7 confirmed.** Retiring a retired aspiration, and bringing back an active one, returned it unchanged.
+- **8 not tried.** One device so far.
+- **9 confirmed.** Every request carries `X-Time-Zone`; retire without it is refused (422).
+- **10 confirmed.** A 404 reaches the screens as "not found", anything else as a failed request. A reorder missing an active id is a 409.
+- **11 not yet met for aspirations.** There's no read for one aspiration's page or for the whole tab, so the front end builds both from `listAspirations`, with no goals, until its #41. The read that tab and page need is decided there.
+
 Settled 2026-11-16 (ADR-010):
 
 13. **The week is the only plan read.** The phone stores it as one document and draws Today, a day and the bank from it.

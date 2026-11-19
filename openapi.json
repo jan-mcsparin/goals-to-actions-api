@@ -206,6 +206,38 @@
         "title": "ErrorMessage",
         "type": "object"
       },
+      "FlexibleSchedule": {
+        "description": "Some time in each period: 1 to 6 times a week, or once every two weeks or a month.",
+        "properties": {
+          "kind": {
+            "const": "flexible",
+            "title": "Kind",
+            "type": "string"
+          },
+          "period": {
+            "enum": [
+              "week",
+              "twoWeeks",
+              "month"
+            ],
+            "title": "Period",
+            "type": "string"
+          },
+          "times": {
+            "maximum": 6.0,
+            "minimum": 1.0,
+            "title": "Times",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "times",
+          "period"
+        ],
+        "title": "FlexibleSchedule",
+        "type": "object"
+      },
       "Goal": {
         "properties": {
           "aspirationId": {
@@ -774,6 +806,28 @@
         "title": "MilestoneOrder",
         "type": "object"
       },
+      "MonthlySchedule": {
+        "description": "Every month on a day, up to the 28th so every month has it: \"Monthly on the 1st\".",
+        "properties": {
+          "dayOfMonth": {
+            "maximum": 28.0,
+            "minimum": 1.0,
+            "title": "Dayofmonth",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "monthly",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "dayOfMonth"
+        ],
+        "title": "MonthlySchedule",
+        "type": "object"
+      },
       "NewCheckIn": {
         "description": "A check-in against Next: the first milestone that isn't hit, or the goal's own line\n(`milestoneId` empty) once every milestone is hit. Dated today where the phone is.",
         "properties": {
@@ -948,6 +1002,75 @@
         "title": "NewMilestone",
         "type": "object"
       },
+      "NewRecurringItem": {
+        "properties": {
+          "aspirationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aspirationid"
+          },
+          "fromGoalId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when a reached goal's practice is kept going.",
+            "title": "Fromgoalid"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "schedule": {
+            "discriminator": {
+              "mapping": {
+                "flexible": "#/components/schemas/FlexibleSchedule",
+                "monthly": "#/components/schemas/MonthlySchedule",
+                "weekly": "#/components/schemas/WeeklySchedule"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WeeklySchedule"
+              },
+              {
+                "$ref": "#/components/schemas/MonthlySchedule"
+              },
+              {
+                "$ref": "#/components/schemas/FlexibleSchedule"
+              }
+            ],
+            "title": "Schedule"
+          },
+          "startsOn": {
+            "format": "date",
+            "title": "Startson",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "schedule",
+          "startsOn"
+        ],
+        "title": "NewRecurringItem",
+        "type": "object"
+      },
       "NewTask": {
         "description": "A task added by hand. `day` is where the phone put it; with none, it goes to the bank.",
         "properties": {
@@ -1050,6 +1173,110 @@
           "of"
         ],
         "title": "Progress",
+        "type": "object"
+      },
+      "RecurringItem": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "aspirationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Planned as goal work under this aspiration. Empty: maintenance, in Keep life running.",
+            "title": "Aspirationid"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "fromGoalId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The reached goal whose practice this keeps.",
+            "title": "Fromgoalid"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "schedule": {
+            "discriminator": {
+              "mapping": {
+                "flexible": "#/components/schemas/FlexibleSchedule",
+                "monthly": "#/components/schemas/MonthlySchedule",
+                "weekly": "#/components/schemas/WeeklySchedule"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WeeklySchedule"
+              },
+              {
+                "$ref": "#/components/schemas/MonthlySchedule"
+              },
+              {
+                "$ref": "#/components/schemas/FlexibleSchedule"
+              }
+            ],
+            "title": "Schedule"
+          },
+          "startsOn": {
+            "description": "The first day it can be due. It also anchors a two-week period.",
+            "format": "date",
+            "title": "Startson",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "aspirationId",
+          "fromGoalId",
+          "schedule",
+          "startsOn",
+          "active",
+          "createdAt"
+        ],
+        "title": "RecurringItem",
+        "type": "object"
+      },
+      "RecurringItemList": {
+        "properties": {
+          "recurringItems": {
+            "items": {
+              "$ref": "#/components/schemas/RecurringItem"
+            },
+            "title": "Recurringitems",
+            "type": "array"
+          }
+        },
+        "required": [
+          "recurringItems"
+        ],
+        "title": "RecurringItemList",
         "type": "object"
       },
       "Retirement": {
@@ -1500,6 +1727,35 @@
           "of"
         ],
         "title": "WeekProgress",
+        "type": "object"
+      },
+      "WeeklySchedule": {
+        "description": "Every week on a weekday: \"Every Tuesday\".",
+        "properties": {
+          "kind": {
+            "const": "weekly",
+            "title": "Kind",
+            "type": "string"
+          },
+          "weekday": {
+            "enum": [
+              "monday",
+              "tuesday",
+              "wednesday",
+              "thursday",
+              "friday",
+              "saturday",
+              "sunday"
+            ],
+            "title": "Weekday",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "weekday"
+        ],
+        "title": "WeeklySchedule",
         "type": "object"
       },
       "WeeklyTarget": {
@@ -3118,6 +3374,101 @@
         "summary": "Keep Milestone",
         "tags": [
           "milestones"
+        ]
+      }
+    },
+    "/api/recurring-items": {
+      "get": {
+        "description": "Every item, on and off, oldest first. One with no aspiration is in Keep life running.",
+        "operationId": "listRecurringItems",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringItemList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Recurring Items",
+        "tags": [
+          "recurring items"
+        ]
+      }
+    },
+    "/api/recurring-items/{item_id}": {
+      "put": {
+        "operationId": "createRecurringItem",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewRecurringItem"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Recurring Item",
+        "tags": [
+          "recurring items"
         ]
       }
     },

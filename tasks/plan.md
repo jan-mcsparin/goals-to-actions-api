@@ -59,7 +59,7 @@ recurring_items table + tasks FK (1)
 ## Task list
 
 - [x] Task 1: The recurring_items table, and the tasks foreign key
-- [ ] Task 2: Create and list
+- [x] Task 2: Create and list
 - [ ] Task 3: Edit
 - [ ] Task 4: Turn off and on
 - [ ] Task 5: Retiring an aspiration reaches its items and its goals' tasks

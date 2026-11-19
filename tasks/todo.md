@@ -26,9 +26,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `app/recurring_items/` with `models.py` (the item, the schedule as a union on `kind`, `NewRecurringItem`), `rules.py` and `routes.py`; the router in `main.py`. `createRecurringItem` and `listRecurringItems`.
 
 **Acceptance criteria:**
-- [ ] Each of the three kinds can be created and comes back in the list, off ones included, deleted ones left out.
-- [ ] Sent twice, create makes one item; a retired aspiration is a 409; another owner's aspiration or goal is a 404; a bad schedule is a 422.
-- [ ] A reached goal's practice is kept with `fromGoalId` set. The audit log has the action.
+- [x] Each of the three kinds can be created and comes back in the list, off ones included, deleted ones left out.
+- [x] Sent twice, create makes one item; a retired aspiration is a 409; another owner's aspiration or goal is a 404; a bad schedule is a 422.
+- [x] A reached goal's practice is kept with `fromGoalId` set. The audit log has the action.
 
 **Verify:** `uv run pytest tests/test_recurring_items.py`; the schedule in `openapi.json` is a `oneOf` on `kind`.
 

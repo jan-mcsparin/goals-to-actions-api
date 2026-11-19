@@ -2,12 +2,38 @@
 # versions:
 #   sqlc v1.31.1
 # source: recurring_items.sql
+import datetime
+import pydantic
 from typing import Iterator, Optional
 import uuid
 
 import sqlalchemy
 
 from app.db import models
+
+
+CREATE_RECURRING_ITEM = """-- name: create_recurring_item \\:one
+insert into recurring_items (
+  id, user_id, name, aspiration_id, from_goal_id, schedule_kind, weekday, day_of_month, times,
+  period, starts_on
+) values (:p1, :p2, :p3, :p4, :p5, :p6, :p7, :p8, :p9, :p10, :p11)
+on conflict (id) do nothing
+returning id, user_id, name, aspiration_id, from_goal_id, schedule_kind, weekday, day_of_month, times, period, starts_on, active, created_at, updated_at, deleted_at
+"""
+
+
+class CreateRecurringItemParams(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    name: str
+    aspiration_id: Optional[uuid.UUID]
+    from_goal_id: Optional[uuid.UUID]
+    schedule_kind: str
+    weekday: Optional[int]
+    day_of_month: Optional[int]
+    times: Optional[int]
+    period: Optional[str]
+    starts_on: datetime.date
 
 
 GET_RECURRING_ITEM = """-- name: get_recurring_item \\:one
@@ -26,6 +52,40 @@ order by created_at, id
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
+
+    def create_recurring_item(self, arg: CreateRecurringItemParams) -> Optional[models.RecurringItem]:
+        row = self._conn.execute(sqlalchemy.text(CREATE_RECURRING_ITEM), {
+            "p1": arg.id,
+            "p2": arg.user_id,
+            "p3": arg.name,
+            "p4": arg.aspiration_id,
+            "p5": arg.from_goal_id,
+            "p6": arg.schedule_kind,
+            "p7": arg.weekday,
+            "p8": arg.day_of_month,
+            "p9": arg.times,
+            "p10": arg.period,
+            "p11": arg.starts_on,
+        }).first()
+        if row is None:
+            return None
+        return models.RecurringItem(
+            id=row[0],
+            user_id=row[1],
+            name=row[2],
+            aspiration_id=row[3],
+            from_goal_id=row[4],
+            schedule_kind=row[5],
+            weekday=row[6],
+            day_of_month=row[7],
+            times=row[8],
+            period=row[9],
+            starts_on=row[10],
+            active=row[11],
+            created_at=row[12],
+            updated_at=row[13],
+            deleted_at=row[14],
+        )
 
     def get_recurring_item(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.RecurringItem]:
         row = self._conn.execute(sqlalchemy.text(GET_RECURRING_ITEM), {"p1": id, "p2": user_id}).first()

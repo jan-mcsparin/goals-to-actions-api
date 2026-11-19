@@ -20,7 +20,7 @@ from app.tasks.models import (
     Week,
 )
 from app.tasks.week import task_view, week_read
-from app.time_zone import Today
+from app.turnover.dependencies import Today
 
 router = APIRouter(tags=["tasks"])
 

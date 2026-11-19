@@ -18,7 +18,7 @@ from app.milestones.models import GoalPage
 from app.milestones.page import goal_page
 from app.schemas import NOT_ALLOWED, NOT_FOUND
 from app.tasks import progress
-from app.time_zone import Today
+from app.turnover.dependencies import Today
 
 router = APIRouter(prefix="/goals", tags=["goals"])
 

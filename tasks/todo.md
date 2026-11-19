@@ -45,9 +45,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `catch_up` in `app/turnover/rules.py`, called by the `Today` dependency in its own transaction. It opens the current week if it isn't open, and next week from 6 p.m. on Sunday. Opening makes the week's sessions and recurring tasks, and gives upcoming tasks now due a row in the bank. It sets `planned_through_week` and calls `place_new_work` (`app/planner.py`, which does nothing yet). Queries go in `db/queries/turnover.sql`.
 
 **Acceptance criteria:**
-- [ ] 5:59 p.m. on Sunday opens nothing; 6 p.m. opens next week with exactly what's due, and Sunday's rows are as they were. A first request on Wednesday opens the current week.
-- [ ] Opening twice makes nothing new; a paused goal and an item turned off get nothing; the audit log says `open week`.
-- [ ] Two requests together open the week once (a lock test). A read with nothing due writes nothing.
+- [x] 5:59 p.m. on Sunday opens nothing; 6 p.m. opens next week with exactly what's due, and Sunday's rows are as they were. A first request on Wednesday opens the current week.
+- [x] Opening twice makes nothing new; a paused goal and an item turned off get nothing; the audit log says `open week`.
+- [x] Two requests together open the week once (a lock test). A read with nothing due writes nothing.
 
 **Verify:** `uv run pytest tests/test_open_week.py tests/test_user_lock.py`.
 

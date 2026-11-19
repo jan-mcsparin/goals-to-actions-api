@@ -2,7 +2,7 @@
 here on the server (shared decision 9). The moment itself comes from `clock`, which tests
 replace so no test reads the real date."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from typing import Annotated
 from zoneinfo import ZoneInfo
 
@@ -39,9 +39,4 @@ def now(
     return moment.astimezone(zone_of(x_time_zone))
 
 
-def today(moment: Annotated[datetime, Depends(now)]) -> date:
-    return moment.date()
-
-
 Now = Annotated[datetime, Depends(now)]
-Today = Annotated[date, Depends(today)]

@@ -12,7 +12,7 @@ from app.recurring_items.models import (
     RecurringItemList,
 )
 from app.schemas import NOT_ALLOWED, NOT_FOUND
-from app.time_zone import Today
+from app.turnover.dependencies import Today
 
 router = APIRouter(prefix="/recurring-items", tags=["recurring items"])
 

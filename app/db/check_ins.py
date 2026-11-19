@@ -36,25 +36,24 @@ where id = :p1 and user_id = :p2 and deleted_at is null
 """
 
 
-HIT_RESULTS = """-- name: hit_results \\:many
-select distinct on (milestone_id) milestone_id, result from check_ins
-where goal_id = :p1 and user_id = :p2 and outcome = 'hit' and milestone_id is not null
-  and deleted_at is null
-order by milestone_id, checked_in_on desc, created_at desc
-"""
-
-
-class HitResultsRow(pydantic.BaseModel):
-    milestone_id: Optional[uuid.UUID]
-    result: Optional[str]
-
-
 LATEST_RESULT = """-- name: latest_result \\:one
 select id, user_id, goal_id, milestone_id, outcome, result, checked_in_on, created_at, updated_at, deleted_at from check_ins
 where goal_id = :p1 and user_id = :p2 and result is not null and deleted_at is null
 order by checked_in_on desc, created_at desc
 limit 1
 """
+
+
+MILESTONE_RESULTS = """-- name: milestone_results \\:many
+select distinct on (milestone_id) milestone_id, result from check_ins
+where goal_id = :p1 and user_id = :p2 and milestone_id is not null and deleted_at is null
+order by milestone_id, outcome = 'hit' desc, checked_in_on desc, created_at desc
+"""
+
+
+class MilestoneResultsRow(pydantic.BaseModel):
+    milestone_id: Optional[uuid.UUID]
+    result: Optional[str]
 
 
 class Querier:
@@ -103,14 +102,6 @@ class Querier:
             deleted_at=row[9],
         )
 
-    def hit_results(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> Iterator[HitResultsRow]:
-        result = self._conn.execute(sqlalchemy.text(HIT_RESULTS), {"p1": goal_id, "p2": user_id})
-        for row in result:
-            yield HitResultsRow(
-                milestone_id=row[0],
-                result=row[1],
-            )
-
     def latest_result(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.CheckIn]:
         row = self._conn.execute(sqlalchemy.text(LATEST_RESULT), {"p1": goal_id, "p2": user_id}).first()
         if row is None:
@@ -127,3 +118,11 @@ class Querier:
             updated_at=row[8],
             deleted_at=row[9],
         )
+
+    def milestone_results(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> Iterator[MilestoneResultsRow]:
+        result = self._conn.execute(sqlalchemy.text(MILESTONE_RESULTS), {"p1": goal_id, "p2": user_id})
+        for row in result:
+            yield MilestoneResultsRow(
+                milestone_id=row[0],
+                result=row[1],
+            )

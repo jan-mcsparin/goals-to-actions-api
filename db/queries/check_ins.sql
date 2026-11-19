@@ -16,9 +16,9 @@ values ($1, $2, $3, $4, $5, $6, $7)
 on conflict (id) do nothing
 returning *;
 
--- The result of each of a goal's milestones that has a hit check-in: its latest one.
--- name: HitResults :many
+-- The result of each of a goal's checked-in milestones: its latest check-in's, hit or not yet.
+-- A hit is always a milestone's last check-in, so it comes first.
+-- name: MilestoneResults :many
 select distinct on (milestone_id) milestone_id, result from check_ins
-where goal_id = $1 and user_id = $2 and outcome = 'hit' and milestone_id is not null
-  and deleted_at is null
-order by milestone_id, checked_in_on desc, created_at desc;
+where goal_id = $1 and user_id = $2 and milestone_id is not null and deleted_at is null
+order by milestone_id, outcome = 'hit' desc, checked_in_on desc, created_at desc;

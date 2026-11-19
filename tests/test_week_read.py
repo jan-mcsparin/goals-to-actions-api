@@ -30,7 +30,8 @@ def get_week(client: TestClient, week: str) -> Any:
 
 
 def titles(week: Any) -> list[str]:
-    return [task["title"] for task in week["tasks"]]
+    """Titles of the tasks added by hand; a goal's own sessions are left out."""
+    return [task["title"] for task in week["tasks"] if task["origin"] == "byHand"]
 
 
 def test_the_week_lists_its_days_then_its_bank(tasks_client: TestClient) -> None:

@@ -352,6 +352,7 @@ CREATE TABLE public.users (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     deleted_at timestamp with time zone,
+    closed_through_week date,
     CONSTRAINT users_intensity_check CHECK ((intensity = ANY (ARRAY['going_hard'::text, 'normal'::text, 'easing_off'::text])))
 );
 
@@ -878,4 +879,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261117000100'),
     ('20261118000000'),
     ('20261118000100'),
-    ('20261118000200');
+    ('20261118000200'),
+    ('20261119000000');

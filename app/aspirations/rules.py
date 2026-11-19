@@ -55,7 +55,7 @@ def retire(
     retired = queries.retire_aspiration(id=aspiration_id, user_id=user_id, retired_on=today)
     queries.close_aspiration_gap(user_id=user_id, position=existing.position)
     if pause_its_work:
-        current = open_weeks(today, owner.planned_through_week).current
+        current = open_weeks(today, owner.planned_through_week, owner.closed_through_week).current
         pause_work(connection, user_id, aspiration_id, current)
     else:
         recurring_items.Querier(connection).clear_aspiration_items(

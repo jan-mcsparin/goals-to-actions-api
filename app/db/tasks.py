@@ -56,6 +56,12 @@ where id = :p1 and user_id = :p2 and deleted_at is null
 GET_TASK_VIEW = """-- name: get_task_view \\:one
 select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, shown.week, shown.planned_day, shown.placed_by_hand,
   goals.label as goal_label,
+  items.schedule_kind as item_kind, items.period as item_period,
+  (select count(*) from task_weeks rolled
+    where rolled.task_id = tasks.id and rolled.outcome = 'rolled_over'
+      and rolled.deleted_at is null
+      and (tasks.still_matters_answered_on is null
+        or rolled.week + 6 >= tasks.still_matters_answered_on))\\:\\:integer as rolled_since_answer,
   (select count(*) from task_weeks carried
     where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
       and carried.week < coalesce(shown.week, 'infinity'\\:\\:date)
@@ -69,6 +75,7 @@ left join task_weeks shown on shown.id = (
   limit 1
 )
 left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
+left join recurring_items items on items.id = tasks.recurring_item_id
 where tasks.id = :p1 and tasks.user_id = :p2 and tasks.deleted_at is null
 """
 
@@ -97,6 +104,9 @@ class GetTaskViewRow(pydantic.BaseModel):
     planned_day: Optional[datetime.date]
     placed_by_hand: Optional[bool]
     goal_label: Optional[str]
+    item_kind: Optional[str]
+    item_period: Optional[str]
+    rolled_since_answer: int
     carried_over: int
 
 
@@ -117,6 +127,12 @@ class GoalWeekDoneRow(pydantic.BaseModel):
 LIST_STEPS = """-- name: list_steps \\:many
 select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, shown.week, shown.planned_day, shown.placed_by_hand,
   goals.label as goal_label,
+  items.schedule_kind as item_kind, items.period as item_period,
+  (select count(*) from task_weeks rolled
+    where rolled.task_id = tasks.id and rolled.outcome = 'rolled_over'
+      and rolled.deleted_at is null
+      and (tasks.still_matters_answered_on is null
+        or rolled.week + 6 >= tasks.still_matters_answered_on))\\:\\:integer as rolled_since_answer,
   (select count(*) from task_weeks carried
     where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
       and carried.week < coalesce(shown.week, 'infinity'\\:\\:date)
@@ -130,6 +146,7 @@ left join task_weeks shown on shown.id = (
   limit 1
 )
 join goals on goals.id = tasks.goal_id
+left join recurring_items items on items.id = tasks.recurring_item_id
 where tasks.goal_id = :p1 and tasks.user_id = :p2 and tasks.state <> 'dropped'
   and tasks.deleted_at is null
 order by tasks.created_at, tasks.id
@@ -160,18 +177,74 @@ class ListStepsRow(pydantic.BaseModel):
     planned_day: Optional[datetime.date]
     placed_by_hand: Optional[bool]
     goal_label: str
+    item_kind: Optional[str]
+    item_period: Optional[str]
+    rolled_since_answer: int
+    carried_over: int
+
+
+LIST_UPCOMING = """-- name: list_upcoming \\:many
+select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, null\\:\\:date as week, null\\:\\:date as planned_day, false as placed_by_hand,
+  goals.label as goal_label,
+  null\\:\\:text as item_kind, null\\:\\:text as item_period, 0\\:\\:integer as rolled_since_answer,
+  0\\:\\:integer as carried_over
+from tasks
+left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
+where tasks.user_id = :p1 and tasks.origin = 'by_hand' and tasks.state = 'open'
+  and tasks.due_date is not null and tasks.deleted_at is null
+  and not exists (
+    select 1 from task_weeks where task_weeks.task_id = tasks.id and task_weeks.deleted_at is null
+  )
+order by tasks.due_date, tasks.created_at, tasks.id
+"""
+
+
+class ListUpcomingRow(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    title: str
+    origin: str
+    goal_id: Optional[uuid.UUID]
+    recurring_item_id: Optional[uuid.UUID]
+    state: str
+    due_date: Optional[datetime.date]
+    time_kind: Optional[str]
+    time_of_day: Optional[datetime.time]
+    value_logged: Optional[decimal.Decimal]
+    completed_at: Optional[datetime.datetime]
+    completed_on: Optional[datetime.date]
+    period_start: Optional[datetime.date]
+    number: Optional[int]
+    still_matters_answered_on: Optional[datetime.date]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+    week: Optional[datetime.date]
+    planned_day: Optional[datetime.date]
+    placed_by_hand: bool
+    goal_label: Optional[str]
+    item_kind: Optional[str]
+    item_period: Optional[str]
+    rolled_since_answer: int
     carried_over: int
 
 
 LIST_WEEK_TASKS = """-- name: list_week_tasks \\:many
 select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand,
   goals.label as goal_label,
+  items.schedule_kind as item_kind, items.period as item_period,
+  (select count(*) from task_weeks rolled
+    where rolled.task_id = tasks.id and rolled.outcome = 'rolled_over'
+      and rolled.deleted_at is null
+      and (tasks.still_matters_answered_on is null
+        or rolled.week + 6 >= tasks.still_matters_answered_on))\\:\\:integer as rolled_since_answer,
   (select count(*) from task_weeks carried
     where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
       and carried.week < task_weeks.week and carried.deleted_at is null)\\:\\:integer as carried_over
 from task_weeks
 join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
 left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
+left join recurring_items items on items.id = tasks.recurring_item_id
 where task_weeks.user_id = :p1 and task_weeks.week = :p2 and task_weeks.deleted_at is null
   and (task_weeks.outcome is null or task_weeks.outcome = 'done')
 order by task_weeks.planned_day nulls last, tasks.time_of_day nulls last, tasks.created_at,
@@ -203,7 +276,16 @@ class ListWeekTasksRow(pydantic.BaseModel):
     planned_day: Optional[datetime.date]
     placed_by_hand: bool
     goal_label: Optional[str]
+    item_kind: Optional[str]
+    item_period: Optional[str]
+    rolled_since_answer: int
     carried_over: int
+
+
+SET_STILL_MATTERS_ANSWERED = """-- name: set_still_matters_answered \\:exec
+update tasks set still_matters_answered_on = :p3
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
 
 
 SET_TASK_CLOSED = """-- name: set_task_closed \\:exec
@@ -368,7 +450,10 @@ class Querier:
             planned_day=row[20],
             placed_by_hand=row[21],
             goal_label=row[22],
-            carried_over=row[23],
+            item_kind=row[23],
+            item_period=row[24],
+            rolled_since_answer=row[25],
+            carried_over=row[26],
         )
 
     def goal_week_done(self, *, user_id: uuid.UUID, week: datetime.date, goal_id: Optional[uuid.UUID]) -> Optional[GoalWeekDoneRow]:
@@ -407,7 +492,43 @@ class Querier:
                 planned_day=row[20],
                 placed_by_hand=row[21],
                 goal_label=row[22],
-                carried_over=row[23],
+                item_kind=row[23],
+                item_period=row[24],
+                rolled_since_answer=row[25],
+                carried_over=row[26],
+            )
+
+    def list_upcoming(self, *, user_id: uuid.UUID) -> Iterator[ListUpcomingRow]:
+        result = self._conn.execute(sqlalchemy.text(LIST_UPCOMING), {"p1": user_id})
+        for row in result:
+            yield ListUpcomingRow(
+                id=row[0],
+                user_id=row[1],
+                title=row[2],
+                origin=row[3],
+                goal_id=row[4],
+                recurring_item_id=row[5],
+                state=row[6],
+                due_date=row[7],
+                time_kind=row[8],
+                time_of_day=row[9],
+                value_logged=row[10],
+                completed_at=row[11],
+                completed_on=row[12],
+                period_start=row[13],
+                number=row[14],
+                still_matters_answered_on=row[15],
+                created_at=row[16],
+                updated_at=row[17],
+                deleted_at=row[18],
+                week=row[19],
+                planned_day=row[20],
+                placed_by_hand=row[21],
+                goal_label=row[22],
+                item_kind=row[23],
+                item_period=row[24],
+                rolled_since_answer=row[25],
+                carried_over=row[26],
             )
 
     def list_week_tasks(self, *, user_id: uuid.UUID, week: datetime.date) -> Iterator[ListWeekTasksRow]:
@@ -437,8 +558,14 @@ class Querier:
                 planned_day=row[20],
                 placed_by_hand=row[21],
                 goal_label=row[22],
-                carried_over=row[23],
+                item_kind=row[23],
+                item_period=row[24],
+                rolled_since_answer=row[25],
+                carried_over=row[26],
             )
+
+    def set_still_matters_answered(self, *, id: uuid.UUID, user_id: uuid.UUID, still_matters_answered_on: Optional[datetime.date]) -> None:
+        self._conn.execute(sqlalchemy.text(SET_STILL_MATTERS_ANSWERED), {"p1": id, "p2": user_id, "p3": still_matters_answered_on})
 
     def set_task_closed(self, *, id: uuid.UUID, user_id: uuid.UUID, state: str) -> None:
         self._conn.execute(sqlalchemy.text(SET_TASK_CLOSED), {"p1": id, "p2": user_id, "p3": state})

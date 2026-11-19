@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from fastapi.exceptions import RequestValidationError
 
+from app.db import tasks as task_queries
 from app.dependencies import CurrentDatabase, CurrentUserId
 from app.schemas import NOT_ALLOWED, NOT_FOUND
 from app.tasks import rules
@@ -12,15 +13,17 @@ from app.tasks.models import (
     CheckOff,
     NewTask,
     Placing,
+    StillMattersAnswer,
     Swap,
     Swapped,
     Task,
     TaskEdit,
     ToBank,
+    Upcoming,
     Week,
 )
 from app.tasks.week import task_view, week_read
-from app.time_zone import Today
+from app.turnover.dependencies import Today
 
 router = APIRouter(tags=["tasks"])
 
@@ -48,6 +51,14 @@ Monday = Annotated[date, Depends(monday)]
 def get_week(week: Monday, database: CurrentDatabase, user_id: CurrentUserId, today: Today) -> Week:
     with database.read() as connection:
         return week_read(connection, user_id, week, today)
+
+
+@router.get("/tasks/upcoming")
+def get_upcoming(database: CurrentDatabase, user_id: CurrentUserId) -> Upcoming:
+    """Open tasks with a due date and no row yet: they join a week's bank when it opens."""
+    with database.read() as connection:
+        rows = task_queries.Querier(connection).list_upcoming(user_id=user_id)
+        return Upcoming(tasks=[Task.from_row(row) for row in rows])
 
 
 @router.put("/tasks/{task_id}", responses=NOT_FOUND | NOT_ALLOWED)
@@ -126,4 +137,19 @@ def drop_task(task_id: UUID, database: CurrentDatabase, user_id: CurrentUserId) 
     """ "I decided not to do this": the answer No to "Still matter?". Not a delete."""
     with database.transaction(user_id, "drop task") as connection:
         rules.drop(connection, user_id, task_id)
+        return task_view(connection, user_id, task_id)
+
+
+@router.post("/tasks/{task_id}/still-matters", responses=NOT_FOUND | NOT_ALLOWED)
+def answer_still_matters(
+    task_id: UUID,
+    body: StillMattersAnswer,
+    database: CurrentDatabase,
+    user_id: CurrentUserId,
+    today: Today,
+) -> Task:
+    """The answer to "Still matter?": keep it, put it on a day, or drop it. Drop is the same
+    as `dropTask`."""
+    with database.transaction(user_id, "answer still matters") as connection:
+        rules.answer_still_matters(connection, user_id, task_id, body, today)
         return task_view(connection, user_id, task_id)

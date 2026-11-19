@@ -192,6 +192,20 @@
         "title": "CheckOff",
         "type": "object"
       },
+      "DropIt": {
+        "properties": {
+          "answer": {
+            "const": "drop",
+            "title": "Answer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "title": "DropIt",
+        "type": "object"
+      },
       "ErrorMessage": {
         "description": "FastAPI's error shape, for the errors the API raises itself.",
         "properties": {
@@ -534,6 +548,20 @@
           "status"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "KeepIt": {
+        "properties": {
+          "answer": {
+            "const": "keep",
+            "title": "Answer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "title": "KeepIt",
         "type": "object"
       },
       "LatestResult": {
@@ -1354,6 +1382,34 @@
         "title": "Retirement",
         "type": "object"
       },
+      "ScheduleIt": {
+        "description": "Onto a day, placed by hand, as `placeTask` does.",
+        "properties": {
+          "answer": {
+            "const": "schedule",
+            "title": "Answer",
+            "type": "string"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "week": {
+            "description": "The week the change was made in. Refused once the task has left it.",
+            "format": "date",
+            "title": "Week",
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer",
+          "week",
+          "day"
+        ],
+        "title": "ScheduleIt",
+        "type": "object"
+      },
       "Swap": {
         "description": "The task in the route goes to the bank; the bank task goes onto the day.",
         "properties": {
@@ -1400,6 +1456,22 @@
       },
       "Task": {
         "properties": {
+          "atClose": {
+            "anyOf": [
+              {
+                "enum": [
+                  "carriesOver",
+                  "ends"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What closing its week does to it if it's still unfinished: it carries over to next week's bank, or ends with the week. Empty when it's done, closed, set aside or has no row in play. The wrap-up sheet reads this.",
+            "title": "Atclose"
+          },
           "carriedOver": {
             "description": "How many weeks it rolled over before this one.",
             "title": "Carriedover",
@@ -1517,6 +1589,11 @@
             "title": "State",
             "type": "string"
           },
+          "stillMatters": {
+            "description": "Ask \"Still matter?\": added by hand or a fixed-day recurring task, open, and rolled over twice since it was last answered.",
+            "title": "Stillmatters",
+            "type": "boolean"
+          },
           "timeOfDay": {
             "anyOf": [
               {
@@ -1572,7 +1649,9 @@
           "week",
           "plannedDay",
           "placedByHand",
-          "carriedOver"
+          "carriedOver",
+          "atClose",
+          "stillMatters"
         ],
         "title": "Task",
         "type": "object"
@@ -1653,6 +1732,23 @@
           "week"
         ],
         "title": "ToBank",
+        "type": "object"
+      },
+      "Upcoming": {
+        "properties": {
+          "tasks": {
+            "description": "Open tasks with a due date and no row yet, by due date.",
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tasks"
+        ],
+        "title": "Upcoming",
         "type": "object"
       },
       "ValidationError": {
@@ -3529,6 +3625,7 @@
         ]
       },
       "put": {
+        "description": "Adds the item, with the tasks each open week is due.",
         "operationId": "createRecurringItem",
         "parameters": [
           {
@@ -3538,6 +3635,15 @@
             "schema": {
               "format": "uuid",
               "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
               "type": "string"
             }
           }
@@ -3723,6 +3829,28 @@
         "summary": "Turn On Recurring Item",
         "tags": [
           "recurring items"
+        ]
+      }
+    },
+    "/api/tasks/upcoming": {
+      "get": {
+        "description": "Open tasks with a due date and no row yet: they join a week's bank when it opens.",
+        "operationId": "getUpcoming",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upcoming"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Upcoming",
+        "tags": [
+          "tasks"
         ]
       }
     },
@@ -4172,6 +4300,108 @@
         ]
       }
     },
+    "/api/tasks/{task_id}/still-matters": {
+      "post": {
+        "description": "The answer to \"Still matter?\": keep it, put it on a day, or drop it. Drop is the same\nas `dropTask`.",
+        "operationId": "answerStillMatters",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "discriminator": {
+                  "mapping": {
+                    "drop": "#/components/schemas/DropIt",
+                    "keep": "#/components/schemas/KeepIt",
+                    "schedule": "#/components/schemas/ScheduleIt"
+                  },
+                  "propertyName": "answer"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/KeepIt"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ScheduleIt"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DropIt"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Answer Still Matters",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
     "/api/tasks/{task_id}/swap": {
       "post": {
         "description": "This task goes to the bank, and the bank task takes the day.",
@@ -4377,6 +4607,69 @@
         "summary": "Get Week",
         "tags": [
           "tasks"
+        ]
+      }
+    },
+    "/api/weeks/{week}/wrap-up": {
+      "post": {
+        "description": "Closes the current week early, once next week is open, and returns the new current\nweek. Sent again, it returns the current week as it is.",
+        "operationId": "wrapUpWeek",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "week",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Week",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Week"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The rules don't allow this change."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wrap Up Week",
+        "tags": [
+          "weeks"
         ]
       }
     }

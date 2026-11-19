@@ -16,7 +16,7 @@ from app.weeks import open_weeks
 def current_week(connection: Connection, user_id: UUID, today: date) -> date:
     owner = users.Querier(connection).get_user(id=user_id)
     assert owner is not None
-    return open_weeks(today, owner.planned_through_week).current
+    return open_weeks(today, owner.planned_through_week, owner.closed_through_week).current
 
 
 def targets_for(

@@ -1,6 +1,6 @@
 # Spec: Week turnover
 
-Status: draft 2026-11-13, when-it-runs settled 2026-11-16, open questions answered and carry-overs sent to the bank 2026-11-19 (ADR-013); finalised when its plan is written. Issue: [#9](https://github.com/jan-mcsparin/goals-to-actions-api/issues/9). Module `week-turnover` in the [map](README.md). Depends on `tasks-week` and `recurring-items`.
+Status: built 2026-11-19, after the open questions were answered and carry-overs sent to the bank (ADR-013). Issue: [#9](https://github.com/jan-mcsparin/goals-to-actions-api/issues/9). Module `week-turnover` in the [map](README.md). Depends on `tasks-week` and `recurring-items`.
 
 ## Objective
 
@@ -91,3 +91,19 @@ Settled 2026-11-19:
 3. **A short first week reads against the sessions it got:** a goal made on Saturday gets two sessions while its target says three, and the week reads "1 of 2". An amount target ("25 miles over 4 runs") isn't scaled yet.
 
 Settled 2026-11-16: when turnover runs and what happens to weeks nobody opened (ADR-009); a goal paused, ended or reached while two weeks are open has its tasks set aside in both.
+
+## As built
+
+What changed or was settled while building (the plan is in git history, `tasks/plan.md`):
+
+- **The clock is a dependency.** `app/time_zone.py` has `clock` (tests pin it to noon on Wed 18 Nov 2026 in `conftest.py`), `Now` and the zone check. `Today` moved to `app/turnover/dependencies.py`, because asking for it brings the weeks up to date. A read with nothing due writes nothing.
+- **`catch_up`** (`app/turnover/rules.py`) closes, then opens the current week, then opens next week from 6 p.m. on Sunday. Its transaction is audited `close week`, and switches to `open week` once the close is done. A week is closed or opened only when its marker lags. `wrapUpWeek` is audited `wrap up week`.
+- **What a generated task is called:** `period_start` is the Monday of its week, or of its flexible period, and `number` counts from 1. A flexible item's task is the same for every week of its period, so an item added midperiod gets that period's task, and an existing one is never made twice (`app/turnover/due.py`).
+- **`atClose` is worked out in `Task.from_row`** by calling `due.ending`, the same function closing uses, rather than as a second copy in SQL. The task queries join the item's kind and period for it. A test closes a week and checks every origin against what `atClose` said.
+- **"Still matter?" counts rollovers from the week the answer was given in** (a row counts if its week hadn't ended on the day of the answer), so the week the question was answered in still counts when it rolls.
+- **Closing a set-aside generated task** closes it as lapsed with its row left set aside, except a flexible task inside a longer period, which carries a set-aside row into the next week. One added by hand waits.
+- **An edit to a recurring item makes nothing and moves nothing;** it takes effect from the item's next period. Creating one is the first of its writes to need the phone's time zone (`createRecurringItem` now requires `X-Time-Zone`).
+- **A lowered target soft-deletes the extra open sessions** (the bank first, then the latest day), so the same session isn't made again.
+- **New operations:** `wrapUpWeek`, `getUpcoming`, `answerStillMatters` (keep, schedule or drop). `Task` gained `atClose` and `stillMatters`.
+- **Not built, by design:** placing anything on a day. `app/planner.py` has `place_new_work`, called with every new task and doing nothing until `planner` (#10).
+

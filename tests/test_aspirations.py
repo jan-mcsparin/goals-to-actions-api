@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
@@ -8,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Connection, text
 
 from app.config import FIXED_USER_ID
+from tests.conftest import PINNED
 
 
 def create(client: TestClient, name: str, why: str | None = None) -> dict[str, Any]:
@@ -425,7 +425,7 @@ def test_retire_empties_the_position_and_sets_the_day_in_the_phones_time_zone(
     assert response.json() == fit | {
         "status": "retired",
         "position": None,
-        "retiredOn": datetime.now(ZoneInfo(FAR_EAST)).date().isoformat(),
+        "retiredOn": PINNED.astimezone(ZoneInfo(FAR_EAST)).date().isoformat(),
     }
 
 

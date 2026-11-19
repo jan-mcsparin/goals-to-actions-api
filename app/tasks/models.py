@@ -6,9 +6,10 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, Field, StringConstraints
 
-from app.db.tasks import GetTaskViewRow, ListStepsRow, ListWeekTasksRow
+from app.db.tasks import GetTaskViewRow, ListStepsRow, ListUpcomingRow, ListWeekTasksRow
 from app.goals.models import Label, WeeklyTarget, WeekProgress
 from app.schemas import ApiModel
+from app.turnover.endings import ending_of
 
 TaskOrigin = Literal["byHand", "weeklyTarget", "recurringItem"]
 TaskState = Literal["open", "done", "dropped", "lapsed"]
@@ -25,6 +26,10 @@ STATE_IN_JSON: dict[str, TaskState] = {
     "dropped": "dropped",
     "lapsed": "lapsed",
 }
+
+AtClose = Literal["carriesOver", "ends"]
+# How many rollovers since the last answer make a task worth asking about.
+ASK_AFTER_ROLLOVERS = 2
 
 Clock = Annotated[str, StringConstraints(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
 
@@ -65,9 +70,20 @@ class Task(ApiModel):
     planned_day: date | None = Field(description="Empty in the bank.")
     placed_by_hand: bool
     carried_over: int = Field(description="How many weeks it rolled over before this one.")
+    at_close: AtClose | None = Field(
+        description="What closing its week does to it if it's still unfinished: it carries "
+        "over to next week's bank, or ends with the week. Empty when it's done, closed, set "
+        "aside or has no row in play. The wrap-up sheet reads this."
+    )
+    still_matters: bool = Field(
+        description='Ask "Still matter?": added by hand or a fixed-day recurring task, open, '
+        "and rolled over twice since it was last answered."
+    )
 
     @classmethod
-    def from_row(cls, row: GetTaskViewRow | ListWeekTasksRow | ListStepsRow) -> Task:
+    def from_row(
+        cls, row: GetTaskViewRow | ListWeekTasksRow | ListStepsRow | ListUpcomingRow
+    ) -> Task:
         return cls(
             id=row.id,
             title=row.title,
@@ -85,7 +101,34 @@ class Task(ApiModel):
             planned_day=row.planned_day,
             placed_by_hand=bool(row.placed_by_hand),
             carried_over=row.carried_over,
+            at_close=at_close(row),
+            still_matters=still_matters(row),
         )
+
+
+def at_close(
+    row: GetTaskViewRow | ListWeekTasksRow | ListStepsRow | ListUpcomingRow,
+) -> AtClose | None:
+    """The same rule closing uses (`app.turnover.endings.ending_of`), so the sheet and the close
+    can't disagree."""
+    if row.state != "open" or row.week is None:
+        return None
+    rolls_over = (
+        ending_of(row.origin, row.item_kind, row.item_period, row.period_start, row.week)
+        == "rolls_over"
+    )
+    return "carriesOver" if rolls_over else "ends"
+
+
+def still_matters(
+    row: GetTaskViewRow | ListWeekTasksRow | ListStepsRow | ListUpcomingRow,
+) -> bool:
+    asked_about = row.origin == "by_hand" or row.item_kind in ("weekly", "monthly")
+    return row.state == "open" and asked_about and row.rolled_since_answer >= ASK_AFTER_ROLLOVERS
+
+
+class Upcoming(ApiModel):
+    tasks: list[Task] = Field(description="Open tasks with a due date and no row yet, by due date.")
 
 
 class NewTask(ApiModel):
@@ -164,6 +207,27 @@ class ToBank(ApiModel):
     week: date = Field(
         description="The week the change was made in. Refused once the task has left it."
     )
+
+
+class KeepIt(ApiModel):
+    answer: Literal["keep"]
+
+
+class ScheduleIt(ApiModel):
+    """Onto a day, placed by hand, as `placeTask` does."""
+
+    answer: Literal["schedule"]
+    week: date = Field(
+        description="The week the change was made in. Refused once the task has left it."
+    )
+    day: date
+
+
+class DropIt(ApiModel):
+    answer: Literal["drop"]
+
+
+StillMattersAnswer = Annotated[KeepIt | ScheduleIt | DropIt, Field(discriminator="answer")]
 
 
 class Swap(ApiModel):

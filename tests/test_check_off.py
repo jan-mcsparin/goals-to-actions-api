@@ -49,6 +49,7 @@ def test_a_check_off_marks_the_task_and_its_row_done(
         "completedAt": f"{today().isoformat()}T07:30:00Z",
         "completedOn": today().isoformat(),
         "valueLogged": 3.1,
+        "atClose": None,
     }
     assert rows(connection, task["id"]) == [(week_of(today()), today(), True, "done")]
     assert [row.action for row in audit_rows(connection, task["id"])] == [

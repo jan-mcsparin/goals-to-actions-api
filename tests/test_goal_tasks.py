@@ -31,7 +31,9 @@ def change(client: TestClient, goal_id: str, route: str) -> None:
 
 
 def week_titles(client: TestClient, week: Any) -> list[str]:
-    return [task["title"] for task in client.get(f"/api/weeks/{week.isoformat()}").json()["tasks"]]
+    """The titles of the week's tasks, leaving out the goals' own sessions."""
+    tasks = client.get(f"/api/weeks/{week.isoformat()}").json()["tasks"]
+    return [task["title"] for task in tasks if task["origin"] != "weeklyTarget"]
 
 
 def goal_with_tasks(client: TestClient) -> tuple[str, dict[str, Any]]:

@@ -14,7 +14,7 @@ from app.db import aspirations
 from app.dependencies import CurrentDatabase, CurrentUserId
 from app.errors import NotFound
 from app.schemas import NOT_ALLOWED, NOT_FOUND
-from app.time_zone import Today
+from app.turnover.dependencies import Today
 
 router = APIRouter(prefix="/aspirations", tags=["aspirations"])
 

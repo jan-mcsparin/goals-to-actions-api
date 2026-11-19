@@ -10,14 +10,25 @@ from sqlalchemy import Connection
 from app.db import goals, models, recurring_items, task_weeks, tasks
 from app.db.models import TaskWeek
 from app.db.task_weeks import ListGoalTaskWeeksRow, ListItemTaskWeeksRow
+from app.db.turnover import ListRowsToCloseRow
 from app.errors import NotAllowed, NotFound
-from app.tasks.models import CheckOff, NewTask, Placing, Swap, TaskEdit, ToBank
+from app.tasks.models import (
+    CheckOff,
+    NewTask,
+    Placing,
+    ScheduleIt,
+    StillMattersAnswer,
+    Swap,
+    TaskEdit,
+    ToBank,
+)
+from app.turnover.endings import ending_for
 from app.users import lock_user
 from app.weeks import OpenWeeks, open_weeks, week_of
 
 # A row of a goal's or an item's open tasks, with the task's origin.
 WorkRow = ListGoalTaskWeeksRow | ListItemTaskWeeksRow
-Row = TaskWeek | WorkRow
+Row = TaskWeek | WorkRow | ListRowsToCloseRow
 
 
 @dataclass(frozen=True)
@@ -55,7 +66,12 @@ def add(connection: Connection, user_id: UUID, task_id: UUID, new: NewTask, toda
     )
     if added is None:
         raise NotAllowed("That id is already in use.")
-    goes = landing(new, goal_type, today, open_weeks(today, owner.planned_through_week))
+    goes = landing(
+        new,
+        goal_type,
+        today,
+        open_weeks(today, owner.planned_through_week, owner.closed_through_week),
+    )
     if goes is not None:
         add_row(
             connection,
@@ -145,7 +161,11 @@ def check_off(
         set_outcome(connection, user_id, rows[-1], "done")
     elif task.state == "open":
         row = in_play(rows)
-        if row is not None and row.week > open_weeks(today, owner.planned_through_week).current:
+        if (
+            row is not None
+            and row.week
+            > open_weeks(today, owner.planned_through_week, owner.closed_through_week).current
+        ):
             raise NotAllowed("Next week's tasks can't be checked off until it starts.")
         if row is None:
             mark_done_without_a_row_in_play(connection, user_id, task_id, rows, done.completed_on)
@@ -182,8 +202,8 @@ def mark_done_without_a_row_in_play(
 def uncheck(connection: Connection, user_id: UUID, task_id: UUID, today: date) -> None:
     """Puts a done task's row back as it was, on its day or in its bank, or set aside there
     if its goal isn't active or its item is off. If that row's week has closed, the task gets
-    the ending the week would have given it: a task added by hand rolls over into the current
-    week's bank; a generated one lapses. Sent again, it changes nothing more."""
+    the ending the week would have given it: rolled over into the current week's bank, or
+    lapsed. Sent again, it changes nothing more."""
     owner = lock_user(connection, user_id)
     task = get(connection, user_id, task_id)
     if task.state == "open":
@@ -192,13 +212,13 @@ def uncheck(connection: Connection, user_id: UUID, task_id: UUID, today: date) -
         raise NotAllowed(f"A {task.state} task can't be unchecked.")
     rows = list(task_weeks.Querier(connection).list_task_weeks(task_id=task_id, user_id=user_id))
     done_row = rows[-1]
-    current = open_weeks(today, owner.planned_through_week).current
+    current = open_weeks(today, owner.planned_through_week, owner.closed_through_week).current
     queries = tasks.Querier(connection)
     queries.set_task_open(id=task_id, user_id=user_id)
     in_play = None if work_is_active(connection, user_id, task) else "set_aside"
     if done_row.week >= current:
         set_outcome(connection, user_id, done_row, in_play)
-    elif task.origin == "by_hand":
+    elif ending_for(connection, user_id, task, done_row.week) == "rolls_over":
         set_outcome(connection, user_id, done_row, "rolled_over")
         add_row(connection, user_id, task_id, current, outcome=in_play)
     else:
@@ -270,7 +290,12 @@ def place(
     it to another day."""
     owner = lock_user(connection, user_id)
     row = row_in_week(connection, user_id, task_id, placing.week)
-    check_day(placing.day, row.week, today, open_weeks(today, owner.planned_through_week))
+    check_day(
+        placing.day,
+        row.week,
+        today,
+        open_weeks(today, owner.planned_through_week, owner.closed_through_week),
+    )
     set_row(connection, user_id, row, day=placing.day, placed_by_hand=True, outcome=None)
 
 
@@ -311,7 +336,12 @@ def swap(connection: Connection, user_id: UUID, task_id: UUID, swap: Swap, today
         raise NotAllowed("A task can't be swapped with itself.")
     to_bank = row_in_week(connection, user_id, task_id, swap.week)
     placed = row_in_week(connection, user_id, swap.bank_task_id, swap.week)
-    check_day(swap.day, swap.week, today, open_weeks(today, owner.planned_through_week))
+    check_day(
+        swap.day,
+        swap.week,
+        today,
+        open_weeks(today, owner.planned_through_week, owner.closed_through_week),
+    )
     to_the_bank(connection, user_id, to_bank)
     set_row(connection, user_id, placed, day=swap.day, placed_by_hand=True, outcome=None)
 
@@ -330,6 +360,25 @@ def drop(connection: Connection, user_id: UUID, task_id: UUID) -> None:
     if row is not None:
         set_outcome(connection, user_id, row, "dropped")
     tasks.Querier(connection).set_task_closed(id=task_id, user_id=user_id, state="dropped")
+
+
+def answer_still_matters(
+    connection: Connection, user_id: UUID, task_id: UUID, answer: StillMattersAnswer, today: date
+) -> None:
+    """ "Still matter?": keep it, put it on a day, or drop it. Keep and schedule start the
+    count of rollovers again. Each answer sent again changes nothing more."""
+    lock_user(connection, user_id)
+    task = get(connection, user_id, task_id)
+    if answer.answer == "drop":
+        drop(connection, user_id, task_id)
+        return
+    if task.state != "open":
+        raise NotAllowed(f"A {task.state} task can't be asked.")
+    if isinstance(answer, ScheduleIt):
+        place(connection, user_id, task_id, Placing(week=answer.week, day=answer.day), today)
+    tasks.Querier(connection).set_still_matters_answered(
+        id=task_id, user_id=user_id, still_matters_answered_on=today
+    )
 
 
 def goal_task_weeks(connection: Connection, user_id: UUID, goal_id: UUID) -> list[WorkRow]:

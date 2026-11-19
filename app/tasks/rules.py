@@ -10,7 +10,7 @@ from sqlalchemy import Connection
 from app.db import goals, models, task_weeks, tasks
 from app.db.models import TaskWeek
 from app.errors import NotAllowed, NotFound
-from app.tasks.models import CheckOff, NewTask, TaskEdit
+from app.tasks.models import CheckOff, NewTask, Placing, TaskEdit, ToBank
 from app.users import lock_user
 from app.weeks import OpenWeeks, open_weeks, week_of
 
@@ -197,3 +197,38 @@ def set_row(
             outcome=outcome,
         )
     )
+
+
+def place(
+    connection: Connection, user_id: UUID, task_id: UUID, placing: Placing, today: date
+) -> None:
+    """Puts the task on a day of its week, placed by hand: pulling it from the bank, or moving
+    it to another day."""
+    owner = lock_user(connection, user_id)
+    row = row_in_week(connection, user_id, task_id, placing.week)
+    check_day(placing.day, row.week, today, open_weeks(today, owner.planned_through_week))
+    set_row(connection, user_id, row, placing.day, True, None)
+
+
+def move_to_bank(connection: Connection, user_id: UUID, task_id: UUID, to_bank: ToBank) -> None:
+    """Clears the task's day. Nothing else changes."""
+    lock_user(connection, user_id)
+    row = row_in_week(connection, user_id, task_id, to_bank.week)
+    set_row(connection, user_id, row, None, False, None)
+
+
+def row_in_week(connection: Connection, user_id: UUID, task_id: UUID, week: date) -> TaskWeek:
+    """The task's row in play, which must be in the week the change was made in."""
+    get(connection, user_id, task_id)
+    rows = list(task_weeks.Querier(connection).list_task_weeks(task_id=task_id, user_id=user_id))
+    row = in_play(rows)
+    if row is None:
+        raise NotAllowed("The task isn't in play.")
+    if row.week != week:
+        raise NotAllowed("The task has moved on to another week.")
+    return row
+
+
+def check_day(day: date, week: date, today: date, weeks: OpenWeeks) -> None:
+    if week_of(day) != week or not day_allowed(day, today, weeks):
+        raise NotAllowed("A task goes on a day from today on, in its own week.")

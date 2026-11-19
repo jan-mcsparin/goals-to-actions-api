@@ -95,7 +95,7 @@ PR A, `tasks-week-read-add`:
 
 PR B, `tasks-week-moves`:
 
-- [ ] 7: Place on a day, and back to the bank
+- [x] 7: Place on a day, and back to the bank
 - [ ] 8: Swap
 - [ ] 9: Drop
 - [ ] 10: Pausing sets tasks aside; coming back returns them

@@ -138,13 +138,13 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `POST /api/tasks/{id}/place` (`week`, `day`) and `/bank` (`week`).
 
 **Acceptance criteria:**
-- [ ] Placing sets the day and marks the row placed by hand, and works on next week's rows. Back to the bank clears the day and the placed-by-hand mark.
-- [ ] Each is a 409 when:
+- [x] Placing sets the day and marks the row placed by hand, and works on next week's rows. Back to the bank clears the day and the placed-by-hand mark.
+- [x] Each is a 409 when:
   - the task's row in play is in another week than the one named
   - the day is a past day
   - the day is outside the row's week, which covers today before the current week
   - the task isn't in play
-- [ ] Each sent twice changes nothing more.
+- [x] Each sent twice changes nothing more.
 
 **Verify:** `uv run pytest tests/test_task_moves.py`.
 

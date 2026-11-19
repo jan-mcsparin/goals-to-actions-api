@@ -149,3 +149,18 @@ class CheckOff(ApiModel):
 
     def stored_value(self) -> Decimal | None:
         return None if self.value_logged is None else Decimal(str(self.value_logged))
+
+
+class Placing(ApiModel):
+    """Onto a day, placed by hand, in the week the change was made in."""
+
+    week: date = Field(
+        description="The week the change was made in. Refused once the task has left it."
+    )
+    day: date
+
+
+class ToBank(ApiModel):
+    week: date = Field(
+        description="The week the change was made in. Refused once the task has left it."
+    )

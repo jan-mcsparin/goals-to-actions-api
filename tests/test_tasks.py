@@ -53,6 +53,19 @@ def rows(connection: Connection, task_id: str) -> list[Any]:
     )
 
 
+def row_actions(connection: Connection, task_id: str) -> list[str]:
+    """What was done to the task's week rows, as the audit log names it."""
+    return list(
+        connection.execute(
+            text(
+                "select action from audit_log where table_name = 'task_weeks'"
+                " and new_row ->> 'task_id' = :id order by id"
+            ),
+            {"id": task_id},
+        ).scalars()
+    )
+
+
 def open_next_week(connection: Connection) -> None:
     connection.execute(
         text("update users set planned_through_week = :week where id = :id"),

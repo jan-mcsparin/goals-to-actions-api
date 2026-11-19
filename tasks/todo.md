@@ -90,7 +90,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Acceptance criteria:**
 - [x] `openapi.json` is regenerated and the contract test passes.
 - [x] The docs say what was built and decided.
-- [ ] The front end's types are regenerated and its checks pass (`nvm use` first).
+- [x] The front end's types are regenerated and its checks pass (`nvm use` first).
 
 **Verify:** the four checks here; `npm run lint`, `npm run typecheck` (or the repo's equivalent) and `npm test` in `web-frontend`.
 
@@ -99,5 +99,5 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Files:** `openapi.json`, `specs/recurring-items.md`, `specs/README.md`, `../docs/data-model.md`, `../web-frontend/src/api/openapi.ts`.
 
 ## Checkpoint: the slice
-- [ ] Every success criterion in the spec is met.
-- [ ] The four checks pass; the PR is open.
+- [x] Every success criterion in the spec is met.
+- [x] The four checks pass; the PR is open.

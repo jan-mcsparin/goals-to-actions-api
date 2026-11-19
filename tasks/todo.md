@@ -203,11 +203,11 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** A late check-off, and a late uncheck, in weeks that have closed. Tests make the closed rows directly in SQL.
 
 **Acceptance criteria:**
-- [ ] A late check-off:
+- [x] A late check-off:
   - on a lapsed task, turns the task and that row to done
   - on a task that rolled over, lands on its row in the new week
   - keeps the phone's stated day
-- [ ] A late uncheck gives the task the ending its week would have given it: rolled over into the current week's bank (added by hand) or lapsed (weekly target).
+- [x] A late uncheck gives the task the ending its week would have given it: rolled over into the current week's bank (added by hand) or lapsed (weekly target).
 
 **Verify:** `uv run pytest tests/test_check_off.py`.
 

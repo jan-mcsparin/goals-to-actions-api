@@ -3652,7 +3652,7 @@
     },
     "/api/tasks/{task_id}/uncheck": {
       "post": {
-        "description": "The task goes back where its row was, on its day or in its bank.",
+        "description": "The task goes back where its row was, on its day or in its bank, or gets the ending\nits week gave it if that week has closed.",
         "operationId": "uncheckTask",
         "parameters": [
           {
@@ -3662,6 +3662,15 @@
             "schema": {
               "format": "uuid",
               "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
               "type": "string"
             }
           }

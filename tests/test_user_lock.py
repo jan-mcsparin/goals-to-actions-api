@@ -76,7 +76,7 @@ WRITES: dict[str, Callable[[Connection], object]] = {
         CheckOff(completed_at=datetime(2026, 11, 16, tzinfo=UTC), completed_on=date(2026, 11, 16)),
         date(2026, 11, 16),
     ),
-    "uncheck task": lambda tx: task_rules.uncheck(tx, FIXED_USER_ID, uuid4()),
+    "uncheck task": lambda tx: task_rules.uncheck(tx, FIXED_USER_ID, uuid4(), date(2026, 11, 16)),
     "place task": lambda tx: task_rules.place(
         tx,
         FIXED_USER_ID,

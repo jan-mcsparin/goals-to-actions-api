@@ -78,10 +78,13 @@ def check_off_task(
 
 
 @router.post("/tasks/{task_id}/uncheck", responses=NOT_FOUND | NOT_ALLOWED)
-def uncheck_task(task_id: UUID, database: CurrentDatabase, user_id: CurrentUserId) -> Task:
-    """The task goes back where its row was, on its day or in its bank."""
+def uncheck_task(
+    task_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> Task:
+    """The task goes back where its row was, on its day or in its bank, or gets the ending
+    its week gave it if that week has closed."""
     with database.transaction(user_id, "uncheck task") as connection:
-        rules.uncheck(connection, user_id, task_id)
+        rules.uncheck(connection, user_id, task_id, today)
         return task_view(connection, user_id, task_id)
 
 

@@ -122,14 +122,19 @@ def check_off(
     connection: Connection, user_id: UUID, task_id: UUID, done: CheckOff, today: date
 ) -> None:
     """Marks the task and its row in play done. A task with no row in play (a one-off goal's
-    waiting step, from the goal's page) gets a done row on the day the phone sent. Sent again,
-    it changes nothing more."""
+    waiting step, from the goal's page) gets a done row on the day the phone sent. A check-off
+    that arrives after its week closed still counts: a lapsed task's last row turns to done,
+    and one that rolled over is done on its row in the new week. Sent again, it changes
+    nothing more."""
     owner = lock_user(connection, user_id)
     task = get(connection, user_id, task_id)
-    if task.state in ("dropped", "lapsed"):
-        raise NotAllowed(f"A {task.state} task can't be checked off.")
+    if task.state == "dropped":
+        raise NotAllowed("A dropped task can't be checked off.")
     rows = list(task_weeks.Querier(connection).list_task_weeks(task_id=task_id, user_id=user_id))
-    if task.state == "open":
+    if task.state == "lapsed":
+        # Done in a week that has since closed, sent late: the lapse wasn't final.
+        set_outcome(connection, user_id, rows[-1], "done")
+    elif task.state == "open":
         weeks = open_weeks(today, owner.planned_through_week)
         row = in_play(rows)
         if row is not None and row.week > weeks.current:
@@ -154,18 +159,30 @@ def check_off(
     )
 
 
-def uncheck(connection: Connection, user_id: UUID, task_id: UUID) -> None:
-    """Puts a done task's row back in play as it was, on its day or in its bank. Sent again,
-    it changes nothing more."""
-    lock_user(connection, user_id)
+def uncheck(connection: Connection, user_id: UUID, task_id: UUID, today: date) -> None:
+    """Puts a done task's row back in play as it was, on its day or in its bank. If that
+    row's week has closed, the task gets the ending the week would have given it: a task added
+    by hand rolls over into the current week's bank; a generated one lapses. Sent again, it
+    changes nothing more."""
+    owner = lock_user(connection, user_id)
     task = get(connection, user_id, task_id)
     if task.state == "open":
         return
     if task.state != "done":
         raise NotAllowed(f"A {task.state} task can't be unchecked.")
     rows = list(task_weeks.Querier(connection).list_task_weeks(task_id=task_id, user_id=user_id))
-    set_outcome(connection, user_id, rows[-1], None)
-    tasks.Querier(connection).set_task_open(id=task_id, user_id=user_id)
+    done_row = rows[-1]
+    current = open_weeks(today, owner.planned_through_week).current
+    queries = tasks.Querier(connection)
+    queries.set_task_open(id=task_id, user_id=user_id)
+    if done_row.week >= current:
+        set_outcome(connection, user_id, done_row, None)
+    elif task.origin == "by_hand":
+        set_outcome(connection, user_id, done_row, "rolled_over")
+        add_row(connection, user_id, task_id, current)
+    else:
+        set_outcome(connection, user_id, done_row, "lapsed")
+        queries.set_task_closed(id=task_id, user_id=user_id, state="lapsed")
 
 
 def get(connection: Connection, user_id: UUID, task_id: UUID) -> models.Task:

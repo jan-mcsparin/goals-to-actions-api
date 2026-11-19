@@ -99,7 +99,7 @@ PR B, `tasks-week-moves`:
 - [x] 8: Swap
 - [x] 9: Drop
 - [x] 10: Pausing sets tasks aside; coming back returns them
-- [ ] 11: Check-offs and unchecks that arrive after their week closed
+- [x] 11: Check-offs and unchecks that arrive after their week closed
 - [ ] 12: Docs, ADR-007 and the front end's types
 - [ ] **Checkpoint B:** every spec criterion met; checks pass; PR B opened
 

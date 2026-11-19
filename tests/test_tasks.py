@@ -109,6 +109,8 @@ def test_a_task_with_no_day_goes_to_this_weeks_bank(
         "plannedDay": None,
         "placedByHand": False,
         "carriedOver": 0,
+        "atClose": "carriesOver",
+        "stillMatters": False,
     }
     assert rows(connection, str(task_id)) == [(this_week, None, False, None)]
     assert [row.action for row in audit_rows(connection, task_id)] == ["add task"]

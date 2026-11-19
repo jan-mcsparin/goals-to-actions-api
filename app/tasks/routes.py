@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from fastapi.exceptions import RequestValidationError
 
+from app.db import tasks as task_queries
 from app.dependencies import CurrentDatabase, CurrentUserId
 from app.schemas import NOT_ALLOWED, NOT_FOUND
 from app.tasks import rules
@@ -17,6 +18,7 @@ from app.tasks.models import (
     Task,
     TaskEdit,
     ToBank,
+    Upcoming,
     Week,
 )
 from app.tasks.week import task_view, week_read
@@ -48,6 +50,14 @@ Monday = Annotated[date, Depends(monday)]
 def get_week(week: Monday, database: CurrentDatabase, user_id: CurrentUserId, today: Today) -> Week:
     with database.read() as connection:
         return week_read(connection, user_id, week, today)
+
+
+@router.get("/tasks/upcoming")
+def get_upcoming(database: CurrentDatabase, user_id: CurrentUserId) -> Upcoming:
+    """Open tasks with a due date and no row yet: they join a week's bank when it opens."""
+    with database.read() as connection:
+        rows = task_queries.Querier(connection).list_upcoming(user_id=user_id)
+        return Upcoming(tasks=[Task.from_row(row) for row in rows])
 
 
 @router.put("/tasks/{task_id}", responses=NOT_FOUND | NOT_ALLOWED)

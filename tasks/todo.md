@@ -134,9 +134,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `Task` gains `atClose` and `stillMatters`, worked out in the task view queries. `getUpcoming`, `GET /api/tasks/upcoming`.
 
 **Acceptance criteria:**
-- [ ] `atClose` agrees with what closing then does, for every origin (one table test runs both).
-- [ ] `stillMatters` is true after two rollovers of a hand-added or fixed-day task, never for a flexible task carrying inside its period, and not again until two more rollovers after an answer.
-- [ ] The upcoming list holds open tasks with a later due date and no row, by due date, and none of another owner's.
+- [x] `atClose` agrees with what closing then does, for every origin (one table test runs both).
+- [x] `stillMatters` is true after two rollovers of a hand-added or fixed-day task, never for a flexible task carrying inside its period, and not again until two more rollovers after an answer.
+- [x] The upcoming list holds open tasks with a later due date and no row, by due date, and none of another owner's.
 
 **Verify:** `uv run pytest tests/test_week_read.py tests/test_upcoming.py tests/test_close_week.py`.
 

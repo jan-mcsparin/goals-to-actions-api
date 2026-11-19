@@ -52,7 +52,7 @@ Changed:
   - set aside: a generated task closes as lapsed with its row left set aside; one added by hand waits.
 
   A rolled-over task's new row goes in the bank (`planned_day` null, not placed by hand).
-- **`atClose` is worked out in SQL**, in the task view query, from the origin, the item's schedule and the period start. The closing code and the read use the same rule from `due.py`. A test checks that they agree on every case.
+- **`atClose` is worked out in `Task.from_row`** from the origin, the item's kind and period (which the task queries now join) and the period start, by calling `due.ending`, the same function closing uses. (Built this way rather than as a second copy in SQL, so the two can't drift.) A test checks that they agree on every case.
 - **"Still matter?"** counts the task's rows with outcome `rolled_over` whose week is after `still_matters_answered_on` (the column `tasks` already has). Keep and schedule set that column to today. Schedule also places the task by hand, as `placeTask` does. Drop is `dropTask`'s rule. A flexible item carrying inside its period is never asked.
 - **The planner's hook:** `place_new_work(connection, user_id, task_ids, first_day)` in `app/planner.py`. Opening calls it with the week's new tasks and the first day it may use; each change in task 6 calls it with its new tasks and tomorrow. In this slice it does nothing, so everything stays in the bank. #10 fills it in.
 - **Changes act on every open week** (spec): a goal created, resumed, reopened or gone again; an item created or turned on. Each gets the current week's tasks if it has none, and next week's too once next week is open.
@@ -88,7 +88,7 @@ Checkpoint after task 5: weeks open and close; the four checks pass.
 
 - [x] Task 6: Goals and targets act on the open weeks
 - [x] Task 7: Recurring items act on the open weeks
-- [ ] Task 8: What closing will do, "Still matter?", and the upcoming list
+- [x] Task 8: What closing will do, "Still matter?", and the upcoming list
 - [ ] Task 9: Answer "Still matter?"
 - [ ] Task 10: Docs, the contract and the front end's types
 

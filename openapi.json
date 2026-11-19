@@ -1400,6 +1400,22 @@
       },
       "Task": {
         "properties": {
+          "atClose": {
+            "anyOf": [
+              {
+                "enum": [
+                  "carriesOver",
+                  "ends"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What closing its week does to it if it's still unfinished: it carries over to next week's bank, or ends with the week. Empty when it's done, closed, set aside or has no row in play. The wrap-up sheet reads this.",
+            "title": "Atclose"
+          },
           "carriedOver": {
             "description": "How many weeks it rolled over before this one.",
             "title": "Carriedover",
@@ -1517,6 +1533,11 @@
             "title": "State",
             "type": "string"
           },
+          "stillMatters": {
+            "description": "Ask \"Still matter?\": added by hand or a fixed-day recurring task, open, and rolled over twice since it was last answered.",
+            "title": "Stillmatters",
+            "type": "boolean"
+          },
           "timeOfDay": {
             "anyOf": [
               {
@@ -1572,7 +1593,9 @@
           "week",
           "plannedDay",
           "placedByHand",
-          "carriedOver"
+          "carriedOver",
+          "atClose",
+          "stillMatters"
         ],
         "title": "Task",
         "type": "object"
@@ -1653,6 +1676,23 @@
           "week"
         ],
         "title": "ToBank",
+        "type": "object"
+      },
+      "Upcoming": {
+        "properties": {
+          "tasks": {
+            "description": "Open tasks with a due date and no row yet, by due date.",
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tasks"
+        ],
+        "title": "Upcoming",
         "type": "object"
       },
       "ValidationError": {
@@ -3733,6 +3773,28 @@
         "summary": "Turn On Recurring Item",
         "tags": [
           "recurring items"
+        ]
+      }
+    },
+    "/api/tasks/upcoming": {
+      "get": {
+        "description": "Open tasks with a due date and no row yet: they join a week's bank when it opens.",
+        "operationId": "getUpcoming",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upcoming"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Upcoming",
+        "tags": [
+          "tasks"
         ]
       }
     },

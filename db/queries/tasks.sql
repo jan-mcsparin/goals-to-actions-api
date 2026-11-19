@@ -14,6 +14,12 @@ returning *;
 -- name: GetTaskView :one
 select tasks.*, shown.week, shown.planned_day, shown.placed_by_hand,
   goals.label as goal_label,
+  items.schedule_kind as item_kind, items.period as item_period,
+  (select count(*) from task_weeks rolled
+    where rolled.task_id = tasks.id and rolled.outcome = 'rolled_over'
+      and rolled.deleted_at is null
+      and (tasks.still_matters_answered_on is null
+        or rolled.week + 6 >= tasks.still_matters_answered_on))::integer as rolled_since_answer,
   (select count(*) from task_weeks carried
     where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
       and carried.week < coalesce(shown.week, 'infinity'::date)
@@ -27,6 +33,7 @@ left join task_weeks shown on shown.id = (
   limit 1
 )
 left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
+left join recurring_items items on items.id = tasks.recurring_item_id
 where tasks.id = $1 and tasks.user_id = $2 and tasks.deleted_at is null;
 
 -- The week read: the week's rows in play or done, by day, then the bank; timed tasks first
@@ -34,12 +41,19 @@ where tasks.id = $1 and tasks.user_id = $2 and tasks.deleted_at is null;
 -- name: ListWeekTasks :many
 select tasks.*, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand,
   goals.label as goal_label,
+  items.schedule_kind as item_kind, items.period as item_period,
+  (select count(*) from task_weeks rolled
+    where rolled.task_id = tasks.id and rolled.outcome = 'rolled_over'
+      and rolled.deleted_at is null
+      and (tasks.still_matters_answered_on is null
+        or rolled.week + 6 >= tasks.still_matters_answered_on))::integer as rolled_since_answer,
   (select count(*) from task_weeks carried
     where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
       and carried.week < task_weeks.week and carried.deleted_at is null)::integer as carried_over
 from task_weeks
 join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
 left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
+left join recurring_items items on items.id = tasks.recurring_item_id
 where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.deleted_at is null
   and (task_weeks.outcome is null or task_weeks.outcome = 'done')
 order by task_weeks.planned_day nulls last, tasks.time_of_day nulls last, tasks.created_at,
@@ -85,6 +99,12 @@ group by tasks.goal_id;
 -- name: ListSteps :many
 select tasks.*, shown.week, shown.planned_day, shown.placed_by_hand,
   goals.label as goal_label,
+  items.schedule_kind as item_kind, items.period as item_period,
+  (select count(*) from task_weeks rolled
+    where rolled.task_id = tasks.id and rolled.outcome = 'rolled_over'
+      and rolled.deleted_at is null
+      and (tasks.still_matters_answered_on is null
+        or rolled.week + 6 >= tasks.still_matters_answered_on))::integer as rolled_since_answer,
   (select count(*) from task_weeks carried
     where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
       and carried.week < coalesce(shown.week, 'infinity'::date)
@@ -98,6 +118,7 @@ left join task_weeks shown on shown.id = (
   limit 1
 )
 join goals on goals.id = tasks.goal_id
+left join recurring_items items on items.id = tasks.recurring_item_id
 where tasks.goal_id = $1 and tasks.user_id = $2 and tasks.state <> 'dropped'
   and tasks.deleted_at is null
 order by tasks.created_at, tasks.id;
@@ -113,3 +134,19 @@ from task_weeks
 join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
 where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.outcome = 'done'
   and task_weeks.deleted_at is null and tasks.goal_id = $3;
+
+-- Open tasks added by hand with a due date and no row yet: they join a week's bank when
+-- that week is opened.
+-- name: ListUpcoming :many
+select tasks.*, null::date as week, null::date as planned_day, false as placed_by_hand,
+  goals.label as goal_label,
+  null::text as item_kind, null::text as item_period, 0::integer as rolled_since_answer,
+  0::integer as carried_over
+from tasks
+left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
+where tasks.user_id = $1 and tasks.origin = 'by_hand' and tasks.state = 'open'
+  and tasks.due_date is not null and tasks.deleted_at is null
+  and not exists (
+    select 1 from task_weeks where task_weeks.task_id = tasks.id and task_weeks.deleted_at is null
+  )
+order by tasks.due_date, tasks.created_at, tasks.id;

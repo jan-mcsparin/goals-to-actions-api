@@ -247,6 +247,7 @@ def test_a_dropped_task_closes_its_row_and_leaves_the_week(
         "week": None,
         "plannedDay": None,
         "placedByHand": False,
+        "atClose": None,
     }
     assert rows(connection, task["id"]) == [(this_week(), today(), True, "dropped")]
     week = tasks_client.get(f"/api/weeks/{this_week().isoformat()}").json()

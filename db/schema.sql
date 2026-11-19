@@ -234,6 +234,43 @@ CREATE TABLE public.milestones (
 
 
 --
+-- Name: recurring_items; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.recurring_items (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    name text NOT NULL,
+    aspiration_id uuid,
+    from_goal_id uuid,
+    schedule_kind text NOT NULL,
+    weekday smallint,
+    day_of_month smallint,
+    times smallint,
+    period text,
+    starts_on date NOT NULL,
+    active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT recurring_items_day_of_month_check CHECK (((day_of_month >= 1) AND (day_of_month <= 28))),
+    CONSTRAINT recurring_items_name_not_blank CHECK ((btrim(name) <> ''::text)),
+    CONSTRAINT recurring_items_once_in_a_longer_period CHECK (((period = 'week'::text) OR (times = 1))),
+    CONSTRAINT recurring_items_period_check CHECK ((period = ANY (ARRAY['week'::text, 'two_weeks'::text, 'month'::text]))),
+    CONSTRAINT recurring_items_schedule_fits_kind CHECK (
+CASE schedule_kind
+    WHEN 'weekly'::text THEN ((weekday IS NOT NULL) AND (day_of_month IS NULL) AND (times IS NULL) AND (period IS NULL))
+    WHEN 'monthly'::text THEN ((day_of_month IS NOT NULL) AND (weekday IS NULL) AND (times IS NULL) AND (period IS NULL))
+    WHEN 'flexible'::text THEN ((times IS NOT NULL) AND (period IS NOT NULL) AND (weekday IS NULL) AND (day_of_month IS NULL))
+    ELSE NULL::boolean
+END),
+    CONSTRAINT recurring_items_schedule_kind_check CHECK ((schedule_kind = ANY (ARRAY['weekly'::text, 'monthly'::text, 'flexible'::text]))),
+    CONSTRAINT recurring_items_times_check CHECK (((times >= 1) AND (times <= 6))),
+    CONSTRAINT recurring_items_weekday_check CHECK (((weekday >= 1) AND (weekday <= 7)))
+);
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -434,6 +471,22 @@ ALTER TABLE ONLY public.milestones
 
 
 --
+-- Name: recurring_items recurring_items_id_owner; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recurring_items
+    ADD CONSTRAINT recurring_items_id_owner UNIQUE (id, user_id);
+
+
+--
+-- Name: recurring_items recurring_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recurring_items
+    ADD CONSTRAINT recurring_items_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -577,6 +630,20 @@ CREATE TRIGGER milestones_set_updated_at BEFORE UPDATE ON public.milestones FOR 
 
 
 --
+-- Name: recurring_items recurring_items_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER recurring_items_audit AFTER INSERT OR DELETE OR UPDATE ON public.recurring_items FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: recurring_items recurring_items_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER recurring_items_set_updated_at BEFORE UPDATE ON public.recurring_items FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: task_weeks task_weeks_audit; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -711,6 +778,30 @@ ALTER TABLE ONLY public.milestones
 
 
 --
+-- Name: recurring_items recurring_items_aspiration_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recurring_items
+    ADD CONSTRAINT recurring_items_aspiration_same_owner FOREIGN KEY (aspiration_id, user_id) REFERENCES public.aspirations(id, user_id);
+
+
+--
+-- Name: recurring_items recurring_items_from_goal_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recurring_items
+    ADD CONSTRAINT recurring_items_from_goal_same_owner FOREIGN KEY (from_goal_id, user_id) REFERENCES public.goals(id, user_id);
+
+
+--
+-- Name: recurring_items recurring_items_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recurring_items
+    ADD CONSTRAINT recurring_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: task_weeks task_weeks_task_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -732,6 +823,14 @@ ALTER TABLE ONLY public.task_weeks
 
 ALTER TABLE ONLY public.tasks
     ADD CONSTRAINT tasks_goal_same_owner FOREIGN KEY (goal_id, user_id) REFERENCES public.goals(id, user_id);
+
+
+--
+-- Name: tasks tasks_item_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_item_same_owner FOREIGN KEY (recurring_item_id, user_id) REFERENCES public.recurring_items(id, user_id);
 
 
 --
@@ -778,4 +877,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261117000000'),
     ('20261117000100'),
     ('20261118000000'),
-    ('20261118000100');
+    ('20261118000100'),
+    ('20261118000200');

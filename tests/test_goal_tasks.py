@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Connection, text
 
 from app.weeks import week_of
+from tests.test_aspirations import create as create_aspiration
 from tests.test_check_off import check_off
 from tests.test_goals import ZONE, create_goal, lifting, today
 from tests.test_tasks import add_task, open_next_week, rows
@@ -135,3 +136,38 @@ def test_a_status_change_sent_twice_moves_no_task_twice(
     change(tasks_client, goal_id, "go-again")
 
     assert rows(connection, tasks["bank"]["id"]) == [(week_of(today()), None, False, None)]
+
+
+def test_retiring_an_aspiration_with_its_work_paused_sets_its_goals_tasks_aside(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    open_next_week(connection)
+    aspiration = create_aspiration(tasks_client, "Be fit")
+    goal_id = create_goal(tasks_client, lifting(aspirationId=aspiration["id"]))["id"]
+    this_week = week_of(today())
+    next_week = this_week + timedelta(weeks=1)
+    placed = add_task(tasks_client, title="Day", goalId=goal_id, day=today().isoformat())
+    later = add_task(tasks_client, title="Later", goalId=goal_id, dueDate=next_week.isoformat())
+    done = add_task(tasks_client, title="Done", goalId=goal_id)
+    check_off(tasks_client, done["id"])
+
+    response = tasks_client.post(
+        f"/api/aspirations/{aspiration['id']}/retire", json={"itsWork": "pause"}
+    )
+
+    assert response.status_code == 200, response.text
+    assert rows(connection, placed["id"]) == [(this_week, today(), True, "set_aside")]
+    assert rows(connection, later["id"]) == [(next_week, None, False, "set_aside")]
+    assert week_titles(tasks_client, this_week) == ["Done"]
+
+
+def test_retiring_an_aspiration_keeping_its_work_leaves_its_goals_tasks(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    aspiration = create_aspiration(tasks_client, "Be fit")
+    goal_id = create_goal(tasks_client, lifting(aspirationId=aspiration["id"]))["id"]
+    placed = add_task(tasks_client, title="Day", goalId=goal_id, day=today().isoformat())
+
+    tasks_client.post(f"/api/aspirations/{aspiration['id']}/retire", json={"itsWork": "keep"})
+
+    assert rows(connection, placed["id"]) == [(week_of(today()), today(), True, None)]

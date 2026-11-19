@@ -357,3 +357,19 @@ def test_a_late_uncheck_under_a_paused_goal_comes_back_set_aside(
         (last_week(), None, False, "rolled_over"),
         (week_of(today()), None, False, "set_aside"),
     ]
+
+
+def test_an_uncheck_under_a_paused_goal_stays_set_aside_on_its_day(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    goal_id = create_goal(tasks_client, lifting())["id"]
+    task = add_task(tasks_client, goalId=goal_id, day=today().isoformat())
+    check_off(tasks_client, task["id"])
+    tasks_client.post(f"/api/goals/{goal_id}/pause")
+
+    unchecked = uncheck(tasks_client, task["id"])
+
+    assert (unchecked["state"], unchecked["week"]) == ("open", None)
+    assert rows(connection, task["id"]) == [(week_of(today()), today(), True, "set_aside")]
+    tasks_client.post(f"/api/goals/{goal_id}/resume")
+    assert rows(connection, task["id"]) == [(week_of(today()), None, False, None)]

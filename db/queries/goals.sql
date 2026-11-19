@@ -30,7 +30,8 @@ update goals set status = $3, ended_on = $4
 where id = $1 and user_id = $2 and deleted_at is null
 returning *;
 
--- Retiring an aspiration with its work paused.
--- name: PauseAspirationGoals :exec
+-- Retiring an aspiration with its work paused. Returns the goals it paused.
+-- name: PauseAspirationGoals :many
 update goals set status = 'paused'
-where aspiration_id = $1 and user_id = $2 and status = 'active' and deleted_at is null;
+where aspiration_id = $1 and user_id = $2 and status = 'active' and deleted_at is null
+returning id;

@@ -17,3 +17,10 @@ select task_weeks.*, tasks.origin from task_weeks
 join tasks on tasks.id = task_weeks.task_id and tasks.state = 'open' and tasks.deleted_at is null
 where tasks.goal_id = $1 and task_weeks.user_id = $2 and task_weeks.deleted_at is null
 order by task_weeks.task_id, task_weeks.week;
+
+-- Every row of a recurring item's open tasks, each with its task's origin, oldest week first.
+-- name: ListItemTaskWeeks :many
+select task_weeks.*, tasks.origin from task_weeks
+join tasks on tasks.id = task_weeks.task_id and tasks.state = 'open' and tasks.deleted_at is null
+where tasks.recurring_item_id = $1 and task_weeks.user_id = $2 and task_weeks.deleted_at is null
+order by task_weeks.task_id, task_weeks.week;

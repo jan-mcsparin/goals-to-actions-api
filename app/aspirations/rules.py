@@ -6,9 +6,11 @@ from uuid import UUID
 
 from sqlalchemy import Connection
 
-from app.db import aspirations, goals, models
+from app.db import aspirations, goals, models, recurring_items
 from app.errors import NotAllowed, NotFound
+from app.tasks import rules as task_rules
 from app.users import lock_user
+from app.weeks import open_weeks
 
 
 def create(
@@ -40,10 +42,10 @@ def reorder(connection: Connection, user_id: UUID, ids: list[UUID]) -> list[mode
 def retire(
     connection: Connection, user_id: UUID, aspiration_id: UUID, today: date, pause_its_work: bool
 ) -> models.Aspiration:
-    """Retires the aspiration, moves up the ones below it, and pauses its active goals if
-    asked. Sent again, it changes nothing. Setting the goals' tasks aside is added with
-    tasks."""
-    lock_user(connection, user_id)
+    """Retires the aspiration and moves up the ones below it. Pausing its work pauses its
+    active goals and turns its recurring items off, setting their open tasks aside; keeping
+    its work going makes its items maintenance. Sent again, it changes nothing."""
+    owner = lock_user(connection, user_id)
     queries = aspirations.Querier(connection)
     existing = queries.get_aspiration(id=aspiration_id, user_id=user_id)
     if existing is None:
@@ -53,10 +55,34 @@ def retire(
     retired = queries.retire_aspiration(id=aspiration_id, user_id=user_id, retired_on=today)
     queries.close_aspiration_gap(user_id=user_id, position=existing.position)
     if pause_its_work:
-        goals.Querier(connection).pause_aspiration_goals(
+        current = open_weeks(today, owner.planned_through_week).current
+        pause_work(connection, user_id, aspiration_id, current)
+    else:
+        recurring_items.Querier(connection).clear_aspiration_items(
             aspiration_id=aspiration_id, user_id=user_id
         )
     return retired or existing
+
+
+def pause_work(connection: Connection, user_id: UUID, aspiration_id: UUID, current: date) -> None:
+    """Pauses the aspiration's active goals and turns its items off, and sets their open
+    tasks aside."""
+    paused = list(
+        goals.Querier(connection).pause_aspiration_goals(
+            aspiration_id=aspiration_id, user_id=user_id
+        )
+    )
+    turned_off = list(
+        recurring_items.Querier(connection).turn_off_aspiration_items(
+            aspiration_id=aspiration_id, user_id=user_id
+        )
+    )
+    for goal_id in paused:
+        rows = task_rules.goal_task_weeks(connection, user_id, goal_id)
+        task_rules.set_aside(connection, user_id, rows, current)
+    for item_id in turned_off:
+        rows = task_rules.item_task_weeks(connection, user_id, item_id)
+        task_rules.set_aside(connection, user_id, rows, current)
 
 
 def bring_back(connection: Connection, user_id: UUID, aspiration_id: UUID) -> models.Aspiration:

@@ -93,14 +93,16 @@ class Goal(ApiModel):
 
 
 class Progress(ApiModel):
-    """ "2 of 6": the goal's milestones plus one for the goal, which counts once reached."""
+    """ "2 of 6": the goal's milestones plus one for the goal. A reached goal counts complete:
+    milestones never checked in were passed on the way."""
 
     hit: int
     of: int
 
     @classmethod
     def counted(cls, milestones: int, hit: int, status: str) -> Progress:
-        return cls(hit=hit + (status == "reached"), of=milestones + 1)
+        of = milestones + 1
+        return cls(hit=of if status == "reached" else hit, of=of)
 
 
 class ListedGoal(Goal):

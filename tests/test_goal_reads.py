@@ -50,7 +50,7 @@ def test_each_listed_goal_carries_the_progress_its_page_reads(
     assert progress == {
         none["id"]: {"hit": 0, "of": 1},
         some_hit["id"]: {"hit": 1, "of": 4},
-        reached["id"]: {"hit": 1, "of": 3},
+        reached["id"]: {"hit": 3, "of": 3},
         with_a_deleted["id"]: {"hit": 0, "of": 2},
     }
     for goal_id, listed in progress.items():
@@ -58,6 +58,16 @@ def test_each_listed_goal_carries_the_progress_its_page_reads(
 
 
 # The goal's page
+
+
+def test_a_reached_goal_counts_complete(goals_client: TestClient) -> None:
+    """Milestones never checked in were passed on the way (flows.md, decided Nov 11)."""
+    goal = goal_with_milestones(goals_client, 2)["goal"]
+    check_in(goals_client, goal["id"], page(goals_client, goal["id"])["milestones"][0]["id"])
+
+    goals_client.post(f"/api/goals/{goal['id']}/mark-reached")
+
+    assert page(goals_client, goal["id"])["progress"] == {"hit": 3, "of": 3}
 
 
 def test_the_goal_page_names_its_aspiration(goals_client: TestClient) -> None:

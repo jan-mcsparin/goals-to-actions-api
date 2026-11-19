@@ -77,6 +77,24 @@ class Milestone(pydantic.BaseModel):
     deleted_at: Optional[datetime.datetime]
 
 
+class RecurringItem(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    name: str
+    aspiration_id: Optional[uuid.UUID]
+    from_goal_id: Optional[uuid.UUID]
+    schedule_kind: str
+    weekday: Optional[int]
+    day_of_month: Optional[int]
+    times: Optional[int]
+    period: Optional[str]
+    starts_on: datetime.date
+    active: bool
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+
+
 class Task(pydantic.BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID

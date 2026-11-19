@@ -58,7 +58,7 @@ recurring_items table + tasks FK (1)
 
 ## Task list
 
-- [ ] Task 1: The recurring_items table, and the tasks foreign key
+- [x] Task 1: The recurring_items table, and the tasks foreign key
 - [ ] Task 2: Create and list
 - [ ] Task 3: Edit
 - [ ] Task 4: Turn off and on

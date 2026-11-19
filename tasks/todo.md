@@ -11,9 +11,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** The migration: the shared columns; name, aspiration, from goal, schedule kind, weekday, day of month, times, period, starts on, active; both triggers; the check that the schedule columns fit the kind. The foreign key from `tasks (recurring_item_id, user_id)`. Queries in `db/queries/recurring_items.sql`.
 
 **Acceptance criteria:**
-- [ ] The database refuses every mismatched schedule: a weekly item without a weekday or with a day of month, times or period; the same for monthly and flexible; a weekday outside 1–7, a day of month outside 1–28, times outside 1–6, times above 1 for two weeks or a month.
-- [ ] It refuses another owner's aspiration, goal, or (from `tasks`) item, and a blank name.
-- [ ] Up, rollback, up leaves `db/schema.sql` unchanged.
+- [x] The database refuses every mismatched schedule: a weekly item without a weekday or with a day of month, times or period; the same for monthly and flexible; a weekday outside 1–7, a day of month outside 1–28, times outside 1–6, times above 1 for two weeks or a month.
+- [x] It refuses another owner's aspiration, goal, or (from `tasks`) item, and a blank name.
+- [x] Up, rollback, up leaves `db/schema.sql` unchanged.
 
 **Verify:** `uv run pytest tests/test_recurring_items_table.py`.
 

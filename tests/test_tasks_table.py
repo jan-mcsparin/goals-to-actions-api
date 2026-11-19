@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from app.config import FIXED_USER_ID
 from app.database import Database
 from tests.test_goals_table import add_goal, add_user
+from tests.test_recurring_items_table import add_item
 
 ADD_TASK = text(
     "insert into tasks (id, user_id, title, origin, goal_id, recurring_item_id, state,"
@@ -124,7 +125,7 @@ def test_a_generated_task_is_made_once_even_after_a_delete(database: Database) -
 
 
 def test_a_recurring_task_is_made_once_per_period_and_number(database: Database) -> None:
-    item = uuid4()
+    item = add_item(database)
     columns: dict[str, Any] = {"origin": "recurring_item", "recurring_item_id": item, "number": 1}
     add_task(database, period_start="2026-11-16", **columns)
     with pytest.raises(IntegrityError, match="tasks_item_period_number"):

@@ -65,3 +65,10 @@ def test_a_name_that_isnt_a_zone_is_not_kept(client: TestClient, connection: Con
 
     assert read_week(client, "Mars/Olympus_Mons") == 422
     assert stored_zone(connection) == "Asia/Tokyo"
+
+
+@pytest.mark.parametrize("name", ["america/denver", "ASIA/TOKYO"])
+def test_a_zone_name_in_the_wrong_case_is_refused(name: str) -> None:
+    # A case-insensitive file system loads these; a Linux host wouldn't.
+    with pytest.raises(RequestValidationError):
+        now(name, MOMENT)

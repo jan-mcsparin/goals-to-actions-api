@@ -51,7 +51,7 @@ quit_days + urge_ratings tables (1)
 ## Task list
 
 - [x] Task 1: The quit_days and urge_ratings tables
-- [ ] Task 2: Answer and clear a day
+- [x] Task 2: Answer and clear a day
 - [ ] Task 3: Rate and clear the urge
 
 Checkpoint after task 3: the four writes work; the four checks pass.

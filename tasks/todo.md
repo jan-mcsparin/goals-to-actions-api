@@ -27,9 +27,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `app/quitting/` with `answerQuitDay` and `clearQuitDay`. `rules.py` checks the goal is yours (404), quitting, and the day is from its start to today (409), then upserts or clears. Both return the day's `QuitDay`.
 
 **Acceptance criteria:**
-- [ ] A day is answered, changed and cleared; each repeat changes nothing more, and the day has at most one live row throughout.
-- [ ] A building goal, a day before the start and tomorrow are refused with 409; another user's goal with 404; no `X-Time-Zone` with 422.
-- [ ] A day a week old can still be answered; the audit log names the action.
+- [x] A day is answered, changed and cleared; each repeat changes nothing more, and the day has at most one live row throughout.
+- [x] A building goal, a day before the start and tomorrow are refused with 409; another user's goal with 404; no `X-Time-Zone` with 422.
+- [x] A day a week old can still be answered; the audit log names the action.
 
 **Verify:** `uv run pytest tests/test_quit_days.py`, then the four checks.
 

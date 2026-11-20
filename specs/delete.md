@@ -1,6 +1,6 @@
 # Spec: Delete
 
-Status: draft 2026-11-13; finalised when its plan is written. Issue: [#12](https://github.com/jan-mcsparin/goals-to-actions-api/issues/12). Module `delete` in the [map](README.md). Depends on slices 2 to 6 and 9.
+Status: finalised 2026-11-19 with its plan ([`../tasks/plan.md`](../tasks/plan.md)). Issue: [#12](https://github.com/jan-mcsparin/goals-to-actions-api/issues/12). Module `delete` in the [map](README.md). Depends on slices 2 to 6 and 9.
 
 ## Objective
 
@@ -50,10 +50,9 @@ As shared. **Never:** a hard delete from application code; a delete that leaves 
 - [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.
 
-## Open questions
+## Settled
 
-1. **Deleting an aspiration leaves its goals with none** (they move to Other goals). I made that call in issue #38 and it hasn't been confirmed.
-2. **Deleting a recurring item:** I've assumed its open tasks go and its done ones stay as history. The alternative is that everything it made goes, as with a goal.
-3. **Is an undo wanted for the few seconds after a delete?** The front end may show one; the API would need an `undelete`.
-
-Settled 2026-11-16: the unique rule for generated tasks counts deleted rows, so a deleted session stays deleted; a deleted item's done tasks keep their origin with the link emptied.
+- **Deleting an aspiration leaves its goals and recurring items with none** (they move to Other goals). Jan, 2026-11-19.
+- **Deleting a recurring item takes its open tasks; its done ones stay as history,** with the link to the item emptied and the origin kept. Jan, 2026-11-19.
+- **No undo.** The front end asks once before deleting. Jan, 2026-11-19.
+- 2026-11-16: the unique rule for generated tasks counts deleted rows, so a deleted session stays deleted.

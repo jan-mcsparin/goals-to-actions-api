@@ -1,81 +1,88 @@
-# Implementation Plan: Quitting goals (#11)
+# Implementation Plan: Delete (#12)
 
-Spec: [`../specs/quitting-goals.md`](../specs/quitting-goals.md). Tasks: [`todo.md`](todo.md). (The plan for #10 is in git history.)
+Spec: [`../specs/delete.md`](../specs/delete.md). Tasks: [`todo.md`](todo.md). (The plan for #11 is in git history.)
 
 ## Overview
 
-A quitting goal's daily record: a yes or no for a day, and sometimes how strong the urge was. Both tables are new. Four writes answer and clear them; the goal's page and the week read carry the record. A day with no answer is unknown, never a slip, and nothing asks about it.
+Delete is for mistakes. Five routes hide a row and what belongs to it, in one transaction, by setting `deleted_at`. Nothing is removed from the database, and there is no undo. Every read already leaves deleted rows out; this slice adds the routes, lets positions be reused, and proves no read shows a deleted row.
 
-Six tasks. **One PR** in the API, `quitting-goals` (closes #11), and one small PR in the front end for the regenerated types. The front end's #37 builds the screens later.
+Seven tasks. **One PR** in the API, `delete` (closes #12), and one small PR in the front end for the regenerated types. The front end's #38 builds the screens later.
 
 ## The contract
 
-New, all queueable (ADR-010): each names its goal and day and states its end result, so sending it twice changes nothing more.
+New. None is queueable (ADR-010: delete needs a connection).
 
-| Operation | Route | Body | Returns |
-| --- | --- | --- | --- |
-| `answerQuitDay` | `PUT /api/goals/{goalId}/quit-days/{day}` | `{ "held": true }` | `QuitDay` |
-| `clearQuitDay` | `POST /api/goals/{goalId}/quit-days/{day}/clear` | | `QuitDay` |
-| `rateUrge` | `PUT /api/goals/{goalId}/urges/{day}` | `{ "level": "low" }` (`low`, `some`, `strong`) | `QuitDay` |
-| `clearUrgeRating` | `POST /api/goals/{goalId}/urges/{day}/clear` | | `QuitDay` |
+| Operation | Route | Returns |
+| --- | --- | --- |
+| `deleteTask` | `DELETE /api/tasks/{taskId}` | 204 |
+| `deleteMilestone` | `DELETE /api/milestones/{milestoneId}` | `GoalPage`, as every milestone write does |
+| `deleteGoal` | `DELETE /api/goals/{goalId}` | 204 |
+| `deleteAspiration` | `DELETE /api/aspirations/{aspirationId}` | 204 |
+| `deleteRecurringItem` | `DELETE /api/recurring-items/{itemId}` | 204 |
 
-`QuitDay` is one day of the record: `{ "goalId", "day", "held": true | false | null, "urge": "low" | "some" | "strong" | null }`. `null` is unknown. Every write returns the whole day, so the phone has both halves after either.
+Each is safe to repeat: deleting a row that's already deleted gives the same answer and changes nothing. 404 for an id that was never yours. Nothing is refused with 409: anything that exists can be deleted.
 
-Refused: 404 for a goal that doesn't exist or isn't yours; 409 for a goal that isn't quitting, a day before the goal's start, or a day after today (shared decisions 10 and 15).
+What goes along (Jan, 2026-11-19: the spec's open questions 1 and 2 as written, no undo):
 
-Changed:
-
-- **`GoalPage` gains `quitRecord`**, empty except on a quitting goal: `{ "days": [QuitDay, ...], "heldRun": 12, "unknownInRun": 2 }`. `days` is the last 28 days up to today, from the goal's start at the earliest, newest first. `heldRun` counts held answers since the last "no"; `unknownInRun` counts the days before today since then that have no answer, so the front end can show the run as unknown until they're filled in. Both are worked out from every answer on each read, never stored.
-- **`Week` gains `quittingGoals`**: each active quitting goal that has started by the week's end, `{ "id", "label", "days": [QuitDay, ...] }`, one per day of the week from its start. The phone can show and answer them offline.
+| Deleting | Also deletes | Leaves |
+| --- | --- | --- |
+| A task | Its week records | |
+| A milestone | Its check-ins | The goal's other milestones, renumbered |
+| A goal | Its tasks and their week records, milestones, check-ins, weekly targets, quit days, urge ratings | A recurring item continued from it, with `from_goal_id` emptied |
+| An aspiration | | Its goals and recurring items, with no aspiration; the other active aspirations, renumbered |
+| A recurring item | Its open tasks and their week records | Its other tasks (done, dropped, lapsed), with the link to the item emptied; they keep the origin `recurring_item` |
 
 ## Architecture decisions
 
-- **Two tables, as in the data model:** `quit_days (goal_id, day, held)` and `urge_ratings (goal_id, rated_on, level)`, with the shared columns and triggers. A `goal_type` column fixed to `'quitting'` with a foreign key to `goals (id, user_id, type)`, the way `weekly_targets` does it, so the database refuses a row on any other goal or another owner's.
-- **One row per goal per day,** kept by a unique index over rows that aren't deleted. Answering is an upsert on it, so a repeat or a change leaves one row, and two devices answering together leave the last answer (shared decision 8).
-- **The server makes the row's id.** A day is named by its goal and date, so the phone has no id to send. This is the one table where the device doesn't make it.
-- **Clearing sets `deleted_at`.** No row means unknown; the audit log keeps what was there. Answering again afterwards adds a new row.
-- **New slice folder `app/quitting/`** (routes, models, rules, and `record.py` for the record both reads use). The goal's page and the week read call `record.py`.
-- **No user lock.** Each write touches one row through one statement; the upsert is what keeps it to one row.
+- **Each delete lives in its own slice** (`app/tasks/`, `app/milestones/`, `app/goals/`, `app/aspirations/`, `app/recurring_items/`): the route in `routes.py`, the cascade in `rules.py`. The queries go in each table's file; turnover's `DeleteTask` and `DeleteTaskRows` move to `tasks.sql` and `task_weeks.sql`, since deletes now use them too.
+- **Every delete takes the user lock.** Three renumber, and the other two take tasks out of a week the planner and turnover write to.
+- **A repeat is found by a query that sees deleted rows** (`<Thing>Deleted`): no live row, but a deleted one of yours, means the delete already happened. Only these queries look past `deleted_at`.
+- **Positions ignore deleted rows.** `aspirations_position_unique` and `milestones_position_unique` become deferrable exclusion constraints over rows not deleted, with the same names, so a deleted row's position can be taken. The other unique rules stay: generated tasks deliberately count deleted rows; `task_weeks_one_per_week` and `weekly_targets_one_per_week` only lose rows along with their task or goal, which nothing makes again.
+- **A deleted session isn't made again.** Turnover's `ListGeneratedSlots` already counts deleted tasks.
+- **No planner run.** Deleting takes things off the plan; it never places anything.
 
 ## Dependency graph
 
 ```
-quit_days + urge_ratings tables (1)
-    ├── answerQuitDay, clearQuitDay (2)
-    │      └── rateUrge, clearUrgeRating (3)
-    ├── the goal's record on its page (4)
-    └── the week's quitting goals (5)
-          └── docs, openapi.json, the front end's types (6)
+positions ignore deleted rows (1)
+    ├── deleteTask (2)
+    │      ├── deleteRecurringItem (3)
+    │      └── deleteGoal (5) ── uses deleteMilestone's cascade (4)
+    ├── deleteMilestone (4)
+    └── deleteAspiration (6)
+          └── no read shows a deleted row; docs, contract, front end's types (7)
 ```
 
 ## Task list
 
-- [x] Task 1: The quit_days and urge_ratings tables
-- [x] Task 2: Answer and clear a day
-- [x] Task 3: Rate and clear the urge
+- [ ] Task 1: Positions ignore deleted rows
+- [ ] Task 2: Delete a task
+- [ ] Task 3: Delete a recurring item
 
-Checkpoint after task 3: the four writes work; the four checks pass.
+Checkpoint after task 3: tasks and items can be deleted; the four checks pass.
 
-- [x] Task 4: The record on the goal's page
-- [x] Task 5: Quitting goals on the week read
-- [x] Task 6: Docs, the contract and the front end's types
+- [ ] Task 4: Delete a milestone
+- [ ] Task 5: Delete a goal
+- [ ] Task 6: Delete an aspiration
 
-Checkpoint after task 6: the slice is done, and the front end's mock compiles against the new types.
+Checkpoint after task 6: all five deletes work.
+
+- [ ] Task 7: No read shows a deleted row; docs, the contract and the front end's types
+
+Checkpoint after task 7: the slice is done, and the front end's mock compiles against the new types.
 
 ## Risks and mitigations
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| A queued answer sent days later is refused because "today" moved | Med | Any day from the start to today is allowed; only future days and days before the start are refused. A test answers a day a week old. |
-| A response or field words a "no" or a gap as failure | Med | Fields are `held: true/false/null`, no "slipped" or "missed"; the run counts held answers and a gap never breaks it. |
-| The unique index and soft clears fight (clear, answer, clear) | Low | A test runs that cycle and checks one live row at each step. |
+| A visible row points at a hidden one (a goal's label on a task, an item's aspiration) | High | Each cascade empties or deletes every link in the same transaction; task 7 deletes one of everything and walks every read. |
+| A deleted position blocks renumbering | Med | Task 1's constraints, and a test that deletes the first of three and adds a fourth. |
+| Turnover makes a deleted session again | Med | A test deletes a session and opens its week twice. |
+| A cascade misses a table added later | Low | Task 7's sweep lists every table, so a new one fails it until it's handled. |
 
 ## Assumed, for review with this plan
 
-1. **A run counts held answers since the last "no"** (open question 1; Jan, 2026-11-19: unknown days don't break the run). An unknown day neither ends the run nor adds to it. A "no" starts it again from zero. Any past day from the start can be answered later.
-   - **The read also counts the unanswered days inside the run** (`unknownInRun`; Jan, 2026-11-19: it gently invites filling them in). Today isn't counted while it's still going.
-2. **The goal's page shows the last 28 days** (four weeks), newest first. Older days stay stored.
-3. **A day can be answered whatever the goal's status.** A queued answer made before another device paused or ended the goal still lands, and the record is history either way.
-4. **The routes above**, with `PUT` for an answer and `POST .../clear` to clear it, as every other action here does.
-5. **Clearing is a soft delete,** and the server makes each row's id (above).
-6. **No "urge has stayed low" fact yet.** The spec allows it, but nothing asks for it; the front end's #37 can ask.
+1. **The routes use `DELETE`**, the first in the API. The alternative was `POST /things/{id}/delete`, like the other actions; `DELETE` says what it is, and the front end only sees the operation's name.
+2. **204, except `deleteMilestone`,** which returns the goal's page as every milestone write does. After the other four the screen is gone or its read is fetched again.
+3. **A recurring item's dropped and lapsed tasks stay too**, like its done ones: they are decisions and history, not mistakes. Only open tasks go.
+4. **Deleting a paused or ended goal, or a retired aspiration, works the same** as an active one.

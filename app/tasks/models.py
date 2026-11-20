@@ -154,6 +154,14 @@ class WeekGoal(ApiModel):
     progress: WeekProgress
 
 
+class DayMark(ApiModel):
+    """A day's cap and whether it's reached: a guide shown on Week, never enforced (ADR-013)."""
+
+    day: date
+    cap: int = Field(description="Tasks a day holds at the person's intensity: 3, 4 or 6.")
+    full: bool = Field(description="The day holds at least `cap` tasks, open or done.")
+
+
 class Week(ApiModel):
     """The plan read (ADR-010). The phone keeps it and draws Today, any day and the bank
     from it."""
@@ -168,6 +176,7 @@ class Week(ApiModel):
     goals: list[WeekGoal] = Field(
         description="Every active building goal with a target that week, and its progress."
     )
+    days: list[DayMark] = Field(description="Monday to Sunday, each with the full-day mark.")
 
 
 class TaskEdit(ApiModel):

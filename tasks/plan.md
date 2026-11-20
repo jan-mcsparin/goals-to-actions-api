@@ -46,7 +46,7 @@ place(): the pure rule (1)
 Checkpoint after task 3: recurring work lands on days; the four checks pass.
 
 - [x] Task 4: A new fixed-day item due today goes on today
-- [ ] Task 5: The full-day mark
+- [x] Task 5: The full-day mark
 - [ ] Task 6: Docs, the contract and the front end's types
 
 Checkpoint after task 6: the slice is done, and the front end's mock compiles against the new types.

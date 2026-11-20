@@ -84,8 +84,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `Week` gains `days`: seven `DayMark { day, cap, full }`. `cap` from the user's intensity (3, 4 or 6); `full` when the day holds at least `cap` tasks that are open or done. Worked out in `app/tasks/week.py` from the rows it already reads.
 
 **Acceptance criteria:**
-- [ ] A day with four tasks on Normal is full; with three it isn't; a dropped task doesn't count.
-- [ ] Changing intensity (set directly in the test until `settings-sync`) changes only `cap` and `full`; every task stays where it was.
+- [x] A day with four tasks on Normal is full; with three it isn't; a dropped task doesn't count.
+- [x] Changing intensity (set directly in the test until `settings-sync`) changes only `cap` and `full`; every task stays where it was.
 
 **Verify:** `uv run pytest tests/test_week_read.py`, then the four checks.
 

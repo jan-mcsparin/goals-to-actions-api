@@ -39,3 +39,12 @@ class QuitRecord(ApiModel):
     unknown_in_run: int = Field(
         description="Days before today since then with no answer yet. They can still be answered."
     )
+
+
+class WeekQuitGoal(ApiModel):
+    """An active quitting goal on the week read, so the phone can show and answer its days
+    offline."""
+
+    id: UUID
+    label: str
+    days: list[QuitDay] = Field(description="Each day of the week from the goal's start.")

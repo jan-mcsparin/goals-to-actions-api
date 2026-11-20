@@ -8,6 +8,7 @@ from pydantic import AwareDatetime, Field, StringConstraints
 
 from app.db.tasks import GetTaskViewRow, ListStepsRow, ListUpcomingRow, ListWeekTasksRow
 from app.goals.models import Label, WeeklyTarget, WeekProgress
+from app.quitting.models import WeekQuitGoal
 from app.schemas import ApiModel
 from app.turnover.endings import ending_of
 
@@ -177,6 +178,9 @@ class Week(ApiModel):
         description="Every active building goal with a target that week, and its progress."
     )
     days: list[DayMark] = Field(description="Monday to Sunday, each with the full-day mark.")
+    quitting_goals: list[WeekQuitGoal] = Field(
+        description="Every active quitting goal started by the week's end, with its days."
+    )
 
 
 class TaskEdit(ApiModel):

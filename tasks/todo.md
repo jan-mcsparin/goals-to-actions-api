@@ -82,8 +82,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `Week` gains `quittingGoals`: each active quitting goal started by the week's end, with a `QuitDay` for each day of the week from its start.
 
 **Acceptance criteria:**
-- [ ] An answered and a rated day show in the week; a paused quitting goal and a building goal don't appear.
-- [ ] A goal started on Wednesday has days Wednesday to Sunday.
+- [x] An answered and a rated day show in the week; a paused quitting goal and a building goal don't appear.
+- [x] A goal started on Wednesday has days Wednesday to Sunday.
 
 **Verify:** `uv run pytest tests/test_week_read.py`, then the four checks.
 

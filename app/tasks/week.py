@@ -9,6 +9,7 @@ from sqlalchemy import Connection
 from app.db import goals, tasks, users
 from app.errors import NotFound
 from app.goals.models import WeeklyTarget
+from app.quitting.record import week_quit_goals
 from app.tasks import progress
 from app.tasks.models import DayMark, Task, Week, WeekGoal
 from app.weeks import open_weeks
@@ -31,16 +32,14 @@ def week_read(connection: Connection, user_id: UUID, week: date, today: date) ->
     rows = list(tasks.Querier(connection).list_week_tasks(user_id=user_id, week=week))
     targets = progress.targets_for(connection, user_id, week)
     done = progress.week_progress(connection, user_id, week, targets)
-    active = [
-        goal
-        for goal in goals.Querier(connection).list_goals(user_id=user_id)
-        if goal.status == "active" and goal.id in targets
-    ]
+    all_goals = list(goals.Querier(connection).list_goals(user_id=user_id))
+    active = [goal for goal in all_goals if goal.status == "active" and goal.id in targets]
     return Week(
         week=week,
         is_current=week == weeks.current,
         next_week_open=weeks.next_open,
         tasks=[Task.from_row(row) for row in rows],
+        quitting_goals=week_quit_goals(connection, user_id, week, all_goals),
         days=day_marks(week, CAPS[owner.intensity], [row.planned_day for row in rows]),
         goals=[
             WeekGoal(

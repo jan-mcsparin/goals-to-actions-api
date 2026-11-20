@@ -8,7 +8,7 @@ from uuid import UUID
 from sqlalchemy import Connection
 
 from app.db import models, quit_days, urge_ratings
-from app.quitting.models import QuitDay, QuitRecord
+from app.quitting.models import QuitDay, QuitRecord, WeekQuitGoal
 
 # How far back the goal's page shows its days.
 RECENT_DAYS = 28
@@ -72,3 +72,45 @@ def quit_record(
         held_run=run.held,
         unknown_in_run=run.unknown,
     )
+
+
+def week_quit_goals(
+    connection: Connection, user_id: UUID, week: date, goals: list[models.Goal]
+) -> list[WeekQuitGoal]:
+    """Each active quitting goal started by the week's end, with its days that week."""
+    last = week + timedelta(days=6)
+    shown = [
+        goal
+        for goal in goals
+        if goal.type == "quitting" and goal.status == "active" and goal.start_date <= last
+    ]
+    ids = [goal.id for goal in shown]
+    held = {
+        (row.goal_id, row.day): row.held
+        for row in quit_days.Querier(connection).list_quit_days(
+            user_id=user_id, goal_ids=ids, from_day=week, through_day=last
+        )
+    }
+    urges = {
+        (row.goal_id, row.rated_on): row.level
+        for row in urge_ratings.Querier(connection).list_urge_ratings(
+            user_id=user_id, goal_ids=ids, from_day=week, through_day=last
+        )
+    }
+    return [
+        WeekQuitGoal(
+            id=goal.id,
+            label=goal.label,
+            days=[
+                QuitDay(
+                    goal_id=goal.id,
+                    day=day,
+                    held=held.get((goal.id, day)),
+                    urge=urges.get((goal.id, day)),
+                )
+                for day in (week + timedelta(days=n) for n in range(7))
+                if day >= goal.start_date
+            ],
+        )
+        for goal in shown
+    ]

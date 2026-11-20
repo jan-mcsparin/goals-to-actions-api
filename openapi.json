@@ -1971,6 +1971,14 @@
             "title": "Nextweekopen",
             "type": "boolean"
           },
+          "quittingGoals": {
+            "description": "Every active quitting goal started by the week's end, with its days.",
+            "items": {
+              "$ref": "#/components/schemas/WeekQuitGoal"
+            },
+            "title": "Quittinggoals",
+            "type": "array"
+          },
           "tasks": {
             "description": "On a day, then in the bank; with no outcome or done. Set-aside rows aren't shown.",
             "items": {
@@ -1991,7 +1999,8 @@
           "nextWeekOpen",
           "tasks",
           "goals",
-          "days"
+          "days",
+          "quittingGoals"
         ],
         "title": "Week",
         "type": "object"
@@ -2041,6 +2050,35 @@
           "of"
         ],
         "title": "WeekProgress",
+        "type": "object"
+      },
+      "WeekQuitGoal": {
+        "description": "An active quitting goal on the week read, so the phone can show and answer its days\noffline.",
+        "properties": {
+          "days": {
+            "description": "Each day of the week from the goal's start.",
+            "items": {
+              "$ref": "#/components/schemas/QuitDay"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "days"
+        ],
+        "title": "WeekQuitGoal",
         "type": "object"
       },
       "WeeklySchedule": {

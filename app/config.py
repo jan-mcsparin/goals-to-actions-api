@@ -10,3 +10,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+psycopg://gta:gta@loca
 # The founder's account: the one user before sign-in, created by the users migration with
 # this id and keeping every row made then. Tests act as this user.
 FIXED_USER_ID = UUID("00000000-0000-4000-8000-000000000001")
+
+# The app's own origin: a write from anywhere else is refused (ADR-012). Defaults to the front
+# end's dev server; hosted, `https://goals-to-actions.jan-mcsparin.me`.
+APP_ORIGIN = os.environ.get("APP_ORIGIN", "http://localhost:5173")

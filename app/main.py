@@ -14,6 +14,7 @@ from app.quitting.routes import router as quitting_router
 from app.recurring_items.routes import router as recurring_items_router
 from app.schemas import ApiModel
 from app.settings.routes import router as settings_router
+from app.sign_in.origin import same_origin
 from app.sign_in.session import current_user_id
 from app.tasks.routes import router as tasks_router
 from app.turnover.routes import router as turnover_router
@@ -30,7 +31,8 @@ class Health(ApiModel):
 
 # Every route sits under /api, locally as well as hosted: CloudFront passes `/api/*` on
 # unchanged (ADR-011), so a request looks the same through the dev proxy and in production.
-api = APIRouter(prefix="/api")
+# A write from anywhere but the app's own origin is a 403, before anything else is checked.
+api = APIRouter(prefix="/api", dependencies=[Depends(same_origin)])
 
 
 @api.get("/health")

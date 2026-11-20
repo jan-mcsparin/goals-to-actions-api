@@ -35,8 +35,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** A write (`POST`, `PUT`, `PATCH`, `DELETE`) whose `Origin` isn't `APP_ORIGIN`, or that has none, is a 403. Reads aren't checked.
 
 **Acceptance criteria:**
-- [ ] A write from a sibling subdomain, and one with no `Origin`, is a 403 and changes nothing; the same write from the app's origin lands.
-- [ ] A read from another origin is answered.
+- [x] A write from a sibling subdomain, and one with no `Origin`, is a 403 and changes nothing; the same write from the app's origin lands.
+- [x] A read from another origin is answered.
 
 **Verify:** `uv run pytest tests/test_origin.py`, then the four checks.
 

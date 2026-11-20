@@ -136,7 +136,7 @@ def groups_of(
     return [
         Group(
             task_ids=tuple(row.task_id for row in rows),
-            fixed_day=fixed_day(rows[0], week),
+            fixed_day=fixed_day(rows[0].item_kind, rows[0].weekday, rows[0].day_of_month, week),
             starts_on=rows[0].starts_on,
             earlier_days=tuple(
                 row.planned_day for row in others if (row.goal_id or row.recurring_item_id) == owner
@@ -169,12 +169,15 @@ def turn_of(
     return (rank, row.aspiration_position or 0, is_item, row.made_at, str(owner))
 
 
-def fixed_day(row: planner.ListPlacementContextRow, week: date) -> date | None:
-    if row.item_kind == "weekly" and row.weekday is not None:
-        return week + timedelta(days=row.weekday - 1)
-    if row.item_kind == "monthly":
+def fixed_day(
+    kind: str | None, weekday: int | None, day_of_month: int | None, week: date
+) -> date | None:
+    """A weekly or monthly item's day in `week`, if it has one there."""
+    if kind == "weekly" and weekday is not None:
+        return week + timedelta(days=weekday - 1)
+    if kind == "monthly":
         for offset in range(7):
             day = week + timedelta(days=offset)
-            if day.day == row.day_of_month:
+            if day.day == day_of_month:
                 return day
     return None

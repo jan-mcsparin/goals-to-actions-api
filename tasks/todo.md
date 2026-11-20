@@ -68,8 +68,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** Creating a weekly or monthly item, or turning one back on, whose day is today puts today's task on today in the same transaction, because the person just asked for it (spec, "Left to other slices"). Not a planner write: the recurring-items rule does it.
 
 **Acceptance criteria:**
-- [ ] Created on Wednesday for "every Wednesday", the task is on today; for "every Thursday", the planner puts it on Thursday.
-- [ ] Sent twice, it changes nothing more.
+- [x] Created on Wednesday for "every Wednesday", the task is on today; for "every Thursday", the planner puts it on Thursday.
+- [x] Sent twice, it changes nothing more.
 
 **Verify:** `uv run pytest tests/test_recurring_items.py tests/test_item_tasks.py`, then the four checks.
 

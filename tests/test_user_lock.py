@@ -114,6 +114,7 @@ WRITES: dict[str, Callable[[Connection], object]] = {
     "turn recurring item": lambda tx: item_rules.turn(
         tx, FIXED_USER_ID, uuid4(), date(2026, 11, 16), on=False
     ),
+    "delete recurring item": lambda tx: item_rules.delete(tx, FIXED_USER_ID, uuid4()),
     "update recurring item": lambda tx: item_rules.update(
         tx,
         FIXED_USER_ID,

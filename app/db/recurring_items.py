@@ -42,6 +42,12 @@ class CreateRecurringItemParams(pydantic.BaseModel):
     starts_on: datetime.date
 
 
+DELETE_RECURRING_ITEM = """-- name: delete_recurring_item \\:exec
+update recurring_items set deleted_at = now()
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 GET_RECURRING_ITEM = """-- name: get_recurring_item \\:one
 select id, user_id, name, aspiration_id, from_goal_id, schedule_kind, weekday, day_of_month, times, period, starts_on, active, created_at, updated_at, deleted_at from recurring_items
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -52,6 +58,12 @@ LIST_RECURRING_ITEMS = """-- name: list_recurring_items \\:many
 select id, user_id, name, aspiration_id, from_goal_id, schedule_kind, weekday, day_of_month, times, period, starts_on, active, created_at, updated_at, deleted_at from recurring_items
 where user_id = :p1 and deleted_at is null
 order by created_at, id
+"""
+
+
+RECURRING_ITEM_DELETED = """-- name: recurring_item_deleted \\:one
+select id, user_id, name, aspiration_id, from_goal_id, schedule_kind, weekday, day_of_month, times, period, starts_on, active, created_at, updated_at, deleted_at from recurring_items
+where id = :p1 and user_id = :p2 and deleted_at is not null
 """
 
 
@@ -132,6 +144,9 @@ class Querier:
             deleted_at=row[14],
         )
 
+    def delete_recurring_item(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_RECURRING_ITEM), {"p1": id, "p2": user_id})
+
     def get_recurring_item(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.RecurringItem]:
         row = self._conn.execute(sqlalchemy.text(GET_RECURRING_ITEM), {"p1": id, "p2": user_id}).first()
         if row is None:
@@ -174,6 +189,28 @@ class Querier:
                 updated_at=row[13],
                 deleted_at=row[14],
             )
+
+    def recurring_item_deleted(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.RecurringItem]:
+        row = self._conn.execute(sqlalchemy.text(RECURRING_ITEM_DELETED), {"p1": id, "p2": user_id}).first()
+        if row is None:
+            return None
+        return models.RecurringItem(
+            id=row[0],
+            user_id=row[1],
+            name=row[2],
+            aspiration_id=row[3],
+            from_goal_id=row[4],
+            schedule_kind=row[5],
+            weekday=row[6],
+            day_of_month=row[7],
+            times=row[8],
+            period=row[9],
+            starts_on=row[10],
+            active=row[11],
+            created_at=row[12],
+            updated_at=row[13],
+            deleted_at=row[14],
+        )
 
     def set_recurring_item_active(self, *, id: uuid.UUID, user_id: uuid.UUID, active: bool, aspiration_id: Optional[uuid.UUID]) -> Optional[models.RecurringItem]:
         row = self._conn.execute(sqlalchemy.text(SET_RECURRING_ITEM_ACTIVE), {

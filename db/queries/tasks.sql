@@ -165,3 +165,13 @@ order by tasks.due_date, tasks.created_at, tasks.id;
 -- name: SetStillMattersAnswered :exec
 update tasks set still_matters_answered_on = $3
 where id = $1 and user_id = $2 and deleted_at is null;
+
+-- A deleted item's open tasks go with it.
+-- name: DeleteItemOpenTasks :exec
+update tasks set deleted_at = now()
+where recurring_item_id = $1 and user_id = $2 and state = 'open' and deleted_at is null;
+
+-- A deleted item's other tasks stay as history, with the origin `recurring_item` and no item.
+-- name: UnlinkItemTasks :exec
+update tasks set recurring_item_id = null
+where recurring_item_id = $1 and user_id = $2 and deleted_at is null;

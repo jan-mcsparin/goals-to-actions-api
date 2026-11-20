@@ -6,7 +6,7 @@ from uuid import UUID
 
 from sqlalchemy import Connection
 
-from app.db import aspirations, goals, models, recurring_items
+from app.db import aspirations, goals, models, recurring_items, task_weeks, tasks
 from app.errors import NotAllowed, NotFound
 from app.recurring_items.models import NewRecurringItem, RecurringItemEdit, StoredSchedule
 from app.tasks import rules as task_rules
@@ -117,6 +117,24 @@ def turn(
     else:
         task_rules.set_aside(connection, user_id, rows, current)
     return updated
+
+
+def delete(connection: Connection, user_id: UUID, item_id: UUID) -> None:
+    """A mistake: the item and its open tasks are hidden everywhere. Its other tasks stay as
+    history, with no item. Sent again, it changes nothing."""
+    lock_user(connection, user_id)
+    queries = recurring_items.Querier(connection)
+    if queries.get_recurring_item(id=item_id, user_id=user_id) is None:
+        if queries.recurring_item_deleted(id=item_id, user_id=user_id) is None:
+            raise NotFound
+        return
+    task_weeks.Querier(connection).delete_item_open_task_weeks(
+        recurring_item_id=item_id, user_id=user_id
+    )
+    task_queries = tasks.Querier(connection)
+    task_queries.delete_item_open_tasks(recurring_item_id=item_id, user_id=user_id)
+    task_queries.unlink_item_tasks(recurring_item_id=item_id, user_id=user_id)
+    queries.delete_recurring_item(id=item_id, user_id=user_id)
 
 
 def aspiration_is_active(connection: Connection, user_id: UUID, aspiration_id: UUID) -> bool:

@@ -2,6 +2,15 @@
 select * from recurring_items
 where id = $1 and user_id = $2 and deleted_at is null;
 
+-- An item of the owner's that has been deleted: deleting it again changes nothing.
+-- name: RecurringItemDeleted :one
+select * from recurring_items
+where id = $1 and user_id = $2 and deleted_at is not null;
+
+-- name: DeleteRecurringItem :exec
+update recurring_items set deleted_at = now()
+where id = $1 and user_id = $2 and deleted_at is null;
+
 -- On and off, oldest first. The front end groups them by aspiration.
 -- name: ListRecurringItems :many
 select * from recurring_items

@@ -47,6 +47,12 @@ class CountStepsRow(pydantic.BaseModel):
     done: int
 
 
+DELETE_ITEM_OPEN_TASKS = """-- name: delete_item_open_tasks \\:exec
+update tasks set deleted_at = now()
+where recurring_item_id = :p1 and user_id = :p2 and state = 'open' and deleted_at is null
+"""
+
+
 DELETE_TASK = """-- name: delete_task \\:exec
 update tasks set deleted_at = now()
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -328,6 +334,12 @@ where id = :p1 and user_id = :p2 and deleted_at is not null
 """
 
 
+UNLINK_ITEM_TASKS = """-- name: unlink_item_tasks \\:exec
+update tasks set recurring_item_id = null
+where recurring_item_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 UPDATE_TASK = """-- name: update_task \\:one
 update tasks set title = :p3, due_date = :p4, time_kind = :p5, time_of_day = :p6
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -407,6 +419,9 @@ class Querier:
                 steps=row[1],
                 done=row[2],
             )
+
+    def delete_item_open_tasks(self, *, recurring_item_id: Optional[uuid.UUID], user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_ITEM_OPEN_TASKS), {"p1": recurring_item_id, "p2": user_id})
 
     def delete_task(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
         self._conn.execute(sqlalchemy.text(DELETE_TASK), {"p1": id, "p2": user_id})
@@ -622,6 +637,9 @@ class Querier:
             updated_at=row[17],
             deleted_at=row[18],
         )
+
+    def unlink_item_tasks(self, *, recurring_item_id: Optional[uuid.UUID], user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(UNLINK_ITEM_TASKS), {"p1": recurring_item_id, "p2": user_id})
 
     def update_task(self, arg: UpdateTaskParams) -> Optional[models.Task]:
         row = self._conn.execute(sqlalchemy.text(UPDATE_TASK), {

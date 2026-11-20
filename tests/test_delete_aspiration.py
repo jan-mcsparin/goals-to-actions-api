@@ -40,6 +40,7 @@ def test_the_ones_below_move_up_and_a_new_one_goes_last(zoned_client: TestClient
     response = delete_aspiration(zoned_client, first["id"])
 
     assert response.status_code == 204
+    assert "content-type" not in response.headers
     create(zoned_client, "Play")
     assert names_and_positions(zoned_client) == [("Grow", 1), ("Rest", 2), ("Play", 3)]
 

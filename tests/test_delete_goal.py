@@ -77,6 +77,7 @@ def test_a_building_goal_goes_with_its_sessions_milestones_and_check_ins(
     response = delete_goal(goals_client, goal["id"])
 
     assert response.status_code == 204
+    assert "content-type" not in response.headers
     assert is_gone(goals_client, goal["id"])
     assert sessions(goals_client, WEEK) == []
     assert live_rows(connection, goal["id"]) == {}

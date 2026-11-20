@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Response, status
 
 from app.db import recurring_items
 from app.dependencies import CurrentDatabase, CurrentUserId
@@ -64,7 +64,12 @@ def turn_on_recurring_item(
         return RecurringItem.from_row(rules.turn(connection, user_id, item_id, today, on=True))
 
 
-@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
+@router.delete(
+    "/{item_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    responses=NOT_FOUND,
+)
 def delete_recurring_item(item_id: UUID, database: CurrentDatabase, user_id: CurrentUserId) -> None:
     """For a mistake: the item and its open tasks are hidden everywhere. Its done tasks stay,
     with no item."""

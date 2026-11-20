@@ -53,6 +53,7 @@ def test_its_open_tasks_go_and_its_done_and_dropped_ones_stay_with_no_item(
     response = delete_item(items_client, created["id"])
 
     assert response.status_code == 204
+    assert "content-type" not in response.headers
     left = item_tasks(items_client, WEEK)
     assert [task["id"] for task in left] == [done["id"]]
     assert left[0]["recurringItemId"] is None

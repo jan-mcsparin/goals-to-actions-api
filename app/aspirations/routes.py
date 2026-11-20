@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Response, status
 
 from app.aspirations import rules
 from app.aspirations.models import (
@@ -79,7 +79,12 @@ def bring_back_aspiration(
     return Aspiration.from_row(row)
 
 
-@router.delete("/{aspiration_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
+@router.delete(
+    "/{aspiration_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    responses=NOT_FOUND,
+)
 def delete_aspiration(
     aspiration_id: UUID, database: CurrentDatabase, user_id: CurrentUserId
 ) -> None:

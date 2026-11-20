@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Response, status
 
 from app.db import goals, milestones, weekly_targets
 from app.dependencies import CurrentDatabase, CurrentUserId
@@ -151,7 +151,12 @@ def go_again(
     return change_status(database, user_id, goal_id, rules.GO_AGAIN, "go again", today)
 
 
-@router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
+@router.delete(
+    "/{goal_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    responses=NOT_FOUND,
+)
 def delete_goal(goal_id: UUID, database: CurrentDatabase, user_id: CurrentUserId) -> None:
     """For a mistake: the goal is hidden everywhere, with its tasks, milestones, check-ins and
     records. A recurring item continued from it stays."""

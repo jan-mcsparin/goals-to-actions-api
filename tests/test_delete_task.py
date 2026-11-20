@@ -50,6 +50,7 @@ def test_a_deleted_task_leaves_the_week_with_its_rows(
     response = delete_task(tasks_client, on_today["id"])
 
     assert response.status_code == 204
+    assert "content-type" not in response.headers
     assert response.content == b""
     assert week_ids(tasks_client) == [kept["id"]]
     assert live_rows(connection, on_today["id"]) == 0

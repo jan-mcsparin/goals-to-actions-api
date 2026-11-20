@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from fastapi.exceptions import RequestValidationError
 
 from app.db import tasks as task_queries
@@ -155,7 +155,12 @@ def answer_still_matters(
         return task_view(connection, user_id, task_id)
 
 
-@router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
+@router.delete(
+    "/tasks/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    responses=NOT_FOUND,
+)
 def delete_task(task_id: UUID, database: CurrentDatabase, user_id: CurrentUserId) -> None:
     """For a mistake: the task and its week records are hidden everywhere. Not a drop, which
     stays in history."""

@@ -65,8 +65,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** Rows for quitting, recurring item, task, week and settings writes; a test that every write operation in the schema has a row.
 
 **Acceptance criteria:**
-- [ ] Each of those writes passes the repeat test.
-- [ ] The coverage test fails if a write operation in `openapi.json` has no row.
+- [x] Each of those writes passes the repeat test.
+- [x] The coverage test fails if a write operation in `openapi.json` has no row.
 
 **Verify:** `uv run pytest tests/test_repeats.py`, then the four checks.
 

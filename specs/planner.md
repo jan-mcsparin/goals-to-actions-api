@@ -17,7 +17,7 @@ References: [`product-rules.md`](../../docs/product-rules.md#planning), [`flows.
 - A placing rule, written as a plain function from the week's state (the tasks to place, what is already on each day, the first day it may use) to a list of placements, with no database or clock inside it, so it can be tested by example.
 - The two times it runs (below).
 - The two things it must never do: move a task placed by hand, or write to today or an earlier day after the week's first placement. Both are also refused where the database can refuse them.
-- The full-day mark: the week's read carries each day's cap and whether the day is over it. It is worked out on every read, and nothing is moved because of it.
+- The full-day mark: the week's read carries each day's cap and whether the day has reached it. It is worked out on every read, and nothing is moved because of it.
 
 **Out:**
 
@@ -47,7 +47,7 @@ This is why `task_weeks` needs no extra column: the planner only places tasks cr
 
 **The order** only decides who sees the lighter days first: fixed-day tasks, then maintenance (flexible items with no aspiration), then goal work in the order of its aspiration's position (an aspiration's goals by when they were made, then its recurring items), then goals with no aspiration or a retired one.
 
-**The cap is not consulted.** A day may end up over it; the read marks it.
+**The cap is not consulted.** A day may end up at or over it; the read marks it full.
 
 ### Left to other slices
 

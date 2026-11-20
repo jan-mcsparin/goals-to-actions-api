@@ -102,18 +102,18 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** A README section for the front end: the queueable writes, sent one at a time in order, what each answer means (success; 404 or 409 dropped; anything else kept and retried), bodies change only by addition. Mark the spec and map; update `../docs/` where it describes settings or the time zone; regenerate `openapi.json`; in the front end, `npm run api:types` on a branch, check its build and tests, and open its PR.
 
 **Acceptance criteria:**
-- [ ] The README section exists and matches the tests in tasks 4 and 5.
-- [ ] The spec's success criteria are checked; `CLAUDE.md`'s structure lists `settings/`.
-- [ ] The front end's types are regenerated; its build, lint and tests pass.
+- [x] The README section exists and matches the tests in tasks 4 and 5.
+- [x] The spec's success criteria are checked; `CLAUDE.md`'s structure lists `settings/`.
+- [x] The front end's types are regenerated; its build, lint and tests pass.
 
 **Verify:** the four checks; in `web-frontend/`, `nvm use`, `npm run build`, `npm run lint`, `npm test`.
 
 **Dependencies:** 5.
 
-**Files:** `README.md`, `CLAUDE.md`, `specs/{settings-sync,README}.md`, `../docs/data-model.md` (if needed), `openapi.json`; in the front end, `src/api/openapi.ts`.
+**Files:** `README.md`, `CLAUDE.md`, `specs/{settings-sync,README}.md`; in the front end, `src/api/openapi.ts`. (`../docs/data-model.md` already describes the zone as last known; `openapi.json` was regenerated in task 1.)
 
 **Scope:** M
 
 ## Checkpoint: after task 6
 
-- [ ] The slice is done; the front end compiles against the new types.
+- [x] The slice is done; the front end compiles against the new types.

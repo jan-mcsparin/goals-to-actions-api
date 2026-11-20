@@ -54,7 +54,7 @@ Checkpoint after task 2: the new behaviour is in; the four checks pass.
 
 Checkpoint after task 5: every write is proved safe to repeat; the four checks pass.
 
-- [ ] Task 6: What the queue can rely on; docs, the contract and the front end's types
+- [x] Task 6: What the queue can rely on; docs, the contract and the front end's types
 
 Checkpoint after task 6: the slice is done, and the front end's mock compiles against the new types.
 

@@ -155,7 +155,7 @@ def test_a_check_off_of_a_set_aside_task_still_lands(tasks_client: TestClient) -
     task_id = add_task(tasks_client, day=day(), goalId=goal_id)["id"]
     tasks_client.post(f"/api/goals/{goal_id}/pause")
 
-    response = check_off(tasks_client, task_id, "", "")
+    response = tasks_client.post(f"/api/tasks/{task_id}/check-off", json=done_on(day()))
 
     assert response.status_code == 200, response.text
     assert response.json()["state"] == "done"

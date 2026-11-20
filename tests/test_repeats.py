@@ -8,6 +8,7 @@ the first left it. `updated_at` is left out: it records when a row was last touc
 what it holds. A last test fails for any write in the schema without a case."""
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
@@ -28,7 +29,18 @@ from tests.test_task_moves import this_week
 from tests.test_wrap_up import SUNDAY_EVENING
 
 Request = tuple[str, str, dict[str, Any] | None]
-Arrange = Callable[[TestClient, Connection, FixedClock], Request]
+
+
+@dataclass
+class Given:
+    """What a case can arrange with. Most need only the client."""
+
+    client: TestClient
+    connection: Connection
+    clock: FixedClock
+
+
+Arrange = Callable[[Given], Request]
 
 FOUR_RUNS = {"kind": "amount", "sessions": 4, "amount": 25, "unit": "miles"}
 
@@ -59,119 +71,119 @@ def milestone(client: TestClient, goal_id: str, line: str = "Bench 155") -> str:
 # Aspirations
 
 
-def create_aspiration(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
+def create_aspiration(given: Given) -> Request:
     return "PUT", f"/api/aspirations/{uuid4()}", {"name": "Be healthy", "why": "Feel good"}
 
 
-def update_aspiration(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "PATCH", f"/api/aspirations/{aspiration(client)}", {"name": "Be fit"}
+def update_aspiration(given: Given) -> Request:
+    return "PATCH", f"/api/aspirations/{aspiration(given.client)}", {"name": "Be fit"}
 
 
-def reorder_aspirations(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    first, second = aspiration(client, "First"), aspiration(client, "Second")
+def reorder_aspirations(given: Given) -> Request:
+    first, second = aspiration(given.client, "First"), aspiration(given.client, "Second")
     return "POST", "/api/aspirations/reorder", {"ids": [second, first]}
 
 
-def retire_aspiration(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "POST", f"/api/aspirations/{aspiration(client)}/retire", {"itsWork": "pause"}
+def retire_aspiration(given: Given) -> Request:
+    return "POST", f"/api/aspirations/{aspiration(given.client)}/retire", {"itsWork": "pause"}
 
 
-def bring_back_aspiration(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    aspiration_id = aspiration(client)
-    ok(client.post(f"/api/aspirations/{aspiration_id}/retire", json={"itsWork": "keep"}))
+def bring_back_aspiration(given: Given) -> Request:
+    aspiration_id = aspiration(given.client)
+    ok(given.client.post(f"/api/aspirations/{aspiration_id}/retire", json={"itsWork": "keep"}))
     return "POST", f"/api/aspirations/{aspiration_id}/bring-back", None
 
 
-def delete_aspiration(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    aspiration(client, "Stays")
-    return "DELETE", f"/api/aspirations/{aspiration(client)}", None
+def delete_aspiration(given: Given) -> Request:
+    aspiration(given.client, "Stays")
+    return "DELETE", f"/api/aspirations/{aspiration(given.client)}", None
 
 
 # Goals
 
 
-def create_goal_request(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
+def create_goal_request(given: Given) -> Request:
     return "PUT", f"/api/goals/{uuid4()}", lifting()
 
 
-def update_goal(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "PATCH", f"/api/goals/{goal(client)}", edit()
+def update_goal(given: Given) -> Request:
+    return "PATCH", f"/api/goals/{goal(given.client)}", edit()
 
 
-def set_weekly_target(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "PUT", f"/api/goals/{goal(client)}/weekly-target", FOUR_RUNS
+def set_weekly_target(given: Given) -> Request:
+    return "PUT", f"/api/goals/{goal(given.client)}/weekly-target", FOUR_RUNS
 
 
-def pause_goal(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "POST", f"/api/goals/{goal(client)}/pause", None
+def pause_goal(given: Given) -> Request:
+    return "POST", f"/api/goals/{goal(given.client)}/pause", None
 
 
-def resume_goal(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "POST", f"/api/goals/{goal_after(client, 'pause')}/resume", None
+def resume_goal(given: Given) -> Request:
+    return "POST", f"/api/goals/{goal_after(given.client, 'pause')}/resume", None
 
 
-def end_goal(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "POST", f"/api/goals/{goal(client)}/end", None
+def end_goal(given: Given) -> Request:
+    return "POST", f"/api/goals/{goal(given.client)}/end", None
 
 
-def mark_goal_reached(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "POST", f"/api/goals/{goal(client)}/mark-reached", None
+def mark_goal_reached(given: Given) -> Request:
+    return "POST", f"/api/goals/{goal(given.client)}/mark-reached", None
 
 
-def reopen_goal(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "POST", f"/api/goals/{goal_after(client, 'mark-reached')}/reopen", None
+def reopen_goal(given: Given) -> Request:
+    return "POST", f"/api/goals/{goal_after(given.client, 'mark-reached')}/reopen", None
 
 
-def go_again(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "POST", f"/api/goals/{goal_after(client, 'end')}/go-again", None
+def go_again(given: Given) -> Request:
+    return "POST", f"/api/goals/{goal_after(given.client, 'end')}/go-again", None
 
 
-def delete_goal(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    goal_id = goal(client)
-    milestone(client, goal_id)
+def delete_goal(given: Given) -> Request:
+    goal_id = goal(given.client)
+    milestone(given.client, goal_id)
     return "DELETE", f"/api/goals/{goal_id}", None
 
 
 # Milestones and check-ins
 
 
-def add_milestone_request(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    body = {"goalId": goal(client), "measurableLine": "Bench 155", "targetDate": None}
+def add_milestone_request(given: Given) -> Request:
+    body = {"goalId": goal(given.client), "measurableLine": "Bench 155", "targetDate": None}
     return "PUT", f"/api/milestones/{uuid4()}", body
 
 
-def update_milestone(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    milestone_id = milestone(client, goal(client))
+def update_milestone(given: Given) -> Request:
+    milestone_id = milestone(given.client, goal(given.client))
     body = {"measurableLine": "Bench 165", "targetDate": None}
     return "PATCH", f"/api/milestones/{milestone_id}", body
 
 
-def reorder_milestones(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    goal_id = goal(client)
-    first, second = milestone(client, goal_id, "M1"), milestone(client, goal_id, "M2")
+def reorder_milestones(given: Given) -> Request:
+    goal_id = goal(given.client)
+    first, second = milestone(given.client, goal_id, "M1"), milestone(given.client, goal_id, "M2")
     return "POST", f"/api/goals/{goal_id}/milestones/reorder", {"ids": [second, first]}
 
 
-def keep_milestone(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    goal_id = goal(client)
-    milestone_id = milestone(client, goal_id)
-    ok(check_in(client, goal_id, milestone_id, "notYet", "140"))
+def keep_milestone(given: Given) -> Request:
+    goal_id = goal(given.client)
+    milestone_id = milestone(given.client, goal_id)
+    ok(check_in(given.client, goal_id, milestone_id, "notYet", "140"))
     return "POST", f"/api/milestones/{milestone_id}/keep", None
 
 
-def delete_milestone(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    goal_id = goal(client)
-    milestone(client, goal_id, "M1")
-    second = milestone(client, goal_id, "M2")
-    milestone(client, goal_id, "M3")
+def delete_milestone(given: Given) -> Request:
+    goal_id = goal(given.client)
+    milestone(given.client, goal_id, "M1")
+    second = milestone(given.client, goal_id, "M2")
+    milestone(given.client, goal_id, "M3")
     return "DELETE", f"/api/milestones/{second}", None
 
 
-def check_in_request(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    goal_id = goal(client)
+def check_in_request(given: Given) -> Request:
+    goal_id = goal(given.client)
     body = {
         "goalId": goal_id,
-        "milestoneId": milestone(client, goal_id),
+        "milestoneId": milestone(given.client, goal_id),
         "outcome": "hit",
         "result": "155",
     }
@@ -191,23 +203,23 @@ def urge_day(client: TestClient) -> str:
     return f"/api/goals/{goal_id}/urges/{today().isoformat()}"
 
 
-def answer_quit_day(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "PUT", quitting_day(client), {"held": True}
+def answer_quit_day(given: Given) -> Request:
+    return "PUT", quitting_day(given.client), {"held": True}
 
 
-def clear_quit_day(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    path = quitting_day(client)
-    ok(client.put(path, json={"held": False}))
+def clear_quit_day(given: Given) -> Request:
+    path = quitting_day(given.client)
+    ok(given.client.put(path, json={"held": False}))
     return "POST", f"{path}/clear", None
 
 
-def rate_urge(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "PUT", urge_day(client), {"level": "strong"}
+def rate_urge(given: Given) -> Request:
+    return "PUT", urge_day(given.client), {"level": "strong"}
 
 
-def clear_urge_rating(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    path = urge_day(client)
-    ok(client.put(path, json={"level": "some"}))
+def clear_urge_rating(given: Given) -> Request:
+    path = urge_day(given.client)
+    ok(given.client.put(path, json={"level": "some"}))
     return "POST", f"{path}/clear", None
 
 
@@ -218,30 +230,26 @@ def recurring_item(client: TestClient) -> str:
     return str(ok(client.put(f"/api/recurring-items/{uuid4()}", json=item()))["id"])
 
 
-def create_recurring_item(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
+def create_recurring_item(given: Given) -> Request:
     return "PUT", f"/api/recurring-items/{uuid4()}", item()
 
 
-def update_recurring_item(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "PATCH", f"/api/recurring-items/{recurring_item(client)}", item(name="Recycling")
+def update_recurring_item(given: Given) -> Request:
+    return "PATCH", f"/api/recurring-items/{recurring_item(given.client)}", item(name="Recycling")
 
 
-def turn_off_recurring_item(
-    client: TestClient, connection: Connection, clock: FixedClock
-) -> Request:
-    return "POST", f"/api/recurring-items/{recurring_item(client)}/turn-off", None
+def turn_off_recurring_item(given: Given) -> Request:
+    return "POST", f"/api/recurring-items/{recurring_item(given.client)}/turn-off", None
 
 
-def turn_on_recurring_item(
-    client: TestClient, connection: Connection, clock: FixedClock
-) -> Request:
-    item_id = recurring_item(client)
-    ok(client.post(f"/api/recurring-items/{item_id}/turn-off"))
+def turn_on_recurring_item(given: Given) -> Request:
+    item_id = recurring_item(given.client)
+    ok(given.client.post(f"/api/recurring-items/{item_id}/turn-off"))
     return "POST", f"/api/recurring-items/{item_id}/turn-on", None
 
 
-def delete_recurring_item(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "DELETE", f"/api/recurring-items/{recurring_item(client)}", None
+def delete_recurring_item(given: Given) -> Request:
+    return "DELETE", f"/api/recurring-items/{recurring_item(given.client)}", None
 
 
 # Tasks and weeks
@@ -257,71 +265,71 @@ def on_today(client: TestClient) -> str:
     return task(client, day=today().isoformat())
 
 
-def add_task(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
+def add_task(given: Given) -> Request:
     return "PUT", f"/api/tasks/{uuid4()}", {"title": "Call the dentist", "day": today().isoformat()}
 
 
-def update_task(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
+def update_task(given: Given) -> Request:
     return (
         "PATCH",
-        f"/api/tasks/{task(client)}",
+        f"/api/tasks/{task(given.client)}",
         {"title": "Call the vet", "timeOfDay": {"kind": "by", "time": "09:30"}},
     )
 
 
-def check_off_task(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
+def check_off_task(given: Given) -> Request:
     body = done_on(today().isoformat(), valueLogged=3.5)
-    return "POST", f"/api/tasks/{on_today(client)}/check-off", body
+    return "POST", f"/api/tasks/{on_today(given.client)}/check-off", body
 
 
-def uncheck_task(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    task_id = on_today(client)
-    ok(client.post(f"/api/tasks/{task_id}/check-off", json=done_on(today().isoformat())))
+def uncheck_task(given: Given) -> Request:
+    task_id = on_today(given.client)
+    ok(given.client.post(f"/api/tasks/{task_id}/check-off", json=done_on(today().isoformat())))
     return "POST", f"/api/tasks/{task_id}/uncheck", None
 
 
-def place_task(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
+def place_task(given: Given) -> Request:
     body = {"week": this_week().isoformat(), "day": today().isoformat()}
-    return "POST", f"/api/tasks/{task(client)}/place", body
+    return "POST", f"/api/tasks/{task(given.client)}/place", body
 
 
-def move_task_to_bank(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "POST", f"/api/tasks/{on_today(client)}/bank", {"week": this_week().isoformat()}
+def move_task_to_bank(given: Given) -> Request:
+    return "POST", f"/api/tasks/{on_today(given.client)}/bank", {"week": this_week().isoformat()}
 
 
-def swap_tasks(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
+def swap_tasks(given: Given) -> Request:
     body = {
         "week": this_week().isoformat(),
-        "bankTaskId": task(client),
+        "bankTaskId": task(given.client),
         "day": today().isoformat(),
     }
-    return "POST", f"/api/tasks/{on_today(client)}/swap", body
+    return "POST", f"/api/tasks/{on_today(given.client)}/swap", body
 
 
-def drop_task(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "POST", f"/api/tasks/{task(client)}/drop", None
+def drop_task(given: Given) -> Request:
+    return "POST", f"/api/tasks/{task(given.client)}/drop", None
 
 
-def answer_still_matters(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    task_id = new_task(connection, W3)
-    add_rolled_rows(connection, task_id, [W1, W2])
+def answer_still_matters(given: Given) -> Request:
+    task_id = new_task(given.connection, W3)
+    add_rolled_rows(given.connection, task_id, [W1, W2])
     return "POST", f"/api/tasks/{task_id}/still-matters", {"answer": "keep"}
 
 
-def delete_task(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    return "DELETE", f"/api/tasks/{on_today(client)}", None
+def delete_task(given: Given) -> Request:
+    return "DELETE", f"/api/tasks/{on_today(given.client)}", None
 
 
-def wrap_up_week(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
-    clock.instant = SUNDAY_EVENING
-    task(client, day="2026-11-22")
+def wrap_up_week(given: Given) -> Request:
+    given.clock.instant = SUNDAY_EVENING
+    task(given.client, day="2026-11-22")
     return "POST", f"/api/weeks/{this_week().isoformat()}/wrap-up", None
 
 
 # Settings
 
 
-def set_intensity(client: TestClient, connection: Connection, clock: FixedClock) -> Request:
+def set_intensity(given: Given) -> Request:
     return "PUT", "/api/settings/intensity", {"intensity": "goingHard"}
 
 
@@ -404,7 +412,7 @@ def test_a_write_sent_twice_gives_the_same_answer_and_data(
     operation: str, client: TestClient, connection: Connection, fixed_clock: FixedClock
 ) -> None:
     client.headers["X-Time-Zone"] = ZONE
-    method, path, body = CASES[operation](client, connection, fixed_clock)
+    method, path, body = CASES[operation](Given(client, connection, fixed_clock))
 
     before = snapshot(connection)
     first = client.request(method, path, json=body)

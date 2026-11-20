@@ -1,88 +1,68 @@
-# Implementation Plan: Delete (#12)
+# Implementation Plan: Settings and sync (#13)
 
-Spec: [`../specs/delete.md`](../specs/delete.md). Tasks: [`todo.md`](todo.md). (The plan for #11 is in git history.)
+Spec: [`../specs/settings-sync.md`](../specs/settings-sync.md). Tasks: [`todo.md`](todo.md). (The plan for #12 is in git history.)
 
 ## Overview
 
-Delete is for mistakes. Five routes hide a row and what belongs to it, in one transaction, by setting `deleted_at`. Nothing is removed from the database, and there is no undo. Every read already leaves deleted rows out; this slice adds the routes, lets positions be reused, and proves no read shows a deleted row.
+Two small routes for the one setting, the phone's time zone kept on the user, and two tests that run across the whole API to prove it behaves the way the phone's cache and offline queue need (ADR-004, ADR-010). The README then says what the queue can rely on.
 
-Seven tasks. **One PR** in the API, `delete` (closes #12), and one small PR in the front end for the regenerated types. The front end's #38 builds the screens later.
+Six tasks. **One PR** in the API, `settings-sync` (closes #13), and one small PR in the front end for the regenerated types. The front end's #39 wires Settings and the queue later.
 
 ## The contract
 
-New. None is queueable (ADR-010: delete needs a connection).
+New. Neither is queueable (ADR-010).
 
 | Operation | Route | Returns |
 | --- | --- | --- |
-| `deleteTask` | `DELETE /api/tasks/{taskId}` | 204 |
-| `deleteMilestone` | `DELETE /api/milestones/{milestoneId}` | `GoalPage`, as every milestone write does |
-| `deleteGoal` | `DELETE /api/goals/{goalId}` | 204 |
-| `deleteAspiration` | `DELETE /api/aspirations/{aspirationId}` | 204 |
-| `deleteRecurringItem` | `DELETE /api/recurring-items/{itemId}` | 204 |
+| `getSettings` | `GET /api/settings` | `Settings` |
+| `setIntensity` | `PUT /api/settings/intensity`, body `{"intensity": "goingHard"}` | `Settings` |
 
-Each is safe to repeat: deleting a row that's already deleted gives the same answer and changes nothing. 404 for an id that was never yours. Nothing is refused with 409: anything that exists can be deleted.
-
-What goes along (Jan, 2026-11-19: the spec's open questions 1 and 2 as written, no undo):
-
-| Deleting | Also deletes | Leaves |
-| --- | --- | --- |
-| A task | Its week records | |
-| A milestone | Its check-ins | The goal's other milestones, renumbered |
-| A goal | Its tasks and their week records, milestones, check-ins, weekly targets, quit days, urge ratings | A recurring item continued from it, with `from_goal_id` emptied |
-| An aspiration | | Its goals and recurring items, with no aspiration; the other active aspirations, renumbered |
-| A recurring item | Its open tasks and their week records | Its other tasks (done, dropped, lapsed), with the link to the item emptied; they keep the origin `recurring_item` |
+`Settings` is `{"intensity": "easingOff" \| "normal" \| "goingHard"}`. The time zone isn't in it: it's not a setting (`data-model.md`). Nor is a date set on: the data model dropped it, and the audit log has it. The front end's mock `Settings` still has `intensitySetOn`; that's for its #39.
 
 ## Architecture decisions
 
-- **Each delete lives in its own slice** (`app/tasks/`, `app/milestones/`, `app/goals/`, `app/aspirations/`, `app/recurring_items/`): the route in `routes.py`, the cascade in `rules.py`. The queries go in each table's file; turnover's `DeleteTask` and `DeleteTaskRows` move to `tasks.sql` and `task_weeks.sql`, since deletes now use them too.
-- **Every delete takes the user lock.** Three renumber, and the other two take tasks out of a week the planner and turnover write to.
-- **A repeat is found by a query that sees deleted rows** (`<Thing>Deleted`): no live row, but a deleted one of yours, means the delete already happened. Only these queries look past `deleted_at`.
-- **Positions ignore deleted rows.** `aspirations_position_unique` and `milestones_position_unique` become deferrable exclusion constraints over rows not deleted, with the same names, so a deleted row's position can be taken. The other unique rules stay: generated tasks deliberately count deleted rows; `task_weeks_one_per_week` and `weekly_targets_one_per_week` only lose rows along with their task or goal, which nothing makes again.
-- **A deleted session isn't made again.** Turnover's `ListGeneratedSlots` already counts deleted tasks.
-- **No planner run.** Deleting takes things off the plan; it never places anything.
+- **A new `app/settings/` slice** with `routes.py` and `models.py`. The queries `GetUser` and `SetIntensity` already exist. `setIntensity` is a `PUT` that states its end result, so sending it twice changes nothing more. It doesn't take the user lock and runs no planner: changing intensity moves nothing (ADR-013); the week read already marks days against it.
+- **The time zone is kept by `Today`.** `today()` already reads the user; when the header's zone differs from the stored one, it saves it in its own small write (audit action "set time zone"). A request from the same zone writes nothing. Routes that don't need the day don't ask for the header, so don't save it; the zone is "last known", and every route that works out a day does. A name that isn't a zone is already refused (422) before anything is saved.
+- **The repeat test is one table in `tests/test_repeats.py`:** for each write operation, how to arrange it and the request. It sends the request twice and checks the same status and body both times, and that a snapshot of the user's rows (every table, leaving out `updated_at`) is the same after the second as after the first. A last test reads the OpenAPI schema and fails if any `PUT`, `POST`, `PATCH` or `DELETE` operation has no row, so a new write can't skip it.
+- **The stale-queue test is `tests/test_queued_writes.py`,** over the ten queueable writes (`addTask`, `checkOffTask`, `uncheckTask`, `placeTask`, `moveTaskToBank`, `swapTasks`, `answerQuitDay`, `clearQuitDay`, `rateUrge`, `clearUrgeRating`): aimed at a deleted row, a set-aside task, or a week the task has left, each answers 404 or 409. The test client re-raises server errors, so a 500 fails the test. A create aimed at a day no longer allowed lands in the bank. Two devices updating one task: the last to arrive wins.
+- **No migration.** `users` already has `intensity` and `time_zone`.
 
 ## Dependency graph
 
 ```
-positions ignore deleted rows (1)
-    ├── deleteTask (2)
-    │      ├── deleteRecurringItem (3)
-    │      └── deleteGoal (5) ── uses deleteMilestone's cascade (4)
-    ├── deleteMilestone (4)
-    └── deleteAspiration (6)
-          └── no read shows a deleted row; docs, contract, front end's types (7)
+getSettings, setIntensity (1)    time zone follows the phone (2)
+        └──────────────┬───────────────┘
+        repeat test: aspirations, goals, milestones, check-ins (3)
+                       │
+        repeat test: quitting, items, tasks, weeks, settings; every write covered (4)
+                       │
+        queued writes that no longer apply; last write wins (5)
+                       │
+        README, docs, the contract, the front end's types (6)
 ```
 
 ## Task list
 
-- [x] Task 1: Positions ignore deleted rows
-- [x] Task 2: Delete a task
-- [x] Task 3: Delete a recurring item
+- [x] Task 1: Read and set intensity
+- [x] Task 2: The time zone follows the phone
 
-Checkpoint after task 3: tasks and items can be deleted; the four checks pass.
+Checkpoint after task 2: the new behaviour is in; the four checks pass.
 
-- [x] Task 4: Delete a milestone
-- [x] Task 5: Delete a goal
-- [x] Task 6: Delete an aspiration
+- [x] Task 3: Repeat test, first half
+- [x] Task 4: Repeat test, second half, and every write covered
+- [x] Task 5: Queued writes that no longer apply
 
-Checkpoint after task 6: all five deletes work.
+Checkpoint after task 5: every write is proved safe to repeat; the four checks pass.
 
-- [x] Task 7: No read shows a deleted row; docs, the contract and the front end's types
+- [x] Task 6: What the queue can rely on; docs, the contract and the front end's types
 
-Checkpoint after task 7: the slice is done, and the front end's mock compiles against the new types.
+Checkpoint after task 6: the slice is done, and the front end's mock compiles against the new types.
 
 ## Risks and mitigations
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| A visible row points at a hidden one (a goal's label on a task, an item's aspiration) | High | Each cascade empties or deletes every link in the same transaction; task 7 deletes one of everything and walks every read. |
-| A deleted position blocks renumbering | Med | Task 1's constraints, and a test that deletes the first of three and adds a fourth. |
-| Turnover makes a deleted session again | Med | A test deletes a session and opens its week twice. |
-| A cascade misses a table added later | Low | Task 7's sweep lists every table, so a new one fails it until it's handled. |
-
-## Assumed, for review with this plan
-
-1. **The routes use `DELETE`**, the first in the API. The alternative was `POST /things/{id}/delete`, like the other actions; `DELETE` says what it is, and the front end only sees the operation's name.
-2. **204, except `deleteMilestone`,** which returns the goal's page as every milestone write does. After the other four the screen is gone or its read is fetched again.
-3. **A recurring item's dropped and lapsed tasks stay too**, like its done ones: they are decisions and history, not mistakes. Only open tasks go.
-4. **Deleting a paused or ended goal, or a retired aspiration, works the same** as an active one.
+| A repeat test finds a write that isn't safe to repeat | High | Stop and fix it in its own commit with its own test before carrying on; if the fix changes behaviour, ask. |
+| Saving the time zone adds a write to every request | Med | Only when it changes; a test that a second request from the same zone writes no audit row. |
+| The snapshot misses a change (a timestamp moved) | Med | Compare every column but `updated_at`; tests run in one transaction, so `now()` doesn't move between the two sends anyway. |
+| The table falls behind new routes | Med | The coverage test reads `openapi.json`'s operations. |

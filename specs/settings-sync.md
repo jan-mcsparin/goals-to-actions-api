@@ -1,6 +1,6 @@
 # Spec: Settings and sync
 
-Status: draft 2026-11-13; finalised when its plan is written. Issue: [#13](https://github.com/jan-mcsparin/goals-to-actions-api/issues/13). Module `settings-sync` in the [map](README.md). Depends on `database-foundation`.
+Status: built 2026-11-19. Issue: [#13](https://github.com/jan-mcsparin/goals-to-actions-api/issues/13). Module `settings-sync` in the [map](README.md). Depends on `database-foundation`.
 
 ## Objective
 
@@ -17,7 +17,7 @@ References: [`data-model.md`](../../docs/data-model.md#users), [ADR-004](../../d
 - `getSettings`, `setIntensity`. Intensity is stored on the user; nothing resets it or suggests changing it.
 - The phone's time zone: the name sent with each request is stored on the user as last known, and a name that isn't a real zone is refused.
 - A test, run over every route in the OpenAPI schema, that sending the same write twice gives the same answer and the same data.
-- A test over every queueable write (ADR-010; shared decisions 13 to 15) that one aimed at a row that is deleted, set aside or in a week the task has left answers 404 or 409, never 500, and that a create aimed at a day no longer allowed lands in the bank.
+- A test over every queueable write (ADR-010; shared decisions 13 to 15) that one aimed at a row that is deleted, set aside or in a week the task has left answers 404 or 409, never 500, and that a create aimed at a day no longer allowed lands in the bank. A check-off or uncheck of a set-aside task is the exception: it lands, as `tasks-week` settled.
 - A written description in the README of what the front end can rely on: the list of queueable writes, that they are sent one at a time in order, what each answer means for the queue (success, 404 or 409 dropped, anything else retried), and that their request bodies only change by addition.
 
 **Out (later):**
@@ -37,12 +37,18 @@ As shared. **Never:** trust the phone's clock for ordering; store an offset.
 
 ## Success criteria
 
-- [ ] Intensity reads and saves, and the week's read marks days against it. Changing it moves nothing (ADR-013).
-- [ ] The user's time zone follows the phone.
-- [ ] Every write in the API passes the repeat test.
-- [ ] The README says what the offline queue can rely on.
-- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
-- [ ] The four checks pass.
+- [x] Intensity reads and saves, and the week's read marks days against it. Changing it moves nothing (ADR-013).
+- [x] The user's time zone follows the phone.
+- [x] Every write in the API passes the repeat test.
+- [x] The README says what the offline queue can rely on.
+- [x] The front end's types are regenerated from the new schema and its mock client compiles against them.
+- [x] The four checks pass.
+
+## Settled
+
+- **`getSettings` and `setIntensity` return `{intensity}` only.** The time zone isn't a setting, and the date intensity was set on is in the audit log (`data-model.md`). Plan approved by Jan, 2026-11-19.
+- **The time zone is kept by every route that works out the day,** written only when it changes. Routes that don't need the day don't take the header.
+- **A check-off or uncheck of a set-aside task lands** rather than being refused: done is done, as `tasks-week` settled. Only the plan edits (place, bank, swap) are refused on a set-aside task. Confirmed by Jan, 2026-11-19: any task that gets done can be checked off.
 
 ## Open questions
 

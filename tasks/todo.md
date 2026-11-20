@@ -150,7 +150,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** On a branch in `web-frontend/`, regenerate the API types from `openapi.json`; the mock client compiles. No screens change.
 
 **Acceptance criteria:**
-- [ ] Types regenerated; the front end's typecheck, lint and tests pass.
+- [x] Types regenerated; the front end's typecheck, lint and tests pass (front-end PR #64).
 
 **Verify:** the front end's own checks (`nvm use` first).
 

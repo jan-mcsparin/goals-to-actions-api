@@ -362,6 +362,24 @@ def drop(connection: Connection, user_id: UUID, task_id: UUID) -> None:
     tasks.Querier(connection).set_task_closed(id=task_id, user_id=user_id, state="dropped")
 
 
+def delete(connection: Connection, user_id: UUID, task_id: UUID) -> None:
+    """A mistake: the task and its week records are hidden everywhere. Sent again, it changes
+    nothing."""
+    lock_user(connection, user_id)
+    queries = tasks.Querier(connection)
+    if queries.get_task(id=task_id, user_id=user_id) is None:
+        if queries.task_deleted(id=task_id, user_id=user_id) is None:
+            raise NotFound
+        return
+    hide(connection, user_id, task_id)
+
+
+def hide(connection: Connection, user_id: UUID, task_id: UUID) -> None:
+    """Deletes the task and its week records."""
+    task_weeks.Querier(connection).delete_task_weeks(task_id=task_id, user_id=user_id)
+    tasks.Querier(connection).delete_task(id=task_id, user_id=user_id)
+
+
 def answer_still_matters(
     connection: Connection, user_id: UUID, task_id: UUID, answer: StillMattersAnswer, today: date
 ) -> None:

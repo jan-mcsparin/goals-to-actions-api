@@ -2,6 +2,16 @@
 select * from tasks
 where id = $1 and user_id = $2 and deleted_at is null;
 
+-- A task of the owner's that has been deleted: deleting it again changes nothing.
+-- name: TaskDeleted :one
+select * from tasks
+where id = $1 and user_id = $2 and deleted_at is not null;
+
+-- Hidden everywhere. It stays in the database, so a deleted session isn't made again.
+-- name: DeleteTask :exec
+update tasks set deleted_at = now()
+where id = $1 and user_id = $2 and deleted_at is null;
+
 -- Returns nothing when the id is taken.
 -- name: AddTask :one
 insert into tasks (id, user_id, title, origin, goal_id, due_date, time_kind, time_of_day)

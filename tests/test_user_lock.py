@@ -103,6 +103,7 @@ WRITES: dict[str, Callable[[Connection], object]] = {
         date(2026, 11, 16),
     ),
     "drop task": lambda tx: task_rules.drop(tx, FIXED_USER_ID, uuid4()),
+    "delete task": lambda tx: task_rules.delete(tx, FIXED_USER_ID, uuid4()),
     "answer still matters": lambda tx: task_rules.answer_still_matters(
         tx, FIXED_USER_ID, uuid4(), KeepIt(answer="keep"), date(2026, 11, 16)
     ),

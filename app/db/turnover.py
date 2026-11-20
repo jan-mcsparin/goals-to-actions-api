@@ -31,18 +31,6 @@ class AddGeneratedTaskParams(pydantic.BaseModel):
     number: Optional[int]
 
 
-DELETE_TASK = """-- name: delete_task \\:exec
-update tasks set deleted_at = now()
-where id = :p1 and user_id = :p2 and deleted_at is null
-"""
-
-
-DELETE_TASK_ROWS = """-- name: delete_task_rows \\:exec
-update task_weeks set deleted_at = now()
-where task_id = :p1 and user_id = :p2 and deleted_at is null
-"""
-
-
 LIST_DUE_TASKS_WITHOUT_ROWS = """-- name: list_due_tasks_without_rows \\:many
 select tasks.id from tasks
 left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
@@ -162,12 +150,6 @@ class Querier:
             updated_at=row[17],
             deleted_at=row[18],
         )
-
-    def delete_task(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
-        self._conn.execute(sqlalchemy.text(DELETE_TASK), {"p1": id, "p2": user_id})
-
-    def delete_task_rows(self, *, task_id: uuid.UUID, user_id: uuid.UUID) -> None:
-        self._conn.execute(sqlalchemy.text(DELETE_TASK_ROWS), {"p1": task_id, "p2": user_id})
 
     def list_due_tasks_without_rows(self, *, user_id: uuid.UUID, due_date: Optional[datetime.date]) -> Iterator[uuid.UUID]:
         result = self._conn.execute(sqlalchemy.text(LIST_DUE_TASKS_WITHOUT_ROWS), {"p1": user_id, "p2": due_date})

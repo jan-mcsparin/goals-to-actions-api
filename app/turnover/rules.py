@@ -57,8 +57,8 @@ def catch_up(connection: Connection, user_id: UUID, now: datetime) -> bool:
     if due.close:
         last = current - timedelta(weeks=1)
         close_weeks(connection, user_id, last, current, owner.closed_through_week)
-        set_audit_action(connection, "open week")
         mark_closed(connection, user_id, last)
+    set_audit_action(connection, "open week")
     if due.open_current:
         open_week(connection, user_id, current, now.date())
     if due.open_next:

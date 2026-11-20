@@ -3,12 +3,15 @@
 `place` is the rule, pure code with no database or clock (spec `planner`, "Where it puts
 things"). `place_new_work` is the hook opening a week and every change call."""
 
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import Connection
+
+from app.db import planner
 
 
 @dataclass(frozen=True)
@@ -92,5 +95,86 @@ def beside(
 def place_new_work(
     connection: Connection, user_id: UUID, task_ids: list[UUID], first_day: date
 ) -> None:
-    """Called with the tasks a week's opening, or a change, has just made, and the first day it
-    may use. Does nothing yet, so everything stays in the bank (ADR-013)."""
+    """Places the recurring tasks a week's opening, or a change, has just made, from
+    `first_day` on. Anything else it's handed (a task added by hand) stays in the bank."""
+    if not task_ids:
+        return
+    queries = planner.Querier(connection)
+    context = list(queries.list_placement_context(user_id=user_id, task_ids=task_ids))
+    for week in sorted({row.week for row in context}):
+        new = [row for row in context if row.week == week]
+        new_ids = {row.task_id for row in new}
+        others = [
+            row
+            for row in queries.list_week_places(user_id=user_id, week=week)
+            if row.task_id not in new_ids
+        ]
+        load = Counter(row.planned_day for row in others if row.planned_day is not None)
+        for placement in place(week, first_day, load, groups_of(new, others, week)):
+            queries.place_generated_task(
+                planner.PlaceGeneratedTaskParams(
+                    day=placement.day,
+                    task_id=placement.task_id,
+                    user_id=user_id,
+                    week=week,
+                    first_day=first_day,
+                )
+            )
+
+
+def groups_of(
+    new: list[planner.ListPlacementContextRow],
+    others: list[planner.ListWeekPlacesRow],
+    week: date,
+) -> list[Group]:
+    """One group per goal or item, in the order that decides who sees the lighter days first
+    (spec `planner`, "The order")."""
+    by_owner: dict[UUID, list[planner.ListPlacementContextRow]] = {}
+    for row in new:
+        by_owner.setdefault(owner_of(row.goal_id, row.recurring_item_id), []).append(row)
+    ordered = sorted(by_owner.items(), key=lambda entry: turn_of(entry[1][0], entry[0]))
+    return [
+        Group(
+            task_ids=tuple(row.task_id for row in rows),
+            fixed_day=fixed_day(rows[0], week),
+            starts_on=rows[0].starts_on,
+            earlier_days=tuple(
+                row.planned_day for row in others if (row.goal_id or row.recurring_item_id) == owner
+            ),
+        )
+        for owner, rows in ordered
+    ]
+
+
+def owner_of(goal_id: UUID | None, item_id: UUID | None) -> UUID:
+    owner = goal_id or item_id
+    assert owner is not None
+    return owner
+
+
+def turn_of(
+    row: planner.ListPlacementContextRow, owner: UUID
+) -> tuple[int, int, int, datetime, str]:
+    """Fixed-day tasks; then maintenance (flexible items with no aspiration); then work under
+    an active aspiration, by its position, goals before items; then the rest."""
+    is_item = int(row.recurring_item_id is not None)
+    if row.item_kind in ("weekly", "monthly"):
+        rank = 0
+    elif is_item and row.item_aspiration_id is None:
+        rank = 1
+    elif row.aspiration_position is not None:
+        rank = 2
+    else:
+        rank = 3
+    return (rank, row.aspiration_position or 0, is_item, row.made_at, str(owner))
+
+
+def fixed_day(row: planner.ListPlacementContextRow, week: date) -> date | None:
+    if row.item_kind == "weekly" and row.weekday is not None:
+        return week + timedelta(days=row.weekday - 1)
+    if row.item_kind == "monthly":
+        for offset in range(7):
+            day = week + timedelta(days=offset)
+            if day.day == row.day_of_month:
+                return day
+    return None

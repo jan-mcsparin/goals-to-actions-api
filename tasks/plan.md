@@ -40,7 +40,7 @@ place(): the pure rule (1)
 ## Task list
 
 - [x] Task 1: The placing rule
-- [ ] Task 2: Place when a week opens
+- [x] Task 2: Place when a week opens
 - [ ] Task 3: Place new recurring work on later days
 
 Checkpoint after task 3: recurring work lands on days; the four checks pass.

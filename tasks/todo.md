@@ -27,10 +27,10 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `place_new_work` reads, for the tasks it's given, each one's group, order, fixed day and start date, and the week's load (`db/queries/planner.sql`, `ListPlacementContext` and `ListDayLoads`), calls `place`, and writes each placement with `PlaceGeneratedTask`, which only touches a bank row not placed by hand, with no outcome, on a day on or after the first day. `sqlc generate`.
 
 **Acceptance criteria:**
-- [ ] Opened on Sunday evening, next week's fixed-day tasks are on their days and its sessions and flexible tasks are spread from Monday.
-- [ ] Opened by a first request on Wednesday, the current week's recurring work is placed from Wednesday on.
-- [ ] Carry-overs, tasks now due and tasks added by hand are in the bank after the week opens.
-- [ ] `PlaceGeneratedTask` changes nothing for a hand-placed row, a row already on a day, or a day before the first day (a test for each).
+- [x] Opened on Sunday evening, next week's fixed-day tasks are on their days and its sessions and flexible tasks are spread from Monday.
+- [x] Opened by a first request on Wednesday, the current week's recurring work is placed from Wednesday on.
+- [x] Carry-overs, tasks now due and tasks added by hand are in the bank after the week opens.
+- [x] `PlaceGeneratedTask` changes nothing for a hand-placed row, a row already on a day, or a day before the first day (a test for each).
 
 **Verify:** `uv run pytest tests/test_planner.py tests/test_open_week.py`, then the four checks.
 

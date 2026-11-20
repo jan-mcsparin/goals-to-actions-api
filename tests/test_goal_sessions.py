@@ -39,12 +39,15 @@ def set_target(client: TestClient, goal_id: str, sessions: int) -> None:
     assert response.status_code == 200, response.text
 
 
-def test_a_goal_made_midweek_has_its_sessions_in_the_bank(tasks_client: TestClient) -> None:
+def test_a_goal_made_midweek_has_its_sessions_placed_from_tomorrow(
+    tasks_client: TestClient,
+) -> None:
     create_goal(tasks_client, lifting())
 
     found = sessions(tasks_client, WEEK)
 
-    assert [task["plannedDay"] for task in found] == [None, None, None]
+    # Made on Wednesday: three sessions over Thursday to Sunday, one day apart.
+    assert [task["plannedDay"] for task in found] == ["2026-11-19", "2026-11-20", "2026-11-21"]
     assert sessions(tasks_client, NEXT_WEEK) == []
 
 

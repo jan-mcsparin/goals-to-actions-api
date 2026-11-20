@@ -44,7 +44,7 @@ What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product
 Settled:
 
 1. **The planner runs on the server** (ADR-008). No slice puts planning rules in a response for the phone to apply.
-2. **Until `sign-in`, the API runs as one fixed user.** Every route gets the current user from one dependency, and every query takes the owner as a parameter, so sign-in changes that dependency and nothing else.
+2. **Until `sign-in`, the API runs as one fixed user.** Every route gets the current user from one dependency, and every query takes the owner as a parameter, so sign-in changes that dependency and nothing else. Done in `sign-in`: the dependency reads the session, and the fixed user is the founder's account.
 3. **Every table arrives with the full set of shared columns** (`id`, `user_id`, `created_at`, `updated_at`, `deleted_at`) **and the audit trigger**, in the migration that creates it. Every read leaves out deleted rows from the start, even though the routes that delete arrive in slice 10.
 4. **A slice adds its tables, its queries, its routes and their tests together.** No migration runs ahead of the slice that uses it.
 5. **Where one action spans two slices, the later slice finishes it.** Pausing a goal changes its status in slice 3; setting its tasks aside is added in slice 5, when tasks exist. Each spec lists what it leaves for later.

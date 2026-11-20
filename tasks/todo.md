@@ -125,7 +125,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `data-model.md` gains the four tables; `specs/sign-in.md` finalised (open questions settled); ADR-012's "to confirm" notes the `Origin` header; `specs/README.md` decision 2 updated; the README says how to add a user and make a code, and that sign-in routes are one-shot; `CLAUDE.md`'s structure lists `app/sign_in/`.
 
 **Acceptance criteria:**
-- [ ] Every doc describes what was built.
+- [x] Every doc describes what was built. `data-model.md` and ADR-012 are in the parent repo, on its `sign-in` branch.
 
 **Verify:** read through; the four checks.
 

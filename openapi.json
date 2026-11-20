@@ -5016,6 +5016,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Finish Sign In",
         "tags": [
           "sign-in"
@@ -5061,6 +5066,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Add Passkey",
         "tags": [
           "sign-in"

@@ -216,3 +216,16 @@ def test_any_failure_in_the_librarys_check_is_a_401(
     monkeypatch.setattr(rules, "verify_authentication_response", malformed)
 
     assert finish(signed_out).status_code == 401
+
+
+def test_signing_in_again_ends_the_devices_old_session(
+    client: TestClient, connection: Connection, owner: UUID, accepted: list[dict[str, Any]]
+) -> None:
+    """The device's earlier session can't outlive the new one (security review)."""
+    old = client.cookies[SESSION_COOKIE]
+
+    assert finish(client).status_code == 204
+
+    client.cookies.clear()
+    client.cookies.set(SESSION_COOKIE, old)
+    assert client.get("/api/aspirations").status_code == 401

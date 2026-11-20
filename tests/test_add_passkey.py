@@ -276,3 +276,28 @@ def test_a_credential_already_kept_is_refused(
     assert len(passkeys_of(connection, first)) == 1
     assert passkeys_of(connection, second) == []
     assert sessions_of(connection, second) == 0
+
+
+def test_adding_a_passkey_ends_the_devices_old_session(
+    client: TestClient, tester: tuple[UUID, str], accepted: list[dict[str, Any]]
+) -> None:
+    old = client.cookies[SESSION_COOKIE]
+    challenge_id = redeem(client, tester[1]).json()["challengeId"]
+
+    response = client.post(ADD, json={"challengeId": challenge_id, "credential": CREDENTIAL})
+
+    assert response.status_code == 204
+    client.cookies.clear()
+    client.cookies.set(SESSION_COOKIE, old)
+    assert client.get("/api/aspirations").status_code == 401
+
+
+def test_a_refused_passkey_leaves_the_devices_session(
+    client: TestClient, tester: tuple[UUID, str]
+) -> None:
+    challenge_id = redeem(client, tester[1]).json()["challengeId"]
+
+    response = client.post(ADD, json={"challengeId": challenge_id, "credential": CREDENTIAL})
+
+    assert response.status_code == 401
+    assert client.get("/api/aspirations").status_code == 200

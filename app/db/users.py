@@ -12,6 +12,11 @@ import sqlalchemy
 from app.db import models
 
 
+ADD_USER = """-- name: add_user \\:exec
+insert into users (id) values (:p1)
+"""
+
+
 GET_USER = """-- name: get_user \\:one
 select id, intensity, time_zone, planned_through_week, closed_through_week, created_at, updated_at
 from users
@@ -107,6 +112,9 @@ class SetTimeZoneRow(pydantic.BaseModel):
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
+
+    def add_user(self, *, id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(ADD_USER), {"p1": id})
 
     def get_user(self, *, id: uuid.UUID) -> Optional[GetUserRow]:
         row = self._conn.execute(sqlalchemy.text(GET_USER), {"p1": id}).first()

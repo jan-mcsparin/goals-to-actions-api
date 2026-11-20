@@ -234,6 +234,22 @@ CREATE TABLE public.milestones (
 
 
 --
+-- Name: passkeys; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passkeys (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    credential_id text NOT NULL,
+    public_key text NOT NULL,
+    sign_count bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+--
 -- Name: quit_days; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -294,6 +310,52 @@ END),
 
 CREATE TABLE public.schema_migrations (
     version character varying NOT NULL
+);
+
+
+--
+-- Name: sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sessions (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    token_hash text NOT NULL,
+    last_used_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+--
+-- Name: sign_in_challenges; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sign_in_challenges (
+    id uuid NOT NULL,
+    user_id uuid,
+    kind text NOT NULL,
+    challenge text NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT sign_in_challenges_kind_agrees CHECK ((((kind = 'add_passkey'::text) AND (user_id IS NOT NULL)) OR ((kind = 'sign_in'::text) AND (user_id IS NULL))))
+);
+
+
+--
+-- Name: sign_in_codes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sign_in_codes (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    code_hash text NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    used_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
 );
 
 
@@ -509,6 +571,22 @@ ALTER TABLE ONLY public.milestones
 
 
 --
+-- Name: passkeys passkeys_credential_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passkeys
+    ADD CONSTRAINT passkeys_credential_id_unique UNIQUE (credential_id);
+
+
+--
+-- Name: passkeys passkeys_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passkeys
+    ADD CONSTRAINT passkeys_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: quit_days quit_days_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -538,6 +616,46 @@ ALTER TABLE ONLY public.recurring_items
 
 ALTER TABLE ONLY public.schema_migrations
     ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sessions sessions_token_hash_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT sessions_token_hash_unique UNIQUE (token_hash);
+
+
+--
+-- Name: sign_in_challenges sign_in_challenges_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sign_in_challenges
+    ADD CONSTRAINT sign_in_challenges_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sign_in_codes sign_in_codes_code_hash_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sign_in_codes
+    ADD CONSTRAINT sign_in_codes_code_hash_unique UNIQUE (code_hash);
+
+
+--
+-- Name: sign_in_codes sign_in_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sign_in_codes
+    ADD CONSTRAINT sign_in_codes_pkey PRIMARY KEY (id);
 
 
 --
@@ -628,6 +746,13 @@ CREATE UNIQUE INDEX quit_days_one_per_day ON public.quit_days USING btree (goal_
 
 
 --
+-- Name: sign_in_challenges_expires_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX sign_in_challenges_expires_at ON public.sign_in_challenges USING btree (expires_at);
+
+
+--
 -- Name: task_weeks_one_in_play; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -698,6 +823,20 @@ CREATE TRIGGER milestones_set_updated_at BEFORE UPDATE ON public.milestones FOR 
 
 
 --
+-- Name: passkeys passkeys_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER passkeys_audit AFTER INSERT OR DELETE OR UPDATE ON public.passkeys FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: passkeys passkeys_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER passkeys_set_updated_at BEFORE UPDATE ON public.passkeys FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: quit_days quit_days_audit; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -723,6 +862,27 @@ CREATE TRIGGER recurring_items_audit AFTER INSERT OR DELETE OR UPDATE ON public.
 --
 
 CREATE TRIGGER recurring_items_set_updated_at BEFORE UPDATE ON public.recurring_items FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: sessions sessions_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER sessions_set_updated_at BEFORE UPDATE ON public.sessions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: sign_in_codes sign_in_codes_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER sign_in_codes_audit AFTER INSERT OR DELETE OR UPDATE ON public.sign_in_codes FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: sign_in_codes sign_in_codes_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER sign_in_codes_set_updated_at BEFORE UPDATE ON public.sign_in_codes FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -874,6 +1034,14 @@ ALTER TABLE ONLY public.milestones
 
 
 --
+-- Name: passkeys passkeys_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passkeys
+    ADD CONSTRAINT passkeys_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: quit_days quit_days_quitting_goal_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -911,6 +1079,30 @@ ALTER TABLE ONLY public.recurring_items
 
 ALTER TABLE ONLY public.recurring_items
     ADD CONSTRAINT recurring_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: sessions sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: sign_in_challenges sign_in_challenges_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sign_in_challenges
+    ADD CONSTRAINT sign_in_challenges_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: sign_in_codes sign_in_codes_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sign_in_codes
+    ADD CONSTRAINT sign_in_codes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 
 --
@@ -1009,4 +1201,8 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261118000200'),
     ('20261119000000'),
     ('20261119100000'),
-    ('20261120000000');
+    ('20261120000000'),
+    ('20261121000000'),
+    ('20261121000100'),
+    ('20261121000200'),
+    ('20261121000300');

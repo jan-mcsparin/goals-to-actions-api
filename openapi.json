@@ -1219,6 +1219,27 @@
         "title": "NewTask",
         "type": "object"
       },
+      "PasskeyOptions": {
+        "description": "What the browser's passkey functions take, as JSON, and the challenge to send back.",
+        "properties": {
+          "challengeId": {
+            "format": "uuid",
+            "title": "Challengeid",
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "challengeId",
+          "options"
+        ],
+        "title": "PasskeyOptions",
+        "type": "object"
+      },
       "Placing": {
         "description": "Onto a day, placed by hand, in the week the change was made in.",
         "properties": {
@@ -1516,6 +1537,20 @@
         "title": "RecurringItemList",
         "type": "object"
       },
+      "RedeemCode": {
+        "properties": {
+          "code": {
+            "maxLength": 64,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "RedeemCode",
+        "type": "object"
+      },
       "Retirement": {
         "description": "What happens to the aspiration's work: its active goals pause, or keep going without\nan aspiration. Recurring items join \"pause\" when they're built.",
         "properties": {
@@ -1579,6 +1614,27 @@
           "intensity"
         ],
         "title": "Settings",
+        "type": "object"
+      },
+      "SignedChallenge": {
+        "description": "The browser's `PublicKeyCredential` as JSON, for the challenge it signed.",
+        "properties": {
+          "challengeId": {
+            "format": "uuid",
+            "title": "Challengeid",
+            "type": "string"
+          },
+          "credential": {
+            "additionalProperties": true,
+            "title": "Credential",
+            "type": "object"
+          }
+        },
+        "required": [
+          "challengeId",
+          "credential"
+        ],
+        "title": "SignedChallenge",
         "type": "object"
       },
       "Swap": {
@@ -2237,6 +2293,13 @@
         "title": "WeeklyTargetInput",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "session": {
+        "in": "cookie",
+        "name": "__Host-session",
+        "type": "apiKey"
+      }
     }
   },
   "info": {
@@ -2260,6 +2323,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "List Aspirations",
         "tags": [
           "aspirations"
@@ -2311,6 +2379,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Reorder Aspirations",
         "tags": [
           "aspirations"
@@ -2358,6 +2431,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Delete Aspiration",
         "tags": [
           "aspirations"
@@ -2419,6 +2497,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Update Aspiration",
         "tags": [
           "aspirations"
@@ -2480,6 +2563,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Create Aspiration",
         "tags": [
           "aspirations"
@@ -2533,6 +2621,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Bring Back Aspiration",
         "tags": [
           "aspirations"
@@ -2605,6 +2698,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Retire Aspiration",
         "tags": [
           "aspirations"
@@ -2687,6 +2785,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Check In",
         "tags": [
           "milestones"
@@ -2729,6 +2832,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "List Goals",
         "tags": [
           "goals"
@@ -2776,6 +2884,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Delete Goal",
         "tags": [
           "goals"
@@ -2837,6 +2950,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Get Goal",
         "tags": [
           "goals"
@@ -2917,6 +3035,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Update Goal",
         "tags": [
           "goals"
@@ -2997,6 +3120,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Create Goal",
         "tags": [
           "goals"
@@ -3070,6 +3198,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "End Goal",
         "tags": [
           "goals"
@@ -3143,6 +3276,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Go Again",
         "tags": [
           "goals"
@@ -3215,6 +3353,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Mark Goal Reached",
         "tags": [
           "goals"
@@ -3297,6 +3440,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Reorder Milestones",
         "tags": [
           "milestones"
@@ -3369,6 +3517,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Pause Goal",
         "tags": [
           "goals"
@@ -3462,6 +3615,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Answer Quit Day",
         "tags": [
           "quitting"
@@ -3545,6 +3703,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Clear Quit Day",
         "tags": [
           "quitting"
@@ -3618,6 +3781,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Reopen Goal",
         "tags": [
           "goals"
@@ -3690,6 +3858,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Resume Goal",
         "tags": [
           "goals"
@@ -3783,6 +3956,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Rate Urge",
         "tags": [
           "quitting"
@@ -3865,6 +4043,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Clear Urge Rating",
         "tags": [
           "quitting"
@@ -3947,6 +4130,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Set Weekly Target",
         "tags": [
           "goals"
@@ -4028,6 +4216,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Delete Milestone",
         "tags": [
           "milestones"
@@ -4109,6 +4302,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Update Milestone",
         "tags": [
           "milestones"
@@ -4189,6 +4387,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Add Milestone",
         "tags": [
           "milestones"
@@ -4262,6 +4465,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Keep Milestone",
         "tags": [
           "milestones"
@@ -4284,6 +4492,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "List Recurring Items",
         "tags": [
           "recurring items"
@@ -4331,6 +4544,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Delete Recurring Item",
         "tags": [
           "recurring items"
@@ -4402,6 +4620,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Update Recurring Item",
         "tags": [
           "recurring items"
@@ -4483,6 +4706,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Create Recurring Item",
         "tags": [
           "recurring items"
@@ -4546,6 +4774,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Turn Off Recurring Item",
         "tags": [
           "recurring items"
@@ -4609,6 +4842,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Turn On Recurring Item",
         "tags": [
           "recurring items"
@@ -4630,6 +4868,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Get Settings",
         "tags": [
           "settings"
@@ -4671,9 +4914,208 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Set Intensity",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/sign-in/code": {
+      "post": {
+        "description": "Spends a one-time code; returns the options for the browser to make a passkey.",
+        "operationId": "redeemCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemCode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The code, challenge or passkey didn't work."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redeem Code",
+        "tags": [
+          "sign-in"
+        ]
+      }
+    },
+    "/api/sign-in/finish": {
+      "post": {
+        "description": "Checks the passkey's signature and signs this device in.",
+        "operationId": "finishSignIn",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignedChallenge"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The code, challenge or passkey didn't work."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Finish Sign In",
+        "tags": [
+          "sign-in"
+        ]
+      }
+    },
+    "/api/sign-in/passkeys": {
+      "post": {
+        "description": "Keeps the passkey made for a redeemed code, and signs this device in.",
+        "operationId": "addPasskey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignedChallenge"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The code, challenge or passkey didn't work."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Add Passkey",
+        "tags": [
+          "sign-in"
+        ]
+      }
+    },
+    "/api/sign-in/sign-out": {
+      "post": {
+        "description": "Ends this device's session on the server and clears its cookie. Without a live session\nthere's nothing to end, and the answer is the same.",
+        "operationId": "signOut",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Sign Out",
+        "tags": [
+          "sign-in"
+        ]
+      }
+    },
+    "/api/sign-in/start": {
+      "post": {
+        "description": "The options for the browser to sign in with a passkey, and the challenge to send back.",
+        "operationId": "startSignIn",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start Sign In",
+        "tags": [
+          "sign-in"
         ]
       }
     },
@@ -4693,6 +5135,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Get Upcoming",
         "tags": [
           "tasks"
@@ -4740,6 +5187,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Delete Task",
         "tags": [
           "tasks"
@@ -4801,6 +5253,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Update Task",
         "tags": [
           "tasks"
@@ -4881,6 +5338,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Add Task",
         "tags": [
           "tasks"
@@ -4955,6 +5417,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Move Task To Bank",
         "tags": [
           "tasks"
@@ -5037,6 +5504,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Check Off Task",
         "tags": [
           "tasks"
@@ -5101,6 +5573,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Drop Task",
         "tags": [
           "tasks"
@@ -5184,6 +5661,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Place Task",
         "tags": [
           "tasks"
@@ -5286,6 +5768,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Answer Still Matters",
         "tags": [
           "tasks"
@@ -5369,6 +5856,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Swap Tasks",
         "tags": [
           "tasks"
@@ -5442,6 +5934,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Uncheck Task",
         "tags": [
           "tasks"
@@ -5494,6 +5991,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Get Week",
         "tags": [
           "tasks"
@@ -5557,6 +6059,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "summary": "Wrap Up Week",
         "tags": [
           "weeks"

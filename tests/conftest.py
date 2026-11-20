@@ -4,11 +4,13 @@ from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Connection, Engine, create_engine
+from sqlalchemy import Connection, Engine, create_engine, text
 from sqlalchemy.exc import OperationalError
 
+from app.config import APP_ORIGIN, FIXED_USER_ID
 from app.database import Database, get_database
 from app.main import app
+from app.sign_in.session import SESSION_COOKIE, start_session
 from app.time_zone import clock
 
 TEST_DATABASE_URL = os.environ.get(
@@ -68,10 +70,26 @@ def fixed_clock() -> FixedClock:
     return FixedClock()
 
 
+def keep_signed_in(connection: Connection, moment: datetime) -> None:
+    """For a test that moves the clock past a session's 90 days: the person used the app
+    in between, so their session is still live at `moment`."""
+    connection.execute(text("update sessions set last_used_at = :moment"), {"moment": moment})
+
+
 @pytest.fixture
 def client(database: Database, fixed_clock: FixedClock) -> Iterator[TestClient]:
-    """The API on the test connection, so what a request writes is rolled back too."""
+    """The API on the test connection, so what a request writes is rolled back too. Signed in
+    as the fixed user by a session row made directly: tests don't act out a passkey. Over
+    HTTPS, since the session cookie is `Secure`, and from the app's origin, as every write
+    must be."""
     app.dependency_overrides[get_database] = lambda: database
     app.dependency_overrides[clock] = fixed_clock
-    yield TestClient(app)
+    with database.transaction(FIXED_USER_ID, "start session") as connection:
+        token = start_session(connection, FIXED_USER_ID, fixed_clock.instant)
+    yield TestClient(
+        app,
+        base_url="https://testserver",
+        cookies={SESSION_COOKIE: token},
+        headers={"Origin": APP_ORIGIN},
+    )
     app.dependency_overrides.clear()

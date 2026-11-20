@@ -1,6 +1,6 @@
 # Spec: Sign-in
 
-Status: draft 2026-11-13; the method was settled on 2026-11-16 by [ADR-012](../../docs/adr/0012-sign-in-with-a-passkey.md). Finalised when its plan is written. Issue: [#14](https://github.com/jan-mcsparin/goals-to-actions-api/issues/14). Module `sign-in` in the [map](README.md). Depends on `database-foundation`; built last, and before the API is first reachable from outside ([ADR-011](../../docs/adr/0011-hosting-on-aws.md)).
+Status: draft 2026-11-13; the method was settled on 2026-11-16 by [ADR-012](../../docs/adr/0012-sign-in-with-a-passkey.md); finalised 2026-11-20 with its plan ([`../tasks/plan.md`](../tasks/plan.md)), which has the contract and the decisions. Issue: [#14](https://github.com/jan-mcsparin/goals-to-actions-api/issues/14). Module `sign-in` in the [map](README.md). Depends on `database-foundation`; built last, and before the API is first reachable from outside ([ADR-011](../../docs/adr/0011-hosting-on-aws.md)).
 
 ## Objective
 
@@ -55,18 +55,20 @@ As shared. **Ask first:** every dependency here (the WebAuthn library brings `cr
 ## Success criteria
 
 - [x] An ADR records the method and why (ADR-012).
-- [ ] No route but `health` and the sign-in routes answers without a session.
-- [ ] The founder's existing data is theirs after the change.
-- [ ] A passkey can be added with a one-time code, and signs in.
-- [ ] A second user can be added with one command, signs in, and sees only their own rows.
-- [ ] The installed app stays signed in across restarts.
-- [ ] The four checks pass.
+- [x] No route but `health` and the sign-in routes answers without a session (`tests/test_signed_out.py`).
+- [x] The founder's existing data is theirs after the change: the fixed user is their account, keeping its id.
+- [x] A passkey can be added with a one-time code, and signs in (the library's check stood in for in tests; to try for real against `localhost`, then hosted).
+- [x] A second user can be added with one command, signs in, and sees only their own rows (`tests/test_invited_tester.py`, `tests/test_other_user.py`).
+- [ ] The installed app stays signed in across restarts. Can only be tried once hosted, with the front end's sign-in screens.
+- [x] The four checks pass.
 
 ## Open questions
 
-1. **Do the sign-in tables carry the audit trigger** like every other table (shared decision 3)? The audit log shouldn't collect token hashes or be written on every daily touch of a session. I'd audit passkeys and codes, and leave sessions and challenges out.
-2. **Which header the origin check reads** (`Origin` or `Sec-Fetch-Site`), and that CloudFront passes it through. ADR-012 lists it to confirm when built.
-3. **Do the sign-in tables have `user_id` as their owner and the other shared columns?** A challenge exists before anyone is signed in.
+None. Settled when the plan was written (2026-11-20):
+
+1. **The audit trigger:** passkeys and codes carry it; sessions and challenges don't, so the log collects no token hashes and no row each day a session is used.
+2. **The origin check reads `Origin`,** which browsers send on every write. A write without it, or from anywhere but `APP_ORIGIN`, is a 403. CloudFront must pass the header on: for hosting.
+3. **Owners and shared columns:** passkeys, codes and sessions have them all; a session ends by its deleted time. A challenge has `id`, `created_at` and a `user_id` only when adding a passkey, and is deleted when used.
 
 Settled 2026-11-16: the method (ADR-012), and that sign-in is built before the API is hosted, with no temporary shared secret (ADR-011).
 

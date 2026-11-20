@@ -4,7 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import Connection, Engine, create_engine, text
 
-from app.config import DATABASE_URL, FIXED_USER_ID
+from app.config import DATABASE_URL
 
 # Read by the audit trigger. `true` makes each setting last for this transaction only.
 SET_AUDIT_CONTEXT = text(
@@ -35,11 +35,13 @@ class Database:
         self._bind = bind
 
     @contextmanager
-    def transaction(self, user_id: UUID, action: str) -> Iterator[Connection]:
+    def transaction(self, user_id: UUID | None, action: str) -> Iterator[Connection]:
         """The only way application code writes: one transaction, audited as this user doing
-        this action ("skip task", "pause goal")."""
+        this action ("skip task", "pause goal"). No user only for a sign-in step taken before
+        anyone is known."""
         with self._begin() as connection:
-            connection.execute(SET_AUDIT_CONTEXT, {"user_id": str(user_id), "action": action})
+            audited_as = "" if user_id is None else str(user_id)
+            connection.execute(SET_AUDIT_CONTEXT, {"user_id": audited_as, "action": action})
             yield connection
 
     @contextmanager
@@ -77,9 +79,3 @@ database = Database(engine)
 def get_database() -> Database:
     """The dependency routes get the database from. Tests override it."""
     return database
-
-
-def current_user_id() -> UUID:
-    """The dependency routes get the user from. Every request is the fixed user until
-    sign-in replaces this."""
-    return FIXED_USER_ID

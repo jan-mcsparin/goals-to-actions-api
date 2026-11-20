@@ -2,7 +2,7 @@
 
 API for Goals to Actions: Python, FastAPI and Postgres. Product docs live in the parent repo (`../docs/`); see `CLAUDE.md` for structure and rules.
 
-So far: the database, the audit log, the generated query code, and the first routes, for aspirations (list, create, edit, reorder, retire, bring back). Routes arrive slice by slice (`specs/`).
+Built slice by slice (`specs/`): the database and the audit log, aspirations, goals, milestones, tasks and the week, recurring items, week turnover and the planner, quitting goals, delete, settings, and sign-in.
 
 ## Install
 
@@ -38,6 +38,32 @@ uv run python -m app.openapi   # rewrite openapi.json; a test fails while it's o
 ```
 
 Routes that need to know what day it is (retiring an aspiration) read the phone's time zone from an `X-Time-Zone` header holding a name such as `America/Denver`, and keep it on the user as last known. A name that isn't a zone is refused (422). The names come from the system's time zone data; a host without it (a slim Linux container) will need the `tzdata` package, to be settled with hosting.
+
+## Sign-in
+
+Every route but `health` and `/api/sign-in/*` answers 401 without a session ([ADR-012](../docs/adr/0012-sign-in-with-a-passkey.md)). A session is a `__Host-session` cookie (`HttpOnly`, `Secure`, `SameSite=Lax`) that lasts 90 days from its last use. Any write (`POST`, `PUT`, `PATCH`, `DELETE`) whose `Origin` isn't `APP_ORIGIN` is a 403.
+
+There's no sign-up. A user is added by a command, which prints their first one-time code (used once, for ten minutes); typed into the app, it lets that device add a passkey. The same command makes a new code for a new device, or to get back in:
+
+```bash
+uv run python -m app.sign_in.command add-user                  # a new user, and their first code
+uv run python -m app.sign_in.command code <user-id>            # a new code for a user
+uv run python -m app.sign_in.command end-sessions <user-id>    # a lost phone: signed out everywhere
+uv run python -m app.sign_in.command remove-passkeys <user-id> # no longer trusted: signed out, and only a new code gets them back
+```
+
+Signing in again on a device ends that device's earlier session.
+
+Hosted, it runs inside AWS against the hosted database. The founder's account is the user from before sign-in (`FIXED_USER_ID`), so to sign in locally the first time: `uv run python -m app.sign_in.command code 00000000-0000-4000-8000-000000000001`.
+
+Two settings, from the environment:
+
+- `APP_ORIGIN`: the app's own origin. Defaults to the dev server, `http://localhost:5173`.
+- `PASSKEY_RP_ID`: the name passkeys are bound to. Defaults to `localhost`; hosted, `goals-to-actions.jan-mcsparin.me`.
+
+Passkeys need `localhost` or HTTPS on a real name, so locally sign in on the laptop at `http://localhost:5173`. Chrome and Firefox keep a `Secure` cookie on `http://localhost`; Safari may not. A phone pointed at the laptop's address can't sign in: the installed app is tried against the hosted API.
+
+The passkey steps (`redeemCode`, `addPasskey`, `startSignIn`, `finishSignIn`) work once by design, since a code and a challenge are spent, so they aren't in the repeat test. `signOut` is. Tests make a session row directly and stand in for the library's passkey check.
 
 ## What the offline queue can rely on
 

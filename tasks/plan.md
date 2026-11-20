@@ -1,68 +1,73 @@
-# Implementation Plan: Settings and sync (#13)
+# Implementation Plan: Sign-in (#14)
 
-Spec: [`../specs/settings-sync.md`](../specs/settings-sync.md). Tasks: [`todo.md`](todo.md). (The plan for #12 is in git history.)
+Spec: [`../specs/sign-in.md`](../specs/sign-in.md). Tasks: [`todo.md`](todo.md). (The plan for #13 is in git history.)
 
 ## Overview
 
-Two small routes for the one setting, the phone's time zone kept on the user, and two tests that run across the whole API to prove it behaves the way the phone's cache and offline queue need (ADR-004, ADR-010). The README then says what the queue can rely on.
+Replace the fixed user with a person who has proved who they are: a passkey to sign in, a session row and a `__Host-` cookie to stay signed in, a one-time code made by a command to add a passkey, and the same command adding an invited tester (ADR-012). Every route but `health` and the sign-in routes answers 401 without a session, and a write from another origin is a 403.
 
-Six tasks. **One PR** in the API, `settings-sync` (closes #13), and one small PR in the front end for the regenerated types. The front end's #39 wires Settings and the queue later.
+Twelve tasks. **One PR** in the API, `sign-in` (closes #14), branched from `invited-testers` (#42, the spec change), and one small PR in the front end for the regenerated types. The sign-in screens, the 401 handling in the queue and signing out on the phone are front-end work with their own issues.
 
 ## The contract
 
-New. Neither is queueable (ADR-010).
+New, none queueable (ADR-010). All under `/api/sign-in`, all open without a session, all writes (so all checked for origin).
 
-| Operation | Route | Returns |
-| --- | --- | --- |
-| `getSettings` | `GET /api/settings` | `Settings` |
-| `setIntensity` | `PUT /api/settings/intensity`, body `{"intensity": "goingHard"}` | `Settings` |
+| Operation | Route | Body | Returns |
+| --- | --- | --- | --- |
+| `redeemCode` | `POST /api/sign-in/code` | `{"code": "ABCD-EFGH-..."}` | `PasskeyOptions`: `{"challengeId", "options"}`, the browser's registration options as JSON |
+| `addPasskey` | `POST /api/sign-in/passkeys` | `{"challengeId", "credential"}` | 204, and the session cookie |
+| `startSignIn` | `POST /api/sign-in/start` | none | `PasskeyOptions`, the sign-in options |
+| `finishSignIn` | `POST /api/sign-in/finish` | `{"challengeId", "credential"}` | 204, and the session cookie |
+| `signOut` | `POST /api/sign-in/sign-out` | none | 204, and the cookie cleared |
 
-`Settings` is `{"intensity": "easingOff" \| "normal" \| "goingHard"}`. The time zone isn't in it: it's not a setting (`data-model.md`). Nor is a date set on: the data model dropped it, and the audit log has it. The front end's mock `Settings` still has `intensitySetOn`; that's for its #39.
+`credential` is the browser's `PublicKeyCredential` as JSON, passed whole to the library; in the schema it's an object. A code that's wrong, used or expired, a challenge that's used or expired, and a passkey the library rejects are all a 401 with one detail, "That didn't work", so nothing tells a guesser which part was wrong.
 
 ## Architecture decisions
 
-- **A new `app/settings/` slice** with `routes.py` and `models.py`. The queries `GetUser` and `SetIntensity` already exist. `setIntensity` is a `PUT` that states its end result, so sending it twice changes nothing more. It doesn't take the user lock and runs no planner: changing intensity moves nothing (ADR-013); the week read already marks days against it.
-- **The time zone is kept by `Today`.** `today()` already reads the user; when the header's zone differs from the stored one, it saves it in its own small write (audit action "set time zone"). A request from the same zone writes nothing. Routes that don't need the day don't ask for the header, so don't save it; the zone is "last known", and every route that works out a day does. A name that isn't a zone is already refused (422) before anything is saved.
-- **The repeat test is one table in `tests/test_repeats.py`:** for each write operation, how to arrange it and the request. It sends the request twice and checks the same status and body both times, and that a snapshot of the user's rows (every table, leaving out `updated_at`) is the same after the second as after the first. A last test reads the OpenAPI schema and fails if any `PUT`, `POST`, `PATCH` or `DELETE` operation has no row, so a new write can't skip it.
-- **The stale-queue test is `tests/test_queued_writes.py`,** over the ten queueable writes (`addTask`, `checkOffTask`, `uncheckTask`, `placeTask`, `moveTaskToBank`, `swapTasks`, `answerQuitDay`, `clearQuitDay`, `rateUrge`, `clearUrgeRating`): aimed at a deleted row, a set-aside task, or a week the task has left, each answers 404 or 409. The test client re-raises server errors, so a 500 fails the test. A create aimed at a day no longer allowed lands in the bank. Two devices updating one task: the last to arrive wins.
-- **No migration.** `users` already has `intensity` and `time_zone`.
+- **The session is read by `current_user_id`** in `app/database.py` (moved to `app/sign_in/session.py`), which every route already asks for. No session, an ended one, or one unused for 90 days is a 401. Each protected router also lists it in `dependencies=`, so the 401 comes before a 422 for a missing header or body.
+- **Last use:** when the session was last recorded more than a day ago, the dependency records now, in its own small write, and sends the cookie again with a fresh 90-day `Max-Age`, so the browser's copy lasts as long as the server's.
+- **The cookie** is `__Host-session`: `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, no `Domain`. The token is `secrets.token_urlsafe(32)`; the database keeps its SHA-256. A hash of a random 256-bit token needs no salt or slow hash, and is the standard library's, not ours.
+- **The origin check reads `Origin`.** Browsers send it on every `POST`, `PUT`, `PATCH` and `DELETE`, same-origin included. A write whose `Origin` isn't `APP_ORIGIN` exactly, or that has none, is a 403. Reads aren't checked. CloudFront must pass `Origin` on (its origin request policy), noted for hosting. This settles open question 2.
+- **Settings, read from the environment** in `app/config.py`: `APP_ORIGIN` (default `http://localhost:5173`, the dev server) and `PASSKEY_RP_ID` (default `localhost`; hosted, `goals-to-actions.jan-mcsparin.me`).
+- **Passkeys:** discoverable (resident key required), user verification required, no attestation. Sign-in starts with no user named; the passkey says whose it is. The checks are `webauthn` 3.0.1's `verify_registration_response` and `verify_authentication_response`.
+- **A code** is 20 characters from the Crockford base-32 alphabet (100 random bits), printed in five groups of four. Case, dashes and spaces are ignored when typed. Stored as its SHA-256; spent when redeemed, so a failed registration needs a new code. It lasts ten minutes. A challenge lasts five.
+- **Tables** (open questions 1 and 3):
+
+  | Table | Owner | Shared columns | Audited |
+  | --- | --- | --- | --- |
+  | `passkeys`: credential id (unique), public key, sign count, transports | `user_id` | all | yes: nothing secret in it |
+  | `sign_in_codes`: code hash, expires at, used at | `user_id` | all | yes: who was given a code and when; the hash of a spent ten-minute code is no use to anyone |
+  | `sessions`: token hash, last used at; ended is `deleted_at` | `user_id` | all | no: no token hashes in the log, and no audit row on every daily touch |
+  | `sign_in_challenges`: challenge, kind (`add_passkey`, `sign_in`), expires at; deleted when used | `user_id` only for `add_passkey` (empty before anyone is known) | `id`, `created_at` | no |
+
+  The server makes these ids (nothing here is created offline). Sign-in writes with no user yet (starting a sign-in) run audited as no one: they touch only unaudited tables.
+- **The command** is `uv run python -m app.sign_in.command`: `add-user` makes a user (Normal intensity, no weeks opened) and prints their id and first code; `code <user-id>` prints a new code. Hosted, it is run inside AWS (ADR-011); how is hosting's to settle.
+- **Tests make a session row directly.** The `client` fixture signs in as the fixed user that way, sends `Origin: APP_ORIGIN`, and uses `https://testserver` so the `Secure` cookie is sent. Every existing test keeps working unchanged. The passkey routes are tested for refusal through the real library; their success paths replace the library's two verify functions with stand-ins that return a result, since tests don't act out a passkey (spec).
+- **Two tests over the whole schema,** each failing for an operation without a case: every route but `health` and the sign-in routes is a 401 with no session (`tests/test_signed_out.py`); and for every operation, a second user acting on the first user's rows leaves them unchanged and gets back none of their ids (`tests/test_other_user.py`, reusing `test_repeats.py`'s cases and snapshot).
+- **The repeat test leaves out `redeemCode`, `addPasskey`, `startSignIn` and `finishSignIn`** by name: a code and a challenge work once on purpose. `signOut` is in it.
+- **Dependency:** `webauthn>=3.0.1` (3.0.1 locked), which brings `cryptography`, `cbor2`, `pyOpenSSL`, `pyasn1` and `pyasn1-modules`. Asked for in the approval.
 
 ## Dependency graph
 
 ```
-getSettings, setIntensity (1)    time zone follows the phone (2)
-        └──────────────┬───────────────┘
-        repeat test: aspirations, goals, milestones, check-ins (3)
-                       │
-        repeat test: quitting, items, tasks, weeks, settings; every write covered (4)
-                       │
-        queued writes that no longer apply; last write wins (5)
-                       │
-        README, docs, the contract, the front end's types (6)
+1 dependency
+2 sessions + 401 ──┬── 3 origin check ── 4 sign out
+                  ├── 8 second user can't reach the first's rows
+5 codes + command ┴── 6 add a passkey ── 7 sign in with a passkey
+                                     └── 9 add-user end to end
+10 docs ── 11 security review ── 12 front-end types
 ```
 
 ## Task list
 
-- [x] Task 1: Read and set intensity
-- [x] Task 2: The time zone follows the phone
-
-Checkpoint after task 2: the new behaviour is in; the four checks pass.
-
-- [x] Task 3: Repeat test, first half
-- [x] Task 4: Repeat test, second half, and every write covered
-- [x] Task 5: Queued writes that no longer apply
-
-Checkpoint after task 5: every write is proved safe to repeat; the four checks pass.
-
-- [x] Task 6: What the queue can rely on; docs, the contract and the front end's types
-
-Checkpoint after task 6: the slice is done, and the front end's mock compiles against the new types.
+See [`todo.md`](todo.md).
 
 ## Risks and mitigations
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| A repeat test finds a write that isn't safe to repeat | High | Stop and fix it in its own commit with its own test before carrying on; if the fix changes behaviour, ask. |
-| Saving the time zone adds a write to every request | Med | Only when it changes; a test that a second request from the same zone writes no audit row. |
-| The snapshot misses a change (a timestamp moved) | Med | Compare every column but `updated_at`; tests run in one transaction, so `now()` doesn't move between the two sends anyway. |
-| The table falls behind new routes | Med | The coverage test reads `openapi.json`'s operations. |
+| Moving every test to a signed-in client breaks many at once | Med | Task 2 changes only the fixture's defaults; the full suite runs before its commit |
+| A route resolves its body or `X-Time-Zone` before the session, so a signed-out request gets a 422 | Med | Router-level dependency; the schema-wide 401 test sends no header and no body |
+| The second-user test finds a create that answers 500 or touches another user's row when given their id | High (it's the point) | Fix in the task, each with its own test; stop and ask if a fix changes the contract |
+| Safari doesn't keep a `Secure` cookie on `http://localhost` | Low | Local sign-in tested in Chrome; the installed app is tested against the hosted API (ADR-012) |
+| `webauthn` or `cryptography` won't install on Python 3.15 | Med | Task 1 installs and imports it first, before anything is built on it |

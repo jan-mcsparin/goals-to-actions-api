@@ -29,3 +29,7 @@ for update;
 update users set closed_through_week = $2
 where id = $1 and deleted_at is null
 returning id, intensity, time_zone, planned_through_week, closed_through_week, created_at, updated_at;
+
+-- An invited tester, added by the command (ADR-012). Every other field starts at its default.
+-- name: AddUser :exec
+insert into users (id) values ($1);

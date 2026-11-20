@@ -1,6 +1,6 @@
 from typing import Literal
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from pydantic.alias_generators import to_camel
@@ -14,6 +14,10 @@ from app.quitting.routes import router as quitting_router
 from app.recurring_items.routes import router as recurring_items_router
 from app.schemas import ApiModel
 from app.settings.routes import router as settings_router
+from app.sign_in.origin import same_origin
+from app.sign_in.routes import router as sign_in_router
+from app.sign_in.rules import SignInFailed
+from app.sign_in.session import current_user_id
 from app.tasks.routes import router as tasks_router
 from app.turnover.routes import router as turnover_router
 
@@ -29,7 +33,8 @@ class Health(ApiModel):
 
 # Every route sits under /api, locally as well as hosted: CloudFront passes `/api/*` on
 # unchanged (ADR-011), so a request looks the same through the dev proxy and in production.
-api = APIRouter(prefix="/api")
+# A write from anywhere but the app's own origin is a 403, before anything else is checked.
+api = APIRouter(prefix="/api", dependencies=[Depends(same_origin)])
 
 
 @api.get("/health")
@@ -37,14 +42,22 @@ def health() -> Health:
     return Health(status="ok")
 
 
-api.include_router(aspirations_router)
-api.include_router(goals_router)
-api.include_router(milestones_router)
-api.include_router(quitting_router)
-api.include_router(recurring_items_router)
-api.include_router(settings_router)
-api.include_router(tasks_router)
-api.include_router(turnover_router)
+# Open without a session: they're how one starts.
+api.include_router(sign_in_router)
+
+
+# Every route below answers 401 without a session (ADR-012). Listed here as well as asked for
+# by each route, so the 401 comes before any 422 for a missing header or body.
+signed_in = APIRouter(dependencies=[Depends(current_user_id)])
+signed_in.include_router(aspirations_router)
+signed_in.include_router(goals_router)
+signed_in.include_router(milestones_router)
+signed_in.include_router(quitting_router)
+signed_in.include_router(recurring_items_router)
+signed_in.include_router(settings_router)
+signed_in.include_router(tasks_router)
+signed_in.include_router(turnover_router)
+api.include_router(signed_in)
 
 app = FastAPI(
     title=f"{APP_NAME} API",
@@ -64,3 +77,8 @@ def not_found(request: Request, error: NotFound) -> JSONResponse:
 @app.exception_handler(NotAllowed)
 def not_allowed(request: Request, error: NotAllowed) -> JSONResponse:
     return JSONResponse(status_code=409, content={"detail": str(error)})
+
+
+@app.exception_handler(SignInFailed)
+def sign_in_failed(request: Request, error: SignInFailed) -> JSONResponse:
+    return JSONResponse(status_code=401, content={"detail": "That didn't work"})

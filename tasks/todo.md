@@ -11,8 +11,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** In `app/planner.py`, pure code: `place(week, first_day, load, new_work)` returns where each new task goes. Fixed-day tasks on their day (or the first day allowed, if their day is earlier); a group's tasks spread evenly, _d_/_n_ days apart rounded down, starting where the chosen days are lightest, ties to the earlier start; new work for a group that already has tasks this week on the lightest day without one of its tasks. Groups take their turn in the given order, each seeing the load the earlier ones left. Nothing placed if no day is left. Nothing calls it yet.
 
 **Acceptance criteria:**
-- [ ] A table test with one case per rule, plus: the empty week, a week first opened on Wednesday, more sessions than days, two goals competing for the lighter days, a day already over the cap, and a goal starting Friday.
-- [ ] Property tests: every placement is inside the week and on or after the first day; only the given tasks are placed; the same input gives the same output.
+- [x] A table test with one case per rule, plus: the empty week, a week first opened on Wednesday, more sessions than days, two goals competing for the lighter days, a day already over the cap, and a goal starting Friday.
+- [x] Property tests: every placement is inside the week and on or after the first day; only the given tasks are placed; the same input gives the same output.
 
 **Verify:** `uv run pytest tests/test_planner_rule.py`, then the four checks.
 

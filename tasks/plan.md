@@ -39,7 +39,7 @@ place(): the pure rule (1)
 
 ## Task list
 
-- [ ] Task 1: The placing rule
+- [x] Task 1: The placing rule
 - [ ] Task 2: Place when a week opens
 - [ ] Task 3: Place new recurring work on later days
 

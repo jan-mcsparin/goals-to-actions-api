@@ -43,7 +43,7 @@ getSettings, setIntensity (1)    time zone follows the phone (2)
 
 ## Task list
 
-- [ ] Task 1: Read and set intensity
+- [x] Task 1: Read and set intensity
 - [ ] Task 2: The time zone follows the phone
 
 Checkpoint after task 2: the new behaviour is in; the four checks pass.

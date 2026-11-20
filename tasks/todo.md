@@ -11,9 +11,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `getSettings`, `GET /api/settings`, and `setIntensity`, `PUT /api/settings/intensity`, both returning `Settings`. A new `app/settings/` slice; the queries exist.
 
 **Acceptance criteria:**
-- [ ] A new user reads Normal; setting Going hard is read back, and the week read marks days against cap 6. Nothing is placed or moved.
-- [ ] An unknown intensity is a 422; setting it twice gives the same answer and changes nothing more; the audit log names "set intensity".
-- [ ] Values are camelCase in JSON, snake_case in the database.
+- [x] A new user reads Normal; setting Going hard is read back, and the week read marks days against cap 6. Nothing is placed or moved.
+- [x] An unknown intensity is a 422; setting it twice gives the same answer and changes nothing more; the audit log names "set intensity".
+- [x] Values are camelCase in JSON, snake_case in the database.
 
 **Verify:** `uv run pytest tests/test_settings.py`, then the four checks.
 

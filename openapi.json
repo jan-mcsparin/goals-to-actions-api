@@ -589,6 +589,24 @@
         "title": "Health",
         "type": "object"
       },
+      "IntensityChoice": {
+        "properties": {
+          "intensity": {
+            "enum": [
+              "easingOff",
+              "normal",
+              "goingHard"
+            ],
+            "title": "Intensity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "intensity"
+        ],
+        "title": "IntensityChoice",
+        "type": "object"
+      },
       "KeepIt": {
         "properties": {
           "answer": {
@@ -1542,6 +1560,25 @@
           "day"
         ],
         "title": "ScheduleIt",
+        "type": "object"
+      },
+      "Settings": {
+        "description": "The person's one setting. It sets the cap the week read marks each day against\n(ADR-013); nothing resets it or suggests changing it.",
+        "properties": {
+          "intensity": {
+            "enum": [
+              "easingOff",
+              "normal",
+              "goingHard"
+            ],
+            "title": "Intensity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "intensity"
+        ],
+        "title": "Settings",
         "type": "object"
       },
       "Swap": {
@@ -4575,6 +4612,68 @@
         "summary": "Turn On Recurring Item",
         "tags": [
           "recurring items"
+        ]
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "operationId": "getSettings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/settings/intensity": {
+      "put": {
+        "operationId": "setIntensity",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntensityChoice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Intensity",
+        "tags": [
+          "settings"
         ]
       }
     },

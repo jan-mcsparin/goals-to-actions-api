@@ -24,7 +24,7 @@ app/
   dependencies.py  CurrentDatabase and CurrentUserId, what routes ask for
   errors.py      NotFound and NotAllowed, raised by rules and routes; main.py sends them as 404 and 409
   time_zone.py   clock and Now: the moment where the phone is, from the X-Time-Zone header (tests pin the clock)
-  planner.py     place_new_work, the planner's hook; does nothing until the planner slice
+  planner.py     the planner (ADR-013): place, the pure rule, and place_new_work, which opening a week and each change call
   users.py       lock_user: the user lock every planning or numbering write takes first
   weeks.py       week_of (a week is named by its Monday), current_week, target_week and open_weeks (the current week, and next week once open)
   turnover/      due.py (pure: what a week is due, how a task ends), endings.py, rules.py (catch_up, open and close a week, wrap_up), dependencies.py (Today, which brings the weeks up to date), routes.py (wrapUpWeek)

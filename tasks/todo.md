@@ -100,8 +100,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `openapi.json` written; the spec marked built, with what changed while building; the map's slice row and `CLAUDE.md`'s line for `planner.py` updated; `../docs/data-model.md` and `../docs/flows.md` checked against what was built. In `../web-frontend`, on its own branch: `npm run api:types`, and the mock compiles against `Week.days`.
 
 **Acceptance criteria:**
-- [ ] `tests/test_contract.py` passes; `DayMark` is camelCase.
-- [ ] The front end builds against the regenerated types.
+- [x] `tests/test_contract.py` passes; `DayMark` is camelCase.
+- [x] The front end builds against the regenerated types.
 
 **Verify:** the four checks; in `../web-frontend`, `nvm use`, then its build and tests.
 
@@ -113,6 +113,6 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ## Checkpoint: complete
 
-- [ ] The four checks pass.
-- [ ] The front end compiles against the new types.
-- [ ] Every success criterion in the spec is met.
+- [x] The four checks pass.
+- [x] The front end compiles against the new types.
+- [x] Every success criterion in the spec is met.

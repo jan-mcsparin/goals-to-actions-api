@@ -1,6 +1,6 @@
 # Spec: The planner
 
-Status: draft 2026-11-13, product decisions settled 2026-11-16, narrowed to recurring work 2026-11-19 (ADR-013); finalised when its plan is written. Issue: [#10](https://github.com/jan-mcsparin/goals-to-actions-api/issues/10). Module `planner` in the [map](README.md). Depends on `week-turnover`.
+Status: built 2026-11-19, after the plan's questions were answered. Issue: [#10](https://github.com/jan-mcsparin/goals-to-actions-api/issues/10). Module `planner` in the [map](README.md). Depends on `week-turnover`.
 
 ## Objective
 
@@ -73,13 +73,29 @@ As shared. **Ask first:** any change to a planning rule in `product-rules.md`; p
 
 ## Success criteria
 
-- [ ] When a week opens, its recurring work is on days by the rules above, and everything else is in the bank.
-- [ ] After the first placement, Today is byte-for-byte the same before and after any planner run.
-- [ ] New recurring work is placed on later days, and nothing else moves.
-- [ ] The week's read marks a day over the cap; nothing is moved because of it.
-- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
-- [ ] The four checks pass.
+- [x] When a week opens, its recurring work is on days by the rules above, and everything else is in the bank.
+- [x] After the first placement, Today is byte-for-byte the same before and after any planner run.
+- [x] New recurring work is placed on later days, and nothing else moves.
+- [x] The week's read marks a day at the cap as full; nothing is moved because of it.
+- [x] The front end's types are regenerated from the new schema and its mock client compiles against them.
+- [x] The four checks pass.
 
 ## Open questions
 
 None. The two from the full draft (what the "doesn't fit" suggestion says, and whether intensity rides with this slice) went with it.
+
+## What changed while building
+
+Settled with Jan when the plan was written (`../tasks/plan.md`, 2026-11-19):
+
+- **A day is full at the cap**, not only over it: 4 tasks on Normal. Done tasks count; dropped and set-aside ones don't. The week read carries `days`, seven `{ day, cap, full }`.
+- **The cap stays out of placing.** Spreading already prefers the lightest days; skipping full days would be one more automatic rule. Less automation, more left to the person.
+- **More tasks than days left:** one on each day, then the rest spread again over the lightest.
+- **A raised target when every day left already holds one of the goal's sessions** goes on the lightest day, ties to the earlier.
+- **A goal or item that starts later in the week** isn't placed before its start date.
+- **A new fixed-day item due today goes on today.** "Left to other slices" gave this to `recurring-items`, which hadn't built it; it was built here, in `fill_item`, as a write the person asked for rather than a planner write. Turning an item back on does the same.
+
+Found while building:
+
+- **The database refuses the two forbidden writes in the planner's one query** (`PlaceGeneratedTask` in `db/queries/planner.sql`): it only places a row still in the bank, not placed by hand and unsettled, on a day on or after the first day allowed. No trigger: the database can't know the phone's today.
+- **Opening a week is audited as "open week"** even when no week closes first. Before, an opening with nothing to close was recorded as "close week".

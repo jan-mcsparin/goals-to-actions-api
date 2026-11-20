@@ -47,7 +47,7 @@ Checkpoint after task 3: recurring work lands on days; the four checks pass.
 
 - [x] Task 4: A new fixed-day item due today goes on today
 - [x] Task 5: The full-day mark
-- [ ] Task 6: Docs, the contract and the front end's types
+- [x] Task 6: Docs, the contract and the front end's types
 
 Checkpoint after task 6: the slice is done, and the front end's mock compiles against the new types.
 

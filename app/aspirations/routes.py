@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, status
 
 from app.aspirations import rules
 from app.aspirations.models import (
@@ -77,3 +77,13 @@ def bring_back_aspiration(
     with database.transaction(user_id, "bring back aspiration") as connection:
         row = rules.bring_back(connection, user_id, aspiration_id)
     return Aspiration.from_row(row)
+
+
+@router.delete("/{aspiration_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
+def delete_aspiration(
+    aspiration_id: UUID, database: CurrentDatabase, user_id: CurrentUserId
+) -> None:
+    """For a mistake: the aspiration is hidden everywhere and the ones below it move up. Its
+    goals and recurring items stay, with no aspiration."""
+    with database.transaction(user_id, "delete aspiration") as connection:
+        rules.delete(connection, user_id, aspiration_id)

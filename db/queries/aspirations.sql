@@ -60,3 +60,12 @@ where aspirations.id = $1
   and aspirations.status = 'retired'
   and aspirations.deleted_at is null
 returning *;
+
+-- An aspiration of the owner's that has been deleted: deleting it again changes nothing.
+-- name: AspirationDeleted :one
+select * from aspirations
+where id = $1 and user_id = $2 and deleted_at is not null;
+
+-- name: DeleteAspiration :exec
+update aspirations set deleted_at = now()
+where id = $1 and user_id = $2 and deleted_at is null;

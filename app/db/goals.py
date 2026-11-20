@@ -12,6 +12,12 @@ import sqlalchemy
 from app.db import models
 
 
+CLEAR_ASPIRATION_GOALS = """-- name: clear_aspiration_goals \\:exec
+update goals set aspiration_id = null
+where aspiration_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 CREATE_GOAL = """-- name: create_goal \\:one
 insert into goals (
   id, user_id, aspiration_id, type, label, measurable_line, baseline, start_date, deadline
@@ -95,6 +101,9 @@ class UpdateGoalParams(pydantic.BaseModel):
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
+
+    def clear_aspiration_goals(self, *, aspiration_id: Optional[uuid.UUID], user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(CLEAR_ASPIRATION_GOALS), {"p1": aspiration_id, "p2": user_id})
 
     def create_goal(self, arg: CreateGoalParams) -> Optional[models.Goal]:
         row = self._conn.execute(sqlalchemy.text(CREATE_GOAL), {

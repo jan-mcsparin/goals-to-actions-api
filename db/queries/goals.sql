@@ -44,3 +44,8 @@ where id = $1 and user_id = $2 and deleted_at is not null;
 -- name: DeleteGoal :exec
 update goals set deleted_at = now()
 where id = $1 and user_id = $2 and deleted_at is null;
+
+-- A deleted aspiration's goals stay, with no aspiration (Other goals).
+-- name: ClearAspirationGoals :exec
+update goals set aspiration_id = null
+where aspiration_id = $1 and user_id = $2 and deleted_at is null;

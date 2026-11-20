@@ -2281,6 +2281,51 @@
       }
     },
     "/api/aspirations/{aspiration_id}": {
+      "delete": {
+        "description": "For a mistake: the aspiration is hidden everywhere and the ones below it move up. Its\ngoals and recurring items stay, with no aspiration.",
+        "operationId": "deleteAspiration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "aspiration_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Aspiration Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Aspiration",
+        "tags": [
+          "aspirations"
+        ]
+      },
       "patch": {
         "operationId": "updateAspiration",
         "parameters": [

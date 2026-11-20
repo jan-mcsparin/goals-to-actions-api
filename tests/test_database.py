@@ -3,11 +3,7 @@ from sqlalchemy import Engine, text
 from sqlalchemy.exc import DBAPIError
 
 from app.config import FIXED_USER_ID
-from app.database import Database, current_user_id
-
-
-def test_the_current_user_is_the_fixed_user_until_sign_in() -> None:
-    assert current_user_id() == FIXED_USER_ID
+from app.database import Database
 
 
 def test_a_read_connection_refuses_writes(test_engine: Engine) -> None:

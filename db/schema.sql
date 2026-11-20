@@ -298,6 +298,21 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sessions (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    token_hash text NOT NULL,
+    last_used_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+--
 -- Name: task_weeks; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -541,6 +556,22 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sessions sessions_token_hash_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT sessions_token_hash_unique UNIQUE (token_hash);
+
+
+--
 -- Name: task_weeks task_weeks_one_per_week; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -723,6 +754,13 @@ CREATE TRIGGER recurring_items_audit AFTER INSERT OR DELETE OR UPDATE ON public.
 --
 
 CREATE TRIGGER recurring_items_set_updated_at BEFORE UPDATE ON public.recurring_items FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: sessions sessions_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER sessions_set_updated_at BEFORE UPDATE ON public.sessions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -914,6 +952,14 @@ ALTER TABLE ONLY public.recurring_items
 
 
 --
+-- Name: sessions sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: task_weeks task_weeks_task_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1009,4 +1055,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261118000200'),
     ('20261119000000'),
     ('20261119100000'),
-    ('20261120000000');
+    ('20261120000000'),
+    ('20261121000000');

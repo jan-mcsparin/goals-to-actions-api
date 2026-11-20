@@ -22,9 +22,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** The `sessions` table (unaudited) and its queries; `current_user_id` reads the `__Host-session` cookie; every protected router lists it as a dependency. Last use recorded at most once a day, with the cookie sent again. The `client` fixture signs in as the fixed user by making a session row, uses `https://testserver` and sends `Origin`.
 
 **Acceptance criteria:**
-- [ ] Every route in the schema but `health` and `/api/sign-in/*` is a 401 with no session, with an ended one, and with one unused for 90 days; the test fails for a route without a case (`tests/test_signed_out.py`).
-- [ ] A session is used; last use is written once in a day of many requests, and again the next day with a fresh cookie.
-- [ ] The database holds only the token's hash; the existing suite passes unchanged.
+- [x] Every route in the schema but `health` and `/api/sign-in/*` is a 401 with no session; the test reads the schema, so a new route is covered (`tests/test_signed_out.py`). An unknown token, an ended session and one unused for 90 days are a 401 (`tests/test_sessions.py`).
+- [x] A session is used; last use is written once in a day of many requests, and again the next day with a fresh cookie.
+- [x] The database holds only the token's hash (SHA-256 in hex: the generated models can't hold `bytea`); the existing suite passes, with one test that jumps the clock past 90 days kept signed in.
 
 **Verify:** `uv run pytest tests/test_signed_out.py tests/test_sessions.py`, then the four checks.
 

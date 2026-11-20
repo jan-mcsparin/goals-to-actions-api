@@ -1,6 +1,6 @@
 from typing import Literal
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from pydantic.alias_generators import to_camel
@@ -14,6 +14,7 @@ from app.quitting.routes import router as quitting_router
 from app.recurring_items.routes import router as recurring_items_router
 from app.schemas import ApiModel
 from app.settings.routes import router as settings_router
+from app.sign_in.session import current_user_id
 from app.tasks.routes import router as tasks_router
 from app.turnover.routes import router as turnover_router
 
@@ -37,14 +38,18 @@ def health() -> Health:
     return Health(status="ok")
 
 
-api.include_router(aspirations_router)
-api.include_router(goals_router)
-api.include_router(milestones_router)
-api.include_router(quitting_router)
-api.include_router(recurring_items_router)
-api.include_router(settings_router)
-api.include_router(tasks_router)
-api.include_router(turnover_router)
+# Every route below answers 401 without a session (ADR-012). Listed here as well as asked for
+# by each route, so the 401 comes before any 422 for a missing header or body.
+signed_in = APIRouter(dependencies=[Depends(current_user_id)])
+signed_in.include_router(aspirations_router)
+signed_in.include_router(goals_router)
+signed_in.include_router(milestones_router)
+signed_in.include_router(quitting_router)
+signed_in.include_router(recurring_items_router)
+signed_in.include_router(settings_router)
+signed_in.include_router(tasks_router)
+signed_in.include_router(turnover_router)
+api.include_router(signed_in)
 
 app = FastAPI(
     title=f"{APP_NAME} API",

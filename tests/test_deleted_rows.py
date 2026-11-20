@@ -34,6 +34,7 @@ DELETABLE = {
     "quit_days",
     "urge_ratings",
     "users",
+    "sessions",
 }
 
 # Each foreign key's first column and the table it points at, users left out.

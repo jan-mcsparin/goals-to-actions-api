@@ -1,6 +1,7 @@
 -- The recurring tasks the planner is handed that are still in a week's bank, each with what
 -- places it: its goal or item, its schedule, its start, and its aspiration if that's active.
--- Tasks added by hand never come back from here, so they are never placed.
+-- Tasks added by hand never come back from here, so they are never placed; nor does a task
+-- whose goal or item is gone.
 -- name: ListPlacementContext :many
 select tasks.id as task_id, tasks.goal_id, tasks.recurring_item_id, task_weeks.week,
   items.schedule_kind as item_kind, items.weekday, items.day_of_month,
@@ -19,6 +20,7 @@ left join aspirations on aspirations.id = coalesce(goals.aspiration_id, items.as
   and aspirations.status = 'active' and aspirations.deleted_at is null
 where tasks.user_id = sqlc.arg(user_id) and tasks.id = any(sqlc.arg(task_ids)::uuid[])
   and tasks.origin in ('weekly_target', 'recurring_item') and tasks.deleted_at is null
+  and (goals.id is not null or items.id is not null)
 order by task_weeks.week, tasks.number, tasks.id;
 
 -- A week's tasks that are open or done, and where each is: on a day, or in the bank. What
@@ -30,9 +32,11 @@ join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
 where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.deleted_at is null
   and (task_weeks.outcome is null or task_weeks.outcome = 'done');
 
--- The planner's one write. It changes nothing for a row placed by hand, one already on a day
--- or settled, or a day before the first it may use: after a week's first placement, today
--- and earlier days only change because of something the person did.
+-- Puts a recurring task that's still in a week's bank on a day: the planner's write, and a
+-- new fixed-day item's task due today. It changes nothing for a row placed by hand, one
+-- already on a day or settled, or a day before `first_day`: after a week's first placement,
+-- the planner passes tomorrow, so today and earlier days only change because of something
+-- the person did.
 -- name: PlaceGeneratedTask :execrows
 update task_weeks set planned_day = sqlc.arg(day)::date
 where task_id = sqlc.arg(task_id) and user_id = sqlc.arg(user_id)

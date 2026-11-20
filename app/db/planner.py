@@ -30,6 +30,7 @@ left join aspirations on aspirations.id = coalesce(goals.aspiration_id, items.as
   and aspirations.status = 'active' and aspirations.deleted_at is null
 where tasks.user_id = :p1 and tasks.id = any(:p2\\:\\:uuid[])
   and tasks.origin in ('weekly_target', 'recurring_item') and tasks.deleted_at is null
+  and (goals.id is not null or items.id is not null)
 order by task_weeks.week, tasks.number, tasks.id
 """
 

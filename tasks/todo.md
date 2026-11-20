@@ -1,118 +1,116 @@
-# Tasks: The planner (#10)
+# Tasks: Quitting goals (#11)
 
-Plan: [`plan.md`](plan.md). Spec: [`../specs/planner.md`](../specs/planner.md).
+Plan: [`plan.md`](plan.md). Spec: [`../specs/quitting-goals.md`](../specs/quitting-goals.md).
 
 Every task: write the tests first, run the four checks (`uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`), then one commit.
 
-# PR: `planner` (closes #10)
+# PR: `quitting-goals` (closes #11)
 
-### Task 1: The placing rule
+### Task 1: The quit_days and urge_ratings tables
 
-**Description:** In `app/planner.py`, pure code: `place(week, first_day, load, new_work)` returns where each new task goes. Fixed-day tasks on their day (or the first day allowed, if their day is earlier); a group's tasks spread evenly, _d_/_n_ days apart rounded down, starting where the chosen days are lightest, ties to the earlier start; new work for a group that already has tasks this week on the lightest day without one of its tasks. Groups take their turn in the given order, each seeing the load the earlier ones left. Nothing placed if no day is left. Nothing calls it yet.
+**Description:** One migration adds both tables with the shared columns and triggers, `goal_type` fixed to `'quitting'` with a foreign key to `goals (id, user_id, type)`, `urge_ratings.level` checked, and a unique index on `(goal_id, day)` / `(goal_id, rated_on)` over rows not deleted. Queries in `db/queries/quit_days.sql` and `db/queries/urge_ratings.sql`: upsert, clear, the day's row, and the rows in a range. `sqlc generate`.
 
 **Acceptance criteria:**
-- [x] A table test with one case per rule, plus: the empty week, a week first opened on Wednesday, more sessions than days, two goals competing for the lighter days, a day already over the cap, and a goal starting Friday.
-- [x] Property tests: every placement is inside the week and on or after the first day; only the given tasks are placed; the same input gives the same output.
+- [ ] The database refuses a row on a building or one-off goal, on another owner's goal, a second live row for a day, and an unknown urge level (a test each).
+- [ ] Up, rollback, up leaves `db/schema.sql` unchanged.
 
-**Verify:** `uv run pytest tests/test_planner_rule.py`, then the four checks.
+**Verify:** `uv run pytest tests/test_quit_days_table.py`, then the four checks.
 
 **Dependencies:** none.
 
-**Files:** `app/planner.py`, `tests/test_planner_rule.py`.
-
-**Scope:** S
-
-### Task 2: Place when a week opens
-
-**Description:** `place_new_work` reads, for the tasks it's given, each one's group, order, fixed day and start date, and the week's load (`db/queries/planner.sql`, `ListPlacementContext` and `ListDayLoads`), calls `place`, and writes each placement with `PlaceGeneratedTask`, which only touches a bank row not placed by hand, with no outcome, on a day on or after the first day. `sqlc generate`.
-
-**Acceptance criteria:**
-- [x] Opened on Sunday evening, next week's fixed-day tasks are on their days and its sessions and flexible tasks are spread from Monday.
-- [x] Opened by a first request on Wednesday, the current week's recurring work is placed from Wednesday on.
-- [x] Carry-overs, tasks now due and tasks added by hand are in the bank after the week opens.
-- [x] `PlaceGeneratedTask` changes nothing for a hand-placed row, a row already on a day, or a day before the first day (a test for each).
-
-**Verify:** `uv run pytest tests/test_planner.py tests/test_open_week.py`, then the four checks.
-
-**Dependencies:** 1.
-
-**Files:** `app/planner.py`, `db/queries/planner.sql`, `app/db/`, `tests/test_planner.py`, and any `tests/test_open_week.py` cases that expect recurring work in the bank.
+**Files:** `db/migrations/<ts>_quit_days_and_urges.sql`, `db/schema.sql`, `db/queries/quit_days.sql`, `db/queries/urge_ratings.sql`, `app/db/`, `tests/test_quit_days_table.py`.
 
 **Scope:** M
 
-### Task 3: Place new recurring work on later days
+### Task 2: Answer and clear a day
 
-**Description:** No new code paths: `fill_goal` and `fill_item` already hand their new tasks over with tomorrow as the first day. This task proves it through the API and fixes whatever the tests find.
+**Description:** `app/quitting/` with `answerQuitDay` and `clearQuitDay`. `rules.py` checks the goal is yours (404), quitting, and the day is from its start to today (409), then upserts or clears. Both return the day's `QuitDay`.
 
 **Acceptance criteria:**
-- [x] A building goal made on Tuesday has its sessions on Wednesday or later; one made on Sunday leaves them in the bank.
-- [x] A raised target's extra session goes on the lightest later day without one of the goal's sessions.
-- [x] A new flexible item, an item turned back on and a resumed goal place only their fresh tasks; the tasks they got back stay where they were.
-- [x] Today's tasks, read before and after each of those, are byte-for-byte the same; a check-off made early and a task sent to the bank leave every other row as it was.
+- [ ] A day is answered, changed and cleared; each repeat changes nothing more, and the day has at most one live row throughout.
+- [ ] A building goal, a day before the start and tomorrow are refused with 409; another user's goal with 404; no `X-Time-Zone` with 422.
+- [ ] A day a week old can still be answered; the audit log names the action.
 
-**Verify:** `uv run pytest tests/test_planner.py`, then the four checks.
+**Verify:** `uv run pytest tests/test_quit_days.py`, then the four checks.
+
+**Dependencies:** 1.
+
+**Files:** `app/quitting/{__init__,routes,models,rules}.py`, `app/main.py`, `tests/test_quit_days.py`.
+
+**Scope:** M
+
+### Task 3: Rate and clear the urge
+
+**Description:** `rateUrge` and `clearUrgeRating`, the same way, in the same slice. Each returns the whole `QuitDay`, so after rating the urge the phone still has the day's answer.
+
+**Acceptance criteria:**
+- [ ] An urge is rated, changed and cleared, with the same refusals as task 2.
+- [ ] Rating the urge leaves the day's answer as it was, and the other way round.
+
+**Verify:** `uv run pytest tests/test_urges.py`, then the four checks.
 
 **Dependencies:** 2.
 
-**Files:** `tests/test_planner.py`, and fixes in `app/planner.py` or `app/turnover/rules.py` if needed.
+**Files:** `app/quitting/{routes,models,rules}.py`, `tests/test_urges.py`.
 
 **Scope:** S
 
 ## Checkpoint: after task 3
 
-- [x] The four checks pass.
-- [x] Recurring work lands on days when a week opens and as it arrives; nothing else moves.
+- [ ] The four checks pass.
+- [ ] The four writes work and are safe to repeat.
 
-### Task 4: A new fixed-day item due today goes on today
+### Task 4: The record on the goal's page
 
-**Description:** Creating a weekly or monthly item, or turning one back on, whose day is today puts today's task on today in the same transaction, because the person just asked for it (spec, "Left to other slices"). Not a planner write: the recurring-items rule does it.
-
-**Acceptance criteria:**
-- [x] Created on Wednesday for "every Wednesday", the task is on today; for "every Thursday", the planner puts it on Thursday.
-- [x] Sent twice, it changes nothing more.
-
-**Verify:** `uv run pytest tests/test_recurring_items.py tests/test_item_tasks.py`, then the four checks.
-
-**Dependencies:** 2.
-
-**Files:** `app/recurring_items/rules.py` or `app/turnover/rules.py` (`fill_item`), `tests/test_item_tasks.py`.
-
-**Scope:** S
-
-### Task 5: The full-day mark
-
-**Description:** `Week` gains `days`: seven `DayMark { day, cap, full }`. `cap` from the user's intensity (3, 4 or 6); `full` when the day holds at least `cap` tasks that are open or done. Worked out in `app/tasks/week.py` from the rows it already reads.
+**Description:** `app/quitting/record.py`: `quit_record(connection, user_id, goal, today)` reads both tables for the last 28 days, and the goal's answers since its start to work out `heldRun` and `unknownInRun`. `GoalPage` gains `quitRecord`, filled for quitting goals.
 
 **Acceptance criteria:**
-- [x] A day with four tasks on Normal is full; with three it isn't; a dropped task doesn't count.
-- [x] Changing intensity (set directly in the test until `settings-sync`) changes only `cap` and `full`; every task stays where it was.
+- [ ] Unanswered days read `held: null`; a gap neither ends nor adds to the run; a "no" starts it again.
+- [ ] `unknownInRun` counts unanswered days since the last "no" (or the start), not today; answering one lowers it, and a gap before the last "no" isn't counted.
+- [ ] A goal started 3 days ago shows 4 days; one started long ago shows 28. Building and one-off goals have no record.
+
+**Verify:** `uv run pytest tests/test_quit_record.py tests/test_milestones.py`, then the four checks.
+
+**Dependencies:** 2, 3.
+
+**Files:** `app/quitting/record.py`, `app/milestones/models.py`, `app/milestones/page.py`, `tests/test_quit_record.py`.
+
+**Scope:** M
+
+### Task 5: Quitting goals on the week read
+
+**Description:** `Week` gains `quittingGoals`: each active quitting goal started by the week's end, with a `QuitDay` for each day of the week from its start.
+
+**Acceptance criteria:**
+- [ ] An answered and a rated day show in the week; a paused quitting goal and a building goal don't appear.
+- [ ] A goal started on Wednesday has days Wednesday to Sunday.
 
 **Verify:** `uv run pytest tests/test_week_read.py`, then the four checks.
 
-**Dependencies:** none (after 2 so the tests read placed weeks).
+**Dependencies:** 4 (shares `record.py`).
 
-**Files:** `app/tasks/models.py`, `app/tasks/week.py`, `tests/test_week_read.py`.
+**Files:** `app/tasks/models.py`, `app/tasks/week.py`, `app/quitting/record.py`, `tests/test_week_read.py`.
 
 **Scope:** S
 
 ### Task 6: Docs, the contract and the front end's types
 
-**Description:** `openapi.json` written; the spec marked built, with what changed while building; the map's slice row and `CLAUDE.md`'s line for `planner.py` updated; `../docs/data-model.md` and `../docs/flows.md` checked against what was built. In `../web-frontend`, on its own branch: `npm run api:types`, and the mock compiles against `Week.days`.
+**Description:** `openapi.json` written; the spec marked built, with what changed while building; the map and `CLAUDE.md` (the new slice folder) updated; `../docs/data-model.md` checked against what was built (the server-made id, clearing). In `../web-frontend`, on its own branch: `npm run api:types`, and the mock compiles.
 
 **Acceptance criteria:**
-- [x] `tests/test_contract.py` passes; `DayMark` is camelCase.
-- [x] The front end builds against the regenerated types.
+- [ ] `tests/test_contract.py` passes; every operation is named as the front end will call it.
+- [ ] The front end builds against the regenerated types, and its tests pass.
 
-**Verify:** the four checks; in `../web-frontend`, `nvm use`, then its build and tests.
+**Verify:** the four checks; in `../web-frontend`, `nvm use`, then its lint, tests and build.
 
 **Dependencies:** 1–5.
 
-**Files:** `openapi.json`, `specs/planner.md`, `specs/README.md`, `CLAUDE.md`, `../docs/`, `../web-frontend/src/api/` (generated types and the mock).
+**Files:** `openapi.json`, `specs/quitting-goals.md`, `specs/README.md`, `CLAUDE.md`, `../docs/data-model.md`, `../web-frontend/src/api/openapi.ts`.
 
 **Scope:** M
 
 ## Checkpoint: complete
 
-- [x] The four checks pass.
-- [x] The front end compiles against the new types.
-- [x] Every success criterion in the spec is met.
+- [ ] The four checks pass.
+- [ ] The front end compiles against the new types.
+- [ ] Every success criterion in the spec is met.

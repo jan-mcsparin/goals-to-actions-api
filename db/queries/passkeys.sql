@@ -1,8 +1,9 @@
--- A credential already kept is left as it is.
--- name: AddPasskey :exec
+-- A credential already kept is left as it is, and nothing comes back.
+-- name: AddPasskey :one
 insert into passkeys (id, user_id, credential_id, public_key, sign_count)
 values ($1, $2, $3, $4, $5)
-on conflict (credential_id) do nothing;
+on conflict (credential_id) do nothing
+returning id, user_id;
 
 -- No owner: the passkey is how the owner is found.
 -- name: FindPasskey :one

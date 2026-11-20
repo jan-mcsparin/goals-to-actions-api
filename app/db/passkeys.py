@@ -11,10 +11,11 @@ import sqlalchemy
 from app.db import models
 
 
-ADD_PASSKEY = """-- name: add_passkey \\:exec
+ADD_PASSKEY = """-- name: add_passkey \\:one
 insert into passkeys (id, user_id, credential_id, public_key, sign_count)
 values (:p1, :p2, :p3, :p4, :p5)
 on conflict (credential_id) do nothing
+returning id, user_id
 """
 
 
@@ -24,6 +25,11 @@ class AddPasskeyParams(pydantic.BaseModel):
     credential_id: str
     public_key: str
     sign_count: int
+
+
+class AddPasskeyRow(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
 
 
 FIND_PASSKEY = """-- name: find_passkey \\:one
@@ -50,14 +56,20 @@ class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
 
-    def add_passkey(self, arg: AddPasskeyParams) -> None:
-        self._conn.execute(sqlalchemy.text(ADD_PASSKEY), {
+    def add_passkey(self, arg: AddPasskeyParams) -> Optional[AddPasskeyRow]:
+        row = self._conn.execute(sqlalchemy.text(ADD_PASSKEY), {
             "p1": arg.id,
             "p2": arg.user_id,
             "p3": arg.credential_id,
             "p4": arg.public_key,
             "p5": arg.sign_count,
-        })
+        }).first()
+        if row is None:
+            return None
+        return AddPasskeyRow(
+            id=row[0],
+            user_id=row[1],
+        )
 
     def find_passkey(self, *, credential_id: str) -> Optional[FindPasskeyRow]:
         row = self._conn.execute(sqlalchemy.text(FIND_PASSKEY), {"p1": credential_id}).first()

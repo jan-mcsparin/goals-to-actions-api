@@ -746,6 +746,13 @@ CREATE UNIQUE INDEX quit_days_one_per_day ON public.quit_days USING btree (goal_
 
 
 --
+-- Name: sign_in_challenges_expires_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX sign_in_challenges_expires_at ON public.sign_in_challenges USING btree (expires_at);
+
+
+--
 -- Name: task_weeks_one_in_play; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1197,4 +1204,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261120000000'),
     ('20261121000000'),
     ('20261121000100'),
-    ('20261121000200');
+    ('20261121000200'),
+    ('20261121000300');

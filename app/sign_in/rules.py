@@ -20,7 +20,6 @@ from webauthn import (
     verify_registration_response,
 )
 from webauthn.helpers import bytes_to_base64url
-from webauthn.helpers.exceptions import WebAuthnException
 from webauthn.helpers.structs import (
     AuthenticatorSelectionCriteria,
     ResidentKeyRequirement,
@@ -36,8 +35,6 @@ from app.sign_in.codes import code_hash
 from app.sign_in.session import start_session
 
 CHALLENGE_LIFETIME = timedelta(minutes=5)
-# A malformed credential can fail in the library's parsing before its checks.
-REFUSED = (WebAuthnException, ValueError, KeyError, TypeError)
 
 
 class SignInFailed(Exception):
@@ -74,6 +71,7 @@ def redeem_code(database: Database, typed: str, moment: datetime) -> Options:
             ),
         )
         challenge_id = uuid4()
+        sign_in_challenges.Querier(connection).clear_expired_challenges(expires_at=moment)
         sign_in_challenges.Querier(connection).add_challenge(
             AddChallengeParams(
                 id=challenge_id,
@@ -105,10 +103,10 @@ def add_passkey(
             expected_origin=APP_ORIGIN,
             require_user_verification=True,
         )
-    except REFUSED as error:
+    except Exception as error:  # a malformed credential can fail anywhere in the library
         raise SignInFailed from error
     with database.transaction(taken.user_id, "add passkey") as connection:
-        passkeys.Querier(connection).add_passkey(
+        kept = passkeys.Querier(connection).add_passkey(
             AddPasskeyParams(
                 id=uuid4(),
                 user_id=taken.user_id,
@@ -117,6 +115,8 @@ def add_passkey(
                 sign_count=verified.sign_count,
             )
         )
+        if kept is None:  # a credential already kept: nothing was added
+            raise SignInFailed
         return start_session(connection, taken.user_id, moment)
 
 
@@ -130,6 +130,7 @@ def start_sign_in(database: Database, moment: datetime) -> Options:
     )
     challenge_id = uuid4()
     with database.transaction(None, "start sign-in") as connection:
+        sign_in_challenges.Querier(connection).clear_expired_challenges(expires_at=moment)
         sign_in_challenges.Querier(connection).add_challenge(
             AddChallengeParams(
                 id=challenge_id,
@@ -168,7 +169,7 @@ def finish_sign_in(
             credential_current_sign_count=passkey.sign_count,
             require_user_verification=True,
         )
-    except REFUSED as error:
+    except Exception as error:  # a malformed credential can fail anywhere in the library
         raise SignInFailed from error
     with database.transaction(passkey.user_id, "sign in") as connection:
         passkeys.Querier(connection).set_sign_count(

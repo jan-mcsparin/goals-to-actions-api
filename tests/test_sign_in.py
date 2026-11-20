@@ -191,3 +191,28 @@ def test_a_challenge_for_adding_a_passkey_cant_finish_a_sign_in(
     )
 
     assert response.status_code == 401
+
+
+def test_starting_a_sign_in_clears_expired_challenges(
+    signed_out: TestClient, connection: Connection, fixed_clock: FixedClock
+) -> None:
+    """`startSignIn` needs no session, so its rows can't be left to pile up (security review)."""
+    for _ in range(3):
+        signed_out.post(START)
+    fixed_clock.instant = PINNED + timedelta(minutes=5)
+
+    signed_out.post(START)
+
+    left = connection.execute(text("select count(*) from sign_in_challenges")).scalar_one()
+    assert left == 1
+
+
+def test_any_failure_in_the_librarys_check_is_a_401(
+    signed_out: TestClient, owner: UUID, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def malformed(**_: Any) -> None:
+        raise IndexError("short data")
+
+    monkeypatch.setattr(rules, "verify_authentication_response", malformed)
+
+    assert finish(signed_out).status_code == 401

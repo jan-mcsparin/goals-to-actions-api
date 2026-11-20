@@ -26,6 +26,12 @@ class AddChallengeParams(pydantic.BaseModel):
     expires_at: datetime.datetime
 
 
+CLEAR_EXPIRED_CHALLENGES = """-- name: clear_expired_challenges \\:exec
+delete from sign_in_challenges
+where expires_at <= :p1
+"""
+
+
 TAKE_CHALLENGE = """-- name: take_challenge \\:one
 delete from sign_in_challenges
 where id = :p1 and kind = :p2
@@ -51,6 +57,9 @@ class Querier:
             "p4": arg.challenge,
             "p5": arg.expires_at,
         })
+
+    def clear_expired_challenges(self, *, expires_at: datetime.datetime) -> None:
+        self._conn.execute(sqlalchemy.text(CLEAR_EXPIRED_CHALLENGES), {"p1": expires_at})
 
     def take_challenge(self, *, id: uuid.UUID, kind: str) -> Optional[TakeChallengeRow]:
         row = self._conn.execute(sqlalchemy.text(TAKE_CHALLENGE), {"p1": id, "p2": kind}).first()

@@ -136,8 +136,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** A security review of the `sign-in` branch against `main`, by the security-auditor agent, before the PR merges and before the API is first hosted (#8). It reviews how the pieces fit, not the algorithms (the library checks the signatures): the cookie's flags and expiry, the `Origin` check, a code and a challenge working once with no race between two requests, every route answering 401 without a session, and no user reaching another's rows. Each finding is fixed with a test, or recorded in the PR with why it can wait for open sign-up.
 
 **Acceptance criteria:**
-- [ ] The review has been run, and its findings are listed in the PR.
-- [ ] Every finding to be fixed before hosting is fixed, with a test; the rest are noted as left for open sign-up.
+- [x] The review has been run, and its findings are listed in the PR.
+- [x] Every finding to be fixed before hosting is fixed, with a test; the rest are noted as left for open sign-up. Fixed: expired challenges cleared as new ones are made; any failure in the library's parsing is a 401, not a 500; a credential already kept is refused instead of reported as added. For hosting (ADR-011): `Origin` forwarded, a rate limit on `/api/sign-in/*`. Left for Jan: commands to end a user's sessions and remove a passkey; ending the old session on signing in again.
 
 **Verify:** the four checks after the fixes.
 

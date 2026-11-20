@@ -232,3 +232,47 @@ def test_an_unknown_challenge_is_refused(
     response = signed_out.post(ADD, json={"challengeId": str(uuid4()), "credential": CREDENTIAL})
 
     assert response.status_code == 401
+
+
+def test_any_failure_in_the_librarys_parsing_is_a_401(
+    signed_out: TestClient, tester: tuple[UUID, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A malformed attestation can raise IndexError inside the library (security review)."""
+
+    def malformed(**_: Any) -> None:
+        raise IndexError("credential id length runs past the data")
+
+    monkeypatch.setattr(rules, "verify_registration_response", malformed)
+    challenge_id = redeem(signed_out, tester[1]).json()["challengeId"]
+
+    response = signed_out.post(ADD, json={"challengeId": challenge_id, "credential": CREDENTIAL})
+
+    assert response.status_code == 401
+
+
+def test_a_credential_already_kept_is_refused(
+    signed_out: TestClient,
+    database: Database,
+    connection: Connection,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Nothing kept, so nothing to sign in with: say so (security review)."""
+    monkeypatch.setattr(
+        rules,
+        "verify_registration_response",
+        lambda **_: SimpleNamespace(
+            credential_id=b"same", credential_public_key=b"k", sign_count=0
+        ),
+    )
+    first, first_code = add_user(database, PINNED)
+    second, second_code = add_user(database, PINNED)
+    for code in (first_code, second_code):
+        challenge_id = redeem(signed_out, code).json()["challengeId"]
+        response = signed_out.post(
+            ADD, json={"challengeId": challenge_id, "credential": CREDENTIAL}
+        )
+
+    assert response.status_code == 401
+    assert len(passkeys_of(connection, first)) == 1
+    assert passkeys_of(connection, second) == []
+    assert sessions_of(connection, second) == 0

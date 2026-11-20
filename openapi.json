@@ -1262,6 +1262,39 @@
         "title": "Placing",
         "type": "object"
       },
+      "PlanAspiration": {
+        "description": "The aspiration a task's goal is under, so the phone can order and label the plan from\nthe week read alone.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its priority; empty once it's retired.",
+            "title": "Position"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "position"
+        ],
+        "title": "PlanAspiration",
+        "type": "object"
+      },
       "Progress": {
         "description": "\"2 of 6\": the goal's milestones plus one for the goal. A reached goal counts complete:\nmilestones never checked in were passed on the way.",
         "properties": {
@@ -1683,6 +1716,17 @@
       },
       "Task": {
         "properties": {
+          "aspiration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanAspiration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its goal's aspiration. Empty with no goal, or a goal under none."
+          },
           "atClose": {
             "anyOf": [
               {
@@ -1739,6 +1783,11 @@
               }
             ],
             "title": "Duedate"
+          },
+          "fixedDay": {
+            "description": "From a weekly or monthly recurring item: it stays on its day.",
+            "title": "Fixedday",
+            "type": "boolean"
           },
           "goalId": {
             "anyOf": [
@@ -1867,7 +1916,9 @@
           "state",
           "goalId",
           "goalLabel",
+          "aspiration",
           "recurringItemId",
+          "fixedDay",
           "dueDate",
           "timeOfDay",
           "valueLogged",
@@ -2101,6 +2152,16 @@
       "WeekGoal": {
         "description": "A bar on Week: a goal's target that week and how far along it is.",
         "properties": {
+          "aspiration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanAspiration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -2120,6 +2181,7 @@
         "required": [
           "id",
           "label",
+          "aspiration",
           "weeklyTarget",
           "progress"
         ],

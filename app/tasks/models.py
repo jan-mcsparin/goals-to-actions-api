@@ -29,6 +29,8 @@ STATE_IN_JSON: dict[str, TaskState] = {
 }
 
 AtClose = Literal["carriesOver", "ends"]
+# Recurring items whose tasks are due on a set day.
+FIXED_KINDS = ("weekly", "monthly")
 # How many rollovers since the last answer make a task worth asking about.
 ASK_AFTER_ROLLOVERS = 2
 
@@ -51,6 +53,23 @@ class TimeOfDay(ApiModel):
         return cls(kind="by" if kind == "by" else "at", time=at.strftime("%H:%M"))
 
 
+class PlanAspiration(ApiModel):
+    """The aspiration a task's goal is under, so the phone can order and label the plan from
+    the week read alone."""
+
+    id: UUID
+    name: str
+    position: int | None = Field(description="Its priority; empty once it's retired.")
+
+    @classmethod
+    def from_columns(
+        cls, aspiration_id: UUID | None, name: str | None, position: int | None
+    ) -> PlanAspiration | None:
+        if aspiration_id is None or name is None:
+            return None
+        return cls(id=aspiration_id, name=name, position=position)
+
+
 class Task(ApiModel):
     id: UUID
     title: str
@@ -58,7 +77,13 @@ class Task(ApiModel):
     state: TaskState
     goal_id: UUID | None
     goal_label: str | None
+    aspiration: PlanAspiration | None = Field(
+        description="Its goal's aspiration. Empty with no goal, or a goal under none."
+    )
     recurring_item_id: UUID | None
+    fixed_day: bool = Field(
+        description="From a weekly or monthly recurring item: it stays on its day."
+    )
     due_date: date | None
     time_of_day: TimeOfDay | None
     value_logged: float | None
@@ -92,7 +117,11 @@ class Task(ApiModel):
             state=STATE_IN_JSON[row.state],
             goal_id=row.goal_id,
             goal_label=row.goal_label,
+            aspiration=PlanAspiration.from_columns(
+                row.aspiration_id, row.aspiration_name, row.aspiration_position
+            ),
             recurring_item_id=row.recurring_item_id,
+            fixed_day=row.item_kind in FIXED_KINDS,
             due_date=row.due_date,
             time_of_day=TimeOfDay.from_columns(row.time_kind, row.time_of_day),
             value_logged=None if row.value_logged is None else float(row.value_logged),
@@ -124,7 +153,7 @@ def at_close(
 def still_matters(
     row: GetTaskViewRow | ListWeekTasksRow | ListStepsRow | ListUpcomingRow,
 ) -> bool:
-    asked_about = row.origin == "by_hand" or row.item_kind in ("weekly", "monthly")
+    asked_about = row.origin == "by_hand" or row.item_kind in FIXED_KINDS
     return row.state == "open" and asked_about and row.rolled_since_answer >= ASK_AFTER_ROLLOVERS
 
 
@@ -151,6 +180,7 @@ class WeekGoal(ApiModel):
 
     id: UUID
     label: str
+    aspiration: PlanAspiration | None
     weekly_target: WeeklyTarget
     progress: WeekProgress
 

@@ -73,6 +73,10 @@ Tried again on 2026-11-18 (its #41, the aspiration and goal screens):
 
 - **11 met for the goal screens.** `listGoals` carries each goal's `progress`, and the goal's page carries its aspiration and each milestone's result (#26, #30), so the tab and an aspiration's page are two reads, `listAspirations` and `listGoals` side by side, and a goal's page is one. Recurring items and this week's tasks join them in the front end's #42.
 
+Met for the plan screens on 2026-11-20 (the front end's #42, API #45):
+
+- **11 met for Today and Week.** Each task names its goal's aspiration (`{ id, name, position }`) and says whether it's `fixedDay`, and each of the week's goals names its aspiration, so Today, any day, the bank and Week are drawn from the week read alone (ADR-010).
+
 Proved across the whole API on 2026-11-19 (`settings-sync`):
 
 - **6 and 7 hold for every write.** `tests/test_repeats.py` sends each write in the schema twice and compares the answers and the user's rows, and fails for a write without a case.

@@ -52,6 +52,7 @@ def test_count_progress_is_the_goals_tasks_done_this_week(tasks_client: TestClie
         {
             "id": goal["id"],
             "label": "Be strong",
+            "aspiration": None,
             "weeklyTarget": goal["weeklyTarget"],
             "progress": progress,
         }

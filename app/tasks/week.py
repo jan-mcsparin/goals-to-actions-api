@@ -6,12 +6,12 @@ from uuid import UUID
 
 from sqlalchemy import Connection
 
-from app.db import goals, tasks, users
+from app.db import aspirations, goals, tasks, users
 from app.errors import NotFound
 from app.goals.models import WeeklyTarget
 from app.quitting.record import week_quit_goals
 from app.tasks import progress
-from app.tasks.models import DayMark, Task, Week, WeekGoal
+from app.tasks.models import DayMark, PlanAspiration, Task, Week, WeekGoal
 from app.weeks import open_weeks
 
 # Tasks a day holds at each intensity: Easing off, Normal, Going hard.
@@ -34,6 +34,10 @@ def week_read(connection: Connection, user_id: UUID, week: date, today: date) ->
     done = progress.week_progress(connection, user_id, week, targets)
     all_goals = list(goals.Querier(connection).list_goals(user_id=user_id))
     active = [goal for goal in all_goals if goal.status == "active" and goal.id in targets]
+    under = {
+        row.id: PlanAspiration(id=row.id, name=row.name, position=row.position)
+        for row in aspirations.Querier(connection).list_aspirations(user_id=user_id)
+    }
     return Week(
         week=week,
         is_current=week == weeks.current,
@@ -45,6 +49,7 @@ def week_read(connection: Connection, user_id: UUID, week: date, today: date) ->
             WeekGoal(
                 id=goal.id,
                 label=goal.label,
+                aspiration=under.get(goal.aspiration_id) if goal.aspiration_id else None,
                 weekly_target=WeeklyTarget.from_row(targets[goal.id]),
                 progress=done[goal.id],
             )

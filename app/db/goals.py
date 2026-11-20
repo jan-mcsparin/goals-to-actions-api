@@ -33,9 +33,21 @@ class CreateGoalParams(pydantic.BaseModel):
     deadline: Optional[datetime.date]
 
 
+DELETE_GOAL = """-- name: delete_goal \\:exec
+update goals set deleted_at = now()
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 GET_GOAL = """-- name: get_goal \\:one
 select id, user_id, aspiration_id, type, label, measurable_line, baseline, status, start_date, deadline, ended_on, created_at, updated_at, deleted_at from goals
 where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
+GOAL_DELETED = """-- name: goal_deleted \\:one
+select id, user_id, aspiration_id, type, label, measurable_line, baseline, status, start_date, deadline, ended_on, created_at, updated_at, deleted_at from goals
+where id = :p1 and user_id = :p2 and deleted_at is not null
 """
 
 
@@ -115,8 +127,32 @@ class Querier:
             deleted_at=row[13],
         )
 
+    def delete_goal(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_GOAL), {"p1": id, "p2": user_id})
+
     def get_goal(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Goal]:
         row = self._conn.execute(sqlalchemy.text(GET_GOAL), {"p1": id, "p2": user_id}).first()
+        if row is None:
+            return None
+        return models.Goal(
+            id=row[0],
+            user_id=row[1],
+            aspiration_id=row[2],
+            type=row[3],
+            label=row[4],
+            measurable_line=row[5],
+            baseline=row[6],
+            status=row[7],
+            start_date=row[8],
+            deadline=row[9],
+            ended_on=row[10],
+            created_at=row[11],
+            updated_at=row[12],
+            deleted_at=row[13],
+        )
+
+    def goal_deleted(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Goal]:
+        row = self._conn.execute(sqlalchemy.text(GOAL_DELETED), {"p1": id, "p2": user_id}).first()
         if row is None:
             return None
         return models.Goal(

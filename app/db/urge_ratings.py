@@ -18,6 +18,12 @@ where goal_id = :p1 and user_id = :p2 and rated_on = :p3 and deleted_at is null
 """
 
 
+DELETE_GOAL_URGE_RATINGS = """-- name: delete_goal_urge_ratings \\:exec
+update urge_ratings set deleted_at = now()
+where goal_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 LIST_URGE_RATINGS = """-- name: list_urge_ratings \\:many
 select goal_id, rated_on, level from urge_ratings
 where user_id = :p1 and goal_id = any(:p2\\:\\:uuid[])
@@ -55,6 +61,9 @@ class Querier:
 
     def clear_urge_rating(self, *, goal_id: uuid.UUID, user_id: uuid.UUID, rated_on: datetime.date) -> None:
         self._conn.execute(sqlalchemy.text(CLEAR_URGE_RATING), {"p1": goal_id, "p2": user_id, "p3": rated_on})
+
+    def delete_goal_urge_ratings(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_GOAL_URGE_RATINGS), {"p1": goal_id, "p2": user_id})
 
     def list_urge_ratings(self, *, user_id: uuid.UUID, goal_ids: List[uuid.UUID], from_day: datetime.date, through_day: datetime.date) -> Iterator[ListUrgeRatingsRow]:
         result = self._conn.execute(sqlalchemy.text(LIST_URGE_RATINGS), {

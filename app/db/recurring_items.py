@@ -18,6 +18,12 @@ where aspiration_id = :p1 and user_id = :p2 and deleted_at is null
 """
 
 
+CLEAR_FROM_GOAL = """-- name: clear_from_goal \\:exec
+update recurring_items set from_goal_id = null
+where from_goal_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 CREATE_RECURRING_ITEM = """-- name: create_recurring_item \\:one
 insert into recurring_items (
   id, user_id, name, aspiration_id, from_goal_id, schedule_kind, weekday, day_of_month, times,
@@ -109,6 +115,9 @@ class Querier:
 
     def clear_aspiration_items(self, *, aspiration_id: Optional[uuid.UUID], user_id: uuid.UUID) -> None:
         self._conn.execute(sqlalchemy.text(CLEAR_ASPIRATION_ITEMS), {"p1": aspiration_id, "p2": user_id})
+
+    def clear_from_goal(self, *, from_goal_id: Optional[uuid.UUID], user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(CLEAR_FROM_GOAL), {"p1": from_goal_id, "p2": user_id})
 
     def create_recurring_item(self, arg: CreateRecurringItemParams) -> Optional[models.RecurringItem]:
         row = self._conn.execute(sqlalchemy.text(CREATE_RECURRING_ITEM), {

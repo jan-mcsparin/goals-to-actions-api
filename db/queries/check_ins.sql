@@ -27,3 +27,7 @@ order by milestone_id, outcome = 'hit' desc, checked_in_on desc, created_at desc
 -- name: DeleteMilestoneCheckIns :exec
 update check_ins set deleted_at = now()
 where milestone_id = $1 and user_id = $2 and deleted_at is null;
+
+-- name: DeleteGoalCheckIns :exec
+update check_ins set deleted_at = now()
+where goal_id = $1 and user_id = $2 and deleted_at is null;

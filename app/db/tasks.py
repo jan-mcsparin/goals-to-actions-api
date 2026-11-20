@@ -47,6 +47,12 @@ class CountStepsRow(pydantic.BaseModel):
     done: int
 
 
+DELETE_GOAL_TASKS = """-- name: delete_goal_tasks \\:exec
+update tasks set deleted_at = now()
+where goal_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 DELETE_ITEM_OPEN_TASKS = """-- name: delete_item_open_tasks \\:exec
 update tasks set deleted_at = now()
 where recurring_item_id = :p1 and user_id = :p2 and state = 'open' and deleted_at is null
@@ -419,6 +425,9 @@ class Querier:
                 steps=row[1],
                 done=row[2],
             )
+
+    def delete_goal_tasks(self, *, goal_id: Optional[uuid.UUID], user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_GOAL_TASKS), {"p1": goal_id, "p2": user_id})
 
     def delete_item_open_tasks(self, *, recurring_item_id: Optional[uuid.UUID], user_id: uuid.UUID) -> None:
         self._conn.execute(sqlalchemy.text(DELETE_ITEM_OPEN_TASKS), {"p1": recurring_item_id, "p2": user_id})

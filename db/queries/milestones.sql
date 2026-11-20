@@ -64,3 +64,7 @@ where id = $1 and user_id = $2 and deleted_at is null;
 -- name: CloseMilestoneGap :exec
 update milestones set position = position - 1
 where goal_id = $1 and user_id = $2 and deleted_at is null and position > $3;
+
+-- name: DeleteGoalMilestones :exec
+update milestones set deleted_at = now()
+where goal_id = $1 and user_id = $2 and deleted_at is null;

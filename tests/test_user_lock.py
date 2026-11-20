@@ -57,6 +57,7 @@ WRITES: dict[str, Callable[[Connection], object]] = {
     "change goal status": lambda tx: goal_rules.change_status(
         tx, FIXED_USER_ID, uuid4(), goal_rules.PAUSE, date(2026, 11, 16)
     ),
+    "delete goal": lambda tx: goal_rules.delete(tx, FIXED_USER_ID, uuid4()),
     "add milestone": lambda tx: milestone_rules.add(
         tx, FIXED_USER_ID, uuid4(), NewMilestone(goal_id=uuid4(), measurable_line="Bench 155")
     ),

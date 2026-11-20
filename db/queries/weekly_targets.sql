@@ -35,3 +35,7 @@ select * from weekly_targets
 where goal_id = $1 and user_id = $2 and effective_from <= $3 and deleted_at is null
 order by effective_from desc
 limit 1;
+
+-- name: DeleteGoalWeeklyTargets :exec
+update weekly_targets set deleted_at = now()
+where goal_id = $1 and user_id = $2 and deleted_at is null;

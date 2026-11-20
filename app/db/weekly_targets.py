@@ -13,6 +13,12 @@ import sqlalchemy
 from app.db import models
 
 
+DELETE_GOAL_WEEKLY_TARGETS = """-- name: delete_goal_weekly_targets \\:exec
+update weekly_targets set deleted_at = now()
+where goal_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 GOAL_WEEKLY_TARGET_FOR = """-- name: goal_weekly_target_for \\:one
 select id, user_id, goal_id, goal_type, kind, sessions, amount, unit, effective_from, created_at, updated_at, deleted_at from weekly_targets
 where goal_id = :p1 and user_id = :p2 and effective_from <= :p3 and deleted_at is null
@@ -69,6 +75,9 @@ order by goal_id, effective_from desc
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
+
+    def delete_goal_weekly_targets(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_GOAL_WEEKLY_TARGETS), {"p1": goal_id, "p2": user_id})
 
     def goal_weekly_target_for(self, *, goal_id: uuid.UUID, user_id: uuid.UUID, effective_from: datetime.date) -> Optional[models.WeeklyTarget]:
         row = self._conn.execute(sqlalchemy.text(GOAL_WEEKLY_TARGET_FOR), {"p1": goal_id, "p2": user_id, "p3": effective_from}).first()

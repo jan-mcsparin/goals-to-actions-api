@@ -49,3 +49,8 @@ returning id;
 -- name: ClearAspirationItems :exec
 update recurring_items set aspiration_id = null
 where aspiration_id = $1 and user_id = $2 and deleted_at is null;
+
+-- A deleted goal's item keeps going, no longer remembering the goal it came from.
+-- name: ClearFromGoal :exec
+update recurring_items set from_goal_id = null
+where from_goal_id = $1 and user_id = $2 and deleted_at is null;

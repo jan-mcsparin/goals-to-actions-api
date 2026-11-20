@@ -52,6 +52,12 @@ class CountMilestonesRow(pydantic.BaseModel):
     hit: int
 
 
+DELETE_GOAL_MILESTONES = """-- name: delete_goal_milestones \\:exec
+update milestones set deleted_at = now()
+where goal_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 DELETE_MILESTONE = """-- name: delete_milestone \\:exec
 update milestones set deleted_at = now()
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -150,6 +156,9 @@ class Querier:
                 milestones=row[1],
                 hit=row[2],
             )
+
+    def delete_goal_milestones(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_GOAL_MILESTONES), {"p1": goal_id, "p2": user_id})
 
     def delete_milestone(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
         self._conn.execute(sqlalchemy.text(DELETE_MILESTONE), {"p1": id, "p2": user_id})

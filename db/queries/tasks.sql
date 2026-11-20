@@ -175,3 +175,8 @@ where recurring_item_id = $1 and user_id = $2 and state = 'open' and deleted_at 
 -- name: UnlinkItemTasks :exec
 update tasks set recurring_item_id = null
 where recurring_item_id = $1 and user_id = $2 and deleted_at is null;
+
+-- A deleted goal's tasks go with it, whatever their state.
+-- name: DeleteGoalTasks :exec
+update tasks set deleted_at = now()
+where goal_id = $1 and user_id = $2 and deleted_at is null;

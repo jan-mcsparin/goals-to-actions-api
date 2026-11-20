@@ -1,140 +1,119 @@
-# Tasks: Delete (#12)
+# Tasks: Settings and sync (#13)
 
-Plan: [`plan.md`](plan.md). Spec: [`../specs/delete.md`](../specs/delete.md).
+Plan: [`plan.md`](plan.md). Spec: [`../specs/settings-sync.md`](../specs/settings-sync.md).
 
 Every task: write the tests first, run the four checks (`uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`), then one commit.
 
-# PR: `delete` (closes #12)
+# PR: `settings-sync` (closes #13)
 
-### Task 1: Positions ignore deleted rows
+### Task 1: Read and set intensity
 
-**Description:** One migration swaps `aspirations_position_unique` and `milestones_position_unique` for deferrable exclusion constraints of the same names over rows not deleted. Down puts the unique constraints back.
+**Description:** `getSettings`, `GET /api/settings`, and `setIntensity`, `PUT /api/settings/intensity`, both returning `Settings`. A new `app/settings/` slice; the queries exist.
 
 **Acceptance criteria:**
-- [x] Two live rows still can't share a position; a deleted row and a live one can (a test each, per table).
-- [x] Reordering still works (the existing tests pass).
-- [x] Up, rollback, up leaves `db/schema.sql` unchanged.
+- [ ] A new user reads Normal; setting Going hard is read back, and the week read marks days against cap 6. Nothing is placed or moved.
+- [ ] An unknown intensity is a 422; setting it twice gives the same answer and changes nothing more; the audit log names "set intensity".
+- [ ] Values are camelCase in JSON, snake_case in the database.
 
-**Verify:** `uv run pytest tests/test_aspirations_table.py tests/test_milestones_table.py`, then the four checks.
+**Verify:** `uv run pytest tests/test_settings.py`, then the four checks.
 
 **Dependencies:** none.
 
-**Files:** `db/migrations/<ts>_positions_ignore_deleted.sql`, `db/schema.sql`, `tests/test_aspirations_table.py`, `tests/test_milestones_table.py`.
+**Files:** `app/settings/{__init__,routes,models}.py`, `app/main.py`, `tests/test_settings.py`, `openapi.json`.
 
 **Scope:** S
 
-### Task 2: Delete a task
+### Task 2: The time zone follows the phone
 
-**Description:** `deleteTask`, `DELETE /api/tasks/{taskId}`, 204. `rules.delete` takes the user lock, hides the task and its week records. Turnover's `DeleteTask` and `DeleteTaskRows` move to `tasks.sql` and `task_weeks.sql`; `TaskDeleted` finds a repeat.
-
-**Acceptance criteria:**
-- [x] The task and its rows leave the week read, the upcoming list and its goal's progress.
-- [x] Deleting twice gives 204 and changes nothing; another user's task gives 404; the audit log names "delete task".
-- [x] A deleted goal session isn't made again when its week is opened twice.
-
-**Verify:** `uv run pytest tests/test_delete_task.py`, then the four checks.
-
-**Dependencies:** 1.
-
-**Files:** `db/queries/{tasks,task_weeks,turnover}.sql`, `app/db/`, `app/tasks/{routes,rules}.py`, `app/turnover/`, `tests/test_delete_task.py`, `tests/test_user_lock.py`.
-
-**Scope:** M
-
-### Task 3: Delete a recurring item
-
-**Description:** `deleteRecurringItem`, `DELETE /api/recurring-items/{itemId}`, 204. Hides the item and its open tasks with their rows; its other tasks lose the link and keep their origin.
+**Description:** `today()` saves the header's zone on the user when it differs from the stored one.
 
 **Acceptance criteria:**
-- [x] Its open tasks leave the week; a done one stays in the week, with no item.
-- [x] The item isn't listed and makes no tasks when the next week opens.
-- [x] Twice, another user's, and the audit action, as task 2.
+- [ ] A request with `X-Time-Zone: Asia/Tokyo` leaves Tokyo on the user; a later one from Denver leaves Denver.
+- [ ] A second request from the same zone writes nothing (no audit row).
+- [ ] A name that isn't a zone is refused (422) and nothing is saved.
 
-**Verify:** `uv run pytest tests/test_delete_item.py`, then the four checks.
+**Verify:** `uv run pytest tests/test_time_zone.py`, then the four checks.
 
-**Dependencies:** 2.
+**Dependencies:** none.
 
-**Files:** `db/queries/{recurring_items,tasks}.sql`, `app/db/`, `app/recurring_items/{routes,rules}.py`, `tests/test_delete_item.py`, `tests/test_user_lock.py`.
-
-**Scope:** M
-
-## Checkpoint: after task 3
-
-- [x] The four checks pass.
-
-### Task 4: Delete a milestone
-
-**Description:** `deleteMilestone`, `DELETE /api/milestones/{milestoneId}`, returns the goal's page. Hides the milestone and its check-ins and closes the gap in the goal's positions.
-
-**Acceptance criteria:**
-- [x] Deleting the second of three leaves 1 and 2; a milestone added afterwards is 3.
-- [x] Its check-ins leave the page's results; Next moves on if it was Next.
-- [x] Twice returns the page again; another user's gives 404; the audit action.
-
-**Verify:** `uv run pytest tests/test_delete_milestone.py`, then the four checks.
-
-**Dependencies:** 1.
-
-**Files:** `db/queries/{milestones,check_ins}.sql`, `app/db/`, `app/milestones/{routes,rules}.py`, `tests/test_delete_milestone.py`, `tests/test_user_lock.py`.
+**Files:** `app/turnover/dependencies.py`, `tests/test_time_zone.py`.
 
 **Scope:** S
 
-### Task 5: Delete a goal
+## Checkpoint: after task 2
 
-**Description:** `deleteGoal`, `DELETE /api/goals/{goalId}`, 204. Hides the goal, its tasks and their rows, milestones, check-ins, weekly targets, quit days and urge ratings; empties `from_goal_id` on an item continued from it.
+- [ ] The four checks pass.
 
-**Acceptance criteria:**
-- [x] A building goal with sessions, milestones and check-ins; a quitting goal with days and urges; a one-off with steps: each leaves every read, along with what it had.
-- [x] An item continued from it stays, with no `fromGoalId`.
-- [x] Twice, another user's, and the audit action.
+### Task 3: Repeat test, first half
 
-**Verify:** `uv run pytest tests/test_delete_goal.py`, then the four checks.
-
-**Dependencies:** 2, 4.
-
-**Files:** `db/queries/{goals,tasks,task_weeks,milestones,check_ins,weekly_targets,quit_days,urge_ratings,recurring_items}.sql`, `app/db/`, `app/goals/{routes,rules}.py`, `tests/test_delete_goal.py`, `tests/test_user_lock.py`.
-
-**Scope:** M
-
-### Task 6: Delete an aspiration
-
-**Description:** `deleteAspiration`, `DELETE /api/aspirations/{aspirationId}`, 204. Its goals and items lose the link; an active aspiration's gap is closed.
+**Description:** `tests/test_repeats.py`: the table, the twice-and-compare test, the row snapshot; rows for every aspiration, goal, weekly target, milestone and check-in write.
 
 **Acceptance criteria:**
-- [x] Deleting the first of three leaves 1 and 2; one created afterwards is 3. A retired one is deleted with no renumbering.
-- [x] Its goals list with no aspiration; its items with none.
-- [x] Twice, another user's, and the audit action.
+- [ ] Each of those writes, sent twice, gives the same status and body and leaves the same rows.
+- [ ] Any write found unsafe is fixed in its own commit with a test, or raised.
 
-**Verify:** `uv run pytest tests/test_delete_aspiration.py`, then the four checks.
+**Verify:** `uv run pytest tests/test_repeats.py`, then the four checks.
 
 **Dependencies:** 1.
 
-**Files:** `db/queries/{aspirations,goals,recurring_items}.sql`, `app/db/`, `app/aspirations/{routes,rules}.py`, `tests/test_delete_aspiration.py`, `tests/test_user_lock.py`.
+**Files:** `tests/test_repeats.py`.
 
-**Scope:** S
+**Scope:** M
+
+### Task 4: Repeat test, second half, and every write covered
+
+**Description:** Rows for quitting, recurring item, task, week and settings writes; a test that every write operation in the schema has a row.
+
+**Acceptance criteria:**
+- [ ] Each of those writes passes the repeat test.
+- [ ] The coverage test fails if a write operation in `openapi.json` has no row.
+
+**Verify:** `uv run pytest tests/test_repeats.py`, then the four checks.
+
+**Dependencies:** 3.
+
+**Files:** `tests/test_repeats.py`.
+
+**Scope:** M
+
+### Task 5: Queued writes that no longer apply
+
+**Description:** `tests/test_queued_writes.py` over the ten queueable writes.
+
+**Acceptance criteria:**
+- [ ] Each, aimed at a deleted row, answers 404 or 409; the task writes also against a set-aside task and a week the task has left.
+- [ ] `addTask` onto a past day, or today when today is before the current week, lands in the current week's bank.
+- [ ] Two devices updating one task: the last to arrive wins, whatever moment either phone saw.
+
+**Verify:** `uv run pytest tests/test_queued_writes.py`, then the four checks.
+
+**Dependencies:** 4.
+
+**Files:** `tests/test_queued_writes.py`.
+
+**Scope:** M
+
+## Checkpoint: after task 5
+
+- [ ] The four checks pass.
+
+### Task 6: What the queue can rely on; docs, the contract and the front end's types
+
+**Description:** A README section for the front end: the queueable writes, sent one at a time in order, what each answer means (success; 404 or 409 dropped; anything else kept and retried), bodies change only by addition. Mark the spec and map; update `../docs/` where it describes settings or the time zone; regenerate `openapi.json`; in the front end, `npm run api:types` on a branch, check its build and tests, and open its PR.
+
+**Acceptance criteria:**
+- [ ] The README section exists and matches the tests in tasks 4 and 5.
+- [ ] The spec's success criteria are checked; `CLAUDE.md`'s structure lists `settings/`.
+- [ ] The front end's types are regenerated; its build, lint and tests pass.
+
+**Verify:** the four checks; in `web-frontend/`, `nvm use`, `npm run build`, `npm run lint`, `npm test`.
+
+**Dependencies:** 5.
+
+**Files:** `README.md`, `CLAUDE.md`, `specs/{settings-sync,README}.md`, `../docs/data-model.md` (if needed), `openapi.json`; in the front end, `src/api/openapi.ts`.
+
+**Scope:** M
 
 ## Checkpoint: after task 6
 
-- [x] The four checks pass; all five deletes work.
-
-### Task 7: No read shows a deleted row; docs, the contract and the front end's types
-
-**Description:** A sweep test makes one of everything, deletes it, and checks every read. `openapi.json` written; the spec marked built with what changed; the map, `CLAUDE.md` and `../docs/` (data model, flows) updated. In `../web-frontend`, on its own branch: `npm run api:types`, and the mock compiles.
-
-**Acceptance criteria:**
-- [x] No read returns a deleted row or a link to one.
-- [x] `tests/test_contract.py` lists the five operations.
-- [x] The front end builds against the regenerated types, and its tests pass.
-
-**Verify:** the four checks; in `../web-frontend`, `nvm use`, then its lint, tests and build.
-
-**Dependencies:** 1–6.
-
-**Files:** `tests/test_deleted_rows.py`, `tests/test_contract.py`, `openapi.json`, `specs/delete.md`, `specs/README.md`, `CLAUDE.md`, `../docs/data-model.md`, `../docs/flows.md`, `../web-frontend/src/api/openapi.ts`.
-
-**Scope:** M
-
-## Checkpoint: complete
-
-- [x] The four checks pass.
-- [x] The front end compiles against the new types.
-- [x] Every success criterion in the spec is met.
+- [ ] The slice is done; the front end compiles against the new types.

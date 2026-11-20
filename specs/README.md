@@ -21,7 +21,7 @@ What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product
 | 9 | [`quitting-goals`](quitting-goals.md) | #11 | Daily answers and urge ratings | `quit_days`, `urge_ratings` | 3 |
 | 10 | [`delete`](delete.md) | #12 | Delete for mistakes, with what it takes along | — | 2–6, 9 |
 | 11 | [`settings-sync`](settings-sync.md) | #13 | Intensity, the phone's time zone, a check that every write is safe to repeat | — | 1 |
-| 12 | [`sign-in`](sign-in.md) | #14 | Replacing the one fixed user with a passkey and a session cookie (ADR-012) | passkeys, sessions, one-time codes and sign-in challenges; named in the spec | 1 |
+| 12 | [`sign-in`](sign-in.md) | #14 | Replacing the one fixed user with a passkey and a session cookie (ADR-012); adding a few invited testers by command | passkeys, sessions, one-time codes and sign-in challenges; named in the spec | 1 |
 
 **Build order:** 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12.
 

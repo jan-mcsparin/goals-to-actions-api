@@ -18,6 +18,7 @@ References: [ADR-012](../../docs/adr/0012-sign-in-with-a-passkey.md), [ADR-011](
 - **Tables** for passkeys, sessions, one-time codes and the challenge of a sign-in under way. Everything sign-in remembers is in Postgres; the API holds nothing between requests.
 - **The passkey steps:** starting and finishing a registration, starting and finishing a sign-in. The checks are done by a maintained WebAuthn library, never by our own code.
 - **The one-time code:** a command, run inside AWS, makes a code for a user: long, random, used once, gone in ten minutes. A route takes the code and lets that device add a passkey. It is the first sign-in, a new device, and the way back in.
+- **Adding a user:** the same command can make a new user and print their first code, so a few invited testers can use the app (ADR-012, revisited 2026-11-19). A new user starts at Normal intensity with no weeks opened; the first request that needs the day opens their week.
 - **The session:**
   - the database keeps only a hash of the token;
   - the cookie is `__Host-`, `HttpOnly`, `Secure` and `SameSite=Lax`;
@@ -30,8 +31,8 @@ References: [ADR-012](../../docs/adr/0012-sign-in-with-a-passkey.md), [ADR-011](
 
 **Out (later):**
 
-- Sign-up for other people, and the safety principles required before anyone else uses the app.
-- Row-level security in Postgres (ADR-007: when there is a second user).
+- A sign-up page and open sign-up, and the safety principles required before anyone the founder doesn't know uses the app.
+- Row-level security in Postgres (ADR-007, revisited 2026-11-19: when there is open sign-up).
 - Deleting an account, exporting data.
 - A password, a sign-in link by email, a provider, or a hosted auth service (ADR-012 says why).
 
@@ -40,7 +41,8 @@ References: [ADR-012](../../docs/adr/0012-sign-in-with-a-passkey.md), [ADR-011](
 As shared, plus:
 
 - every route in the OpenAPI schema but `health` and the sign-in routes refuses a request with no session;
-- a second user created in a test can't read or change the first's rows through any route, which is the test the owner-in-every-query rule has been waiting for;
+- a second user created in a test can't read or change the first's rows through any route, which is the test the owner-in-every-query rule has been waiting for. With invited testers this is a requirement, not a nicety: it runs over every route in the OpenAPI schema, and fails for a route without a case;
+- "add a user" makes a user who can sign in with the code it prints, and whose first week opens on their first request;
 - a session is used, expires after 90 days unused, and ends at sign-out; last use is written once in a day of many requests;
 - a code works once, not twice, and not after ten minutes;
 - a write from another origin is refused, and a read is not;
@@ -56,6 +58,7 @@ As shared. **Ask first:** every dependency here (the WebAuthn library brings `cr
 - [ ] No route but `health` and the sign-in routes answers without a session.
 - [ ] The founder's existing data is theirs after the change.
 - [ ] A passkey can be added with a one-time code, and signs in.
+- [ ] A second user can be added with one command, signs in, and sees only their own rows.
 - [ ] The installed app stays signed in across restarts.
 - [ ] The four checks pass.
 
@@ -66,3 +69,5 @@ As shared. **Ask first:** every dependency here (the WebAuthn library brings `cr
 3. **Do the sign-in tables have `user_id` as their owner and the other shared columns?** A challenge exists before anyone is signed in.
 
 Settled 2026-11-16: the method (ADR-012), and that sign-in is built before the API is hosted, with no temporary shared secret (ADR-011).
+
+Settled 2026-11-19 (Jan): a few invited testers he knows, added by command; no sign-up page. The safety principles wait for people he doesn't know, or for the app suggesting more (`product-rules.md`).

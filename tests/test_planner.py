@@ -3,6 +3,7 @@ when a week opens and as it arrives; everything else stays in the bank."""
 
 from collections.abc import Iterator
 from datetime import date
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,10 +14,12 @@ from app.config import FIXED_USER_ID
 from app.db import planner
 from app.planner import place_new_work
 from app.turnover.rules import catch_up
+from tests.conftest import FixedClock
+from tests.test_goal_sessions import set_target
 from tests.test_goals import ZONE, create_goal, lifting
 from tests.test_open_week import NEXT_WEEK, WEEK, at, reset_markers
 from tests.test_recurring_items import create as create_item
-from tests.test_recurring_items import item
+from tests.test_recurring_items import item, turn
 
 
 def days(connection: Connection, week: date) -> dict[str, list[date | None]]:
@@ -215,3 +218,134 @@ def test_placing_is_audited_with_the_write_that_caused_it(
         )
     }
     assert actions == {"open week"}
+
+
+# New recurring work mid-week. The week below is opened on the pinned Wednesday, 18 Nov:
+# trash on Wed 18, Stretch on Thu 19 and Sat 21, Be strong on Fri 20, Sat 21 and Sun 22.
+
+
+def week_tasks(client: TestClient) -> dict[str, dict[str, Any]]:
+    response = client.get(f"/api/weeks/{WEEK}")
+    assert response.status_code == 200, response.text
+    return {task["id"]: task for task in response.json()["tasks"]}
+
+
+def on_today(client: TestClient) -> list[dict[str, Any]]:
+    return [task for task in week_tasks(client).values() if task["plannedDay"] == "2026-11-18"]
+
+
+def by_title(client: TestClient, title: str) -> list[str | None]:
+    found = [task for task in week_tasks(client).values() if task["title"] == title]
+    return sorted(task["plannedDay"] or "bank" for task in found)
+
+
+@pytest.fixture
+def opened(work: Connection, planner_client: TestClient) -> TestClient:
+    planner_client.get(f"/api/weeks/{WEEK}")
+    return planner_client
+
+
+def goal_id(connection: Connection) -> str:
+    return str(connection.execute(text("select id from goals")).scalar_one())
+
+
+def test_a_goal_made_midweek_goes_on_later_days(opened: TestClient) -> None:
+    today = on_today(opened)
+
+    create_goal(opened, lifting(label="Run"))
+
+    assert by_title(opened, "Run") == ["2026-11-19", "2026-11-20", "2026-11-21"]
+    assert on_today(opened) == today
+
+
+def test_a_goal_made_on_sunday_leaves_its_session_in_the_bank(
+    work: Connection, planner_client: TestClient, fixed_clock: FixedClock
+) -> None:
+    fixed_clock.instant = at(d(22), 15)
+
+    create_goal(planner_client, lifting(label="Run"))
+
+    assert by_title(planner_client, "Run") == ["bank"]
+
+
+def test_a_raised_target_goes_on_the_lightest_later_day_without_a_session(
+    opened: TestClient, work: Connection
+) -> None:
+    today = on_today(opened)
+
+    set_target(opened, goal_id(work), 4)
+
+    assert by_title(opened, "Be strong") == ["2026-11-19", "2026-11-20", "2026-11-21", "2026-11-22"]
+    assert on_today(opened) == today
+
+
+def test_a_new_flexible_item_spreads_over_later_days(opened: TestClient) -> None:
+    today = on_today(opened)
+
+    create_item(
+        opened,
+        item(name="Walk", schedule={"kind": "flexible", "times": 2, "period": "week"}),
+    )
+
+    assert by_title(opened, "Walk") == ["2026-11-20", "2026-11-22"]
+    assert on_today(opened) == today
+
+
+def test_an_item_turned_off_and_on_gets_its_tasks_back_and_nothing_new(
+    opened: TestClient,
+) -> None:
+    before = week_tasks(opened)
+    stretch = next(task for task in before.values() if task["title"] == "Stretch")
+
+    turn(opened, stretch["recurringItemId"], "off")
+    turn(opened, stretch["recurringItemId"], "on")
+
+    after = week_tasks(opened)
+    assert after.keys() == before.keys()
+    assert on_today(opened) == [
+        task for task in before.values() if task["plannedDay"] == "2026-11-18"
+    ]
+
+
+def test_a_goal_paused_and_resumed_places_nothing_new(opened: TestClient, work: Connection) -> None:
+    today = on_today(opened)
+    others = {i: t for i, t in week_tasks(opened).items() if t["title"] != "Be strong"}
+
+    for action in ("pause", "resume"):
+        response = opened.post(f"/api/goals/{goal_id(work)}/{action}")
+        assert response.status_code == 200, response.text
+
+    after = week_tasks(opened)
+    assert {i: t for i, t in after.items() if t["title"] != "Be strong"} == others
+    assert len(by_title(opened, "Be strong")) == 3
+    assert on_today(opened) == today
+
+
+def test_a_check_off_made_early_leaves_every_other_row_as_it_was(opened: TestClient) -> None:
+    before = week_tasks(opened)
+    session = next(task for task in before.values() if task["plannedDay"] == "2026-11-22")
+
+    response = opened.post(
+        f"/api/tasks/{session['id']}/check-off",
+        json={"completedAt": "2026-11-18T19:30:00Z", "completedOn": "2026-11-18"},
+    )
+    assert response.status_code == 200, response.text
+
+    after = week_tasks(opened)
+    del before[session["id"]], after[session["id"]]
+    assert after == before
+
+
+def test_a_task_sent_to_the_bank_stays_there_and_nothing_fills_its_day(
+    opened: TestClient,
+) -> None:
+    before = week_tasks(opened)
+    session = next(task for task in before.values() if task["plannedDay"] == "2026-11-20")
+
+    response = opened.post(f"/api/tasks/{session['id']}/bank", json={"week": str(WEEK)})
+    assert response.status_code == 200, response.text
+
+    after = week_tasks(opened)
+    assert after[session["id"]]["plannedDay"] is None
+    del before[session["id"]], after[session["id"]]
+    assert after == before

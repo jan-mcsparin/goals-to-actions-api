@@ -45,10 +45,10 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** No new code paths: `fill_goal` and `fill_item` already hand their new tasks over with tomorrow as the first day. This task proves it through the API and fixes whatever the tests find.
 
 **Acceptance criteria:**
-- [ ] A building goal made on Tuesday has its sessions on Wednesday or later; one made on Sunday leaves them in the bank.
-- [ ] A raised target's extra session goes on the lightest later day without one of the goal's sessions.
-- [ ] A new flexible item, an item turned back on and a resumed goal place only their fresh tasks; the tasks they got back stay where they were.
-- [ ] Today's tasks, read before and after each of those, are byte-for-byte the same; a check-off made early and a task sent to the bank leave every other row as it was.
+- [x] A building goal made on Tuesday has its sessions on Wednesday or later; one made on Sunday leaves them in the bank.
+- [x] A raised target's extra session goes on the lightest later day without one of the goal's sessions.
+- [x] A new flexible item, an item turned back on and a resumed goal place only their fresh tasks; the tasks they got back stay where they were.
+- [x] Today's tasks, read before and after each of those, are byte-for-byte the same; a check-off made early and a task sent to the bank leave every other row as it was.
 
 **Verify:** `uv run pytest tests/test_planner.py`, then the four checks.
 
@@ -60,8 +60,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ## Checkpoint: after task 3
 
-- [ ] The four checks pass.
-- [ ] Recurring work lands on days when a week opens and as it arrives; nothing else moves.
+- [x] The four checks pass.
+- [x] Recurring work lands on days when a week opens and as it arrives; nothing else moves.
 
 ### Task 4: A new fixed-day item due today goes on today
 

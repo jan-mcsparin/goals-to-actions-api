@@ -26,3 +26,16 @@ class QuitAnswer(ApiModel):
 
 class UrgeRating(ApiModel):
     level: UrgeLevel
+
+
+class QuitRecord(ApiModel):
+    """A quitting goal's recent days and its run, worked out on every read."""
+
+    days: list[QuitDay] = Field(
+        description="The last 28 days up to today, from the goal's start at the earliest, "
+        "newest first."
+    )
+    held_run: int = Field(description="Days held since the last no, or since the start.")
+    unknown_in_run: int = Field(
+        description="Days before today since then with no answer yet. They can still be answered."
+    )

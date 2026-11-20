@@ -6,6 +6,7 @@ from pydantic import AfterValidator, Field, StringConstraints
 
 from app.db import models as rows
 from app.goals.models import Goal, Progress, WeekProgress
+from app.quitting.models import QuitRecord
 from app.schemas import ApiModel, NoNul
 from app.tasks.models import Task
 
@@ -71,6 +72,9 @@ class GoalPage(ApiModel):
         "left out. Empty for other goals."
     )
     latest: LatestResult | None
+    quit_record: QuitRecord | None = Field(
+        description="A quitting goal's record; empty for others."
+    )
 
 
 class NewMilestone(ApiModel):

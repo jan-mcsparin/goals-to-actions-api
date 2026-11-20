@@ -65,9 +65,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `app/quitting/record.py`: `quit_record(connection, user_id, goal, today)` reads both tables for the last 28 days, and the goal's answers since its start to work out `heldRun` and `unknownInRun`. `GoalPage` gains `quitRecord`, filled for quitting goals.
 
 **Acceptance criteria:**
-- [ ] Unanswered days read `held: null`; a gap neither ends nor adds to the run; a "no" starts it again.
-- [ ] `unknownInRun` counts unanswered days since the last "no" (or the start), not today; answering one lowers it, and a gap before the last "no" isn't counted.
-- [ ] A goal started 3 days ago shows 4 days; one started long ago shows 28. Building and one-off goals have no record.
+- [x] Unanswered days read `held: null`; a gap neither ends nor adds to the run; a "no" starts it again.
+- [x] `unknownInRun` counts unanswered days since the last "no" (or the start), not today; answering one lowers it, and a gap before the last "no" isn't counted.
+- [x] A goal started 3 days ago shows 4 days; one started long ago shows 28. Building and one-off goals have no record.
 
 **Verify:** `uv run pytest tests/test_quit_record.py tests/test_milestones.py`, then the four checks.
 

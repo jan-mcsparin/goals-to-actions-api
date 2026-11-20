@@ -10,6 +10,7 @@ from app.errors import NotFound
 from app.goals.models import Goal, Progress
 from app.goals.rules import latest_target
 from app.milestones.models import AspirationRef, GoalPage, LatestResult, Milestone
+from app.quitting.record import quit_record
 from app.tasks import progress
 from app.tasks.models import Task
 
@@ -49,6 +50,9 @@ def goal_page(connection: Connection, user_id: UUID, goal_id: UUID, today: date)
         latest=None
         if latest is None or latest.result is None
         else LatestResult(result=latest.result, checked_in_on=latest.checked_in_on),
+        quit_record=quit_record(connection, user_id, goal, today)
+        if goal.type == "quitting"
+        else None,
     )
 
 

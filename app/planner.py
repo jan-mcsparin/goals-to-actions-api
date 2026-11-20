@@ -12,6 +12,7 @@ from uuid import UUID
 from sqlalchemy import Connection
 
 from app.db import planner
+from app.turnover.due import fixed_day
 
 
 @dataclass(frozen=True)
@@ -167,17 +168,3 @@ def turn_of(
     else:
         rank = 3
     return (rank, row.aspiration_position or 0, is_item, row.made_at, str(owner))
-
-
-def fixed_day(
-    kind: str | None, weekday: int | None, day_of_month: int | None, week: date
-) -> date | None:
-    """A weekly or monthly item's day in `week`, if it has one there."""
-    if kind == "weekly" and weekday is not None:
-        return week + timedelta(days=weekday - 1)
-    if kind == "monthly":
-        for offset in range(7):
-            day = week + timedelta(days=offset)
-            if day.day == day_of_month:
-                return day
-    return None

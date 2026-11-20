@@ -11,9 +11,9 @@ from app.database import set_audit_action
 from app.db import goals, models, planner, recurring_items, tasks, turnover, users, weekly_targets
 from app.db.users import GetUserRow
 from app.errors import NotAllowed
-from app.planner import fixed_day, place_new_work
+from app.planner import place_new_work
 from app.tasks.rules import add_row, set_outcome
-from app.turnover.due import Slot, goal_slots, item_slots
+from app.turnover.due import Slot, fixed_day, goal_slots, item_slots
 from app.turnover.endings import ending_of, schedule_of
 from app.users import lock_user
 from app.weeks import OpenWeeks, current_week, open_weeks

@@ -44,8 +44,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `rateUrge` and `clearUrgeRating`, the same way, in the same slice. Each returns the whole `QuitDay`, so after rating the urge the phone still has the day's answer.
 
 **Acceptance criteria:**
-- [ ] An urge is rated, changed and cleared, with the same refusals as task 2.
-- [ ] Rating the urge leaves the day's answer as it was, and the other way round.
+- [x] An urge is rated, changed and cleared, with the same refusals as task 2.
+- [x] Rating the urge leaves the day's answer as it was, and the other way round.
 
 **Verify:** `uv run pytest tests/test_urges.py`, then the four checks.
 
@@ -57,8 +57,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ## Checkpoint: after task 3
 
-- [ ] The four checks pass.
-- [ ] The four writes work and are safe to repeat.
+- [x] The four checks pass.
+- [x] The four writes work and are safe to repeat.
 
 ### Task 4: The record on the goal's page
 

@@ -6,8 +6,9 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import Connection
 
-from app.db import goals, quit_days
+from app.db import goals, quit_days, urge_ratings
 from app.errors import NotAllowed, NotFound
+from app.quitting.models import UrgeLevel
 
 
 def check_day(connection: Connection, user_id: UUID, goal_id: UUID, day: date, today: date) -> None:
@@ -38,3 +39,28 @@ def answer(
 def clear(connection: Connection, user_id: UUID, goal_id: UUID, day: date, today: date) -> None:
     check_day(connection, user_id, goal_id, day, today)
     quit_days.Querier(connection).clear_quit_day(goal_id=goal_id, user_id=user_id, day=day)
+
+
+def rate_urge(
+    connection: Connection,
+    user_id: UUID,
+    goal_id: UUID,
+    day: date,
+    level: UrgeLevel,
+    today: date,
+) -> None:
+    check_day(connection, user_id, goal_id, day, today)
+    urge_ratings.Querier(connection).rate_urge(
+        urge_ratings.RateUrgeParams(
+            id=uuid4(), user_id=user_id, goal_id=goal_id, rated_on=day, level=level
+        )
+    )
+
+
+def clear_urge(
+    connection: Connection, user_id: UUID, goal_id: UUID, day: date, today: date
+) -> None:
+    check_day(connection, user_id, goal_id, day, today)
+    urge_ratings.Querier(connection).clear_urge_rating(
+        goal_id=goal_id, user_id=user_id, rated_on=day
+    )

@@ -1,6 +1,6 @@
 # Spec: Delete
 
-Status: draft 2026-11-13; finalised when its plan is written. Issue: [#12](https://github.com/jan-mcsparin/goals-to-actions-api/issues/12). Module `delete` in the [map](README.md). Depends on slices 2 to 6 and 9.
+Status: built 2026-11-19. Issue: [#12](https://github.com/jan-mcsparin/goals-to-actions-api/issues/12). Module `delete` in the [map](README.md). Depends on slices 2 to 6 and 9.
 
 ## Objective
 
@@ -23,7 +23,7 @@ References: [`data-model.md`](../../docs/data-model.md#drop-and-delete), front-e
   | A milestone | Its check-ins | The goal's other milestones, renumbered |
   | A goal | Its tasks and their week records, milestones, check-ins, weekly targets, quit days, urge ratings | A recurring item continued from it, with its from-goal emptied |
   | An aspiration | | Its goals and recurring items, with no aspiration; the other aspirations, renumbered |
-  | A recurring item | Its open tasks | Its done tasks, with the link to the item emptied; they keep the origin recurring item |
+  | A recurring item | Its open tasks | Its done, dropped and lapsed tasks, with the link to the item emptied; they keep the origin recurring item |
 
 - A pass over every unique index to make sure it ignores deleted rows, except the one on generated tasks: a deleted session's period and number stay taken, so turnover never makes it again.
 - A pass over every read to prove deleted rows never appear.
@@ -44,16 +44,26 @@ As shared. **Never:** a hard delete from application code; a delete that leaves 
 
 ## Success criteria
 
-- [ ] Each of the five deletes hides the row and what goes with it, in one transaction.
-- [ ] No read returns a deleted row.
-- [ ] Every delete is in the audit log with its action.
-- [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
-- [ ] The four checks pass.
+- [x] Each of the five deletes hides the row and what goes with it, in one transaction.
+- [x] No read returns a deleted row.
+- [x] Every delete is in the audit log with its action.
+- [x] The front end's types are regenerated from the new schema and its mock client compiles against them.
+- [x] The four checks pass.
 
-## Open questions
+## Settled
 
-1. **Deleting an aspiration leaves its goals with none** (they move to Other goals). I made that call in issue #38 and it hasn't been confirmed.
-2. **Deleting a recurring item:** I've assumed its open tasks go and its done ones stay as history. The alternative is that everything it made goes, as with a goal.
-3. **Is an undo wanted for the few seconds after a delete?** The front end may show one; the API would need an `undelete`.
+- **Deleting an aspiration leaves its goals and recurring items with none** (they move to Other goals). Jan, 2026-11-19.
+- **Deleting a recurring item takes its open tasks; its done ones stay as history,** with the link to the item emptied and the origin kept. Jan, 2026-11-19.
+- **No undo.** The front end asks once before deleting. Jan, 2026-11-19.
+- 2026-11-16: the unique rule for generated tasks counts deleted rows, so a deleted session stays deleted.
 
-Settled 2026-11-16: the unique rule for generated tasks counts deleted rows, so a deleted session stays deleted; a deleted item's done tasks keep their origin with the link emptied.
+## What changed while building
+
+Settled with Jan when the plan was written (`../tasks/plan.md`, 2026-11-19), or assumed there for review:
+
+- **The routes are `DELETE /things/{id}`,** the first `DELETE` routes in the API: `deleteTask`, `deleteMilestone`, `deleteGoal`, `deleteAspiration`, `deleteRecurringItem`. Each answers 204, except `deleteMilestone`, which returns the goal's page as every milestone write does. None is queueable (ADR-010).
+- **Deleting twice gives the same answer and changes nothing,** not even an audit row. A query that sees deleted rows (`TaskDeleted` and the like) tells a repeat from an id that was never yours (404). Nothing is refused with 409.
+- **Every delete takes the user lock.**
+- **A recurring item's dropped and lapsed tasks stay too,** like its done ones: only its open tasks were the mistake.
+- **Positions ignore deleted rows.** `aspirations_position_unique` and `milestones_position_unique` are now deferrable exclusion constraints over live rows, so the rows after a deleted one move up and a new one goes last. `task_weeks_one_per_week` and `weekly_targets_one_per_week` still count deleted rows: theirs are only deleted with their task or goal, which nothing makes again.
+- **A sweep test** (`tests/test_deleted_rows.py`) makes one of everything, deletes some of it, and checks that no read shows a deleted id and no live row points at a deleted one. It lists every table with `deleted_at`, so a new table fails it until its delete is handled.

@@ -2,6 +2,15 @@
 select * from recurring_items
 where id = $1 and user_id = $2 and deleted_at is null;
 
+-- An item of the owner's that has been deleted: deleting it again changes nothing.
+-- name: RecurringItemDeleted :one
+select * from recurring_items
+where id = $1 and user_id = $2 and deleted_at is not null;
+
+-- name: DeleteRecurringItem :exec
+update recurring_items set deleted_at = now()
+where id = $1 and user_id = $2 and deleted_at is null;
+
 -- On and off, oldest first. The front end groups them by aspiration.
 -- name: ListRecurringItems :many
 select * from recurring_items
@@ -40,3 +49,8 @@ returning id;
 -- name: ClearAspirationItems :exec
 update recurring_items set aspiration_id = null
 where aspiration_id = $1 and user_id = $2 and deleted_at is null;
+
+-- A deleted goal's item keeps going, no longer remembering the goal it came from.
+-- name: ClearFromGoal :exec
+update recurring_items set from_goal_id = null
+where from_goal_id = $1 and user_id = $2 and deleted_at is null;

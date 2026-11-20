@@ -7,7 +7,19 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import Connection
 
-from app.db import aspirations, goals, milestones, models, weekly_targets
+from app.db import (
+    aspirations,
+    check_ins,
+    goals,
+    milestones,
+    models,
+    quit_days,
+    recurring_items,
+    task_weeks,
+    tasks,
+    urge_ratings,
+    weekly_targets,
+)
 from app.db.users import GetUserRow
 from app.errors import NotAllowed, NotFound
 from app.goals.models import TYPE_IN_DATABASE, GoalEdit, NewGoal, WeeklyTargetInput
@@ -155,6 +167,26 @@ def change_status(
             task_rules.bring_back(connection, user_id, rows, current)
             fill_goal(connection, user_id, goal_id, weeks_of(owner, today), today)
     return goal, latest_target(connection, user_id, goal_id)
+
+
+def delete(connection: Connection, user_id: UUID, goal_id: UUID) -> None:
+    """A mistake: the goal is hidden everywhere with everything it had. An item continued from
+    it stays. Sent again, it changes nothing."""
+    lock_user(connection, user_id)
+    queries = goals.Querier(connection)
+    if queries.get_goal(id=goal_id, user_id=user_id) is None:
+        if queries.goal_deleted(id=goal_id, user_id=user_id) is None:
+            raise NotFound
+        return
+    task_weeks.Querier(connection).delete_goal_task_weeks(goal_id=goal_id, user_id=user_id)
+    tasks.Querier(connection).delete_goal_tasks(goal_id=goal_id, user_id=user_id)
+    check_ins.Querier(connection).delete_goal_check_ins(goal_id=goal_id, user_id=user_id)
+    milestones.Querier(connection).delete_goal_milestones(goal_id=goal_id, user_id=user_id)
+    weekly_targets.Querier(connection).delete_goal_weekly_targets(goal_id=goal_id, user_id=user_id)
+    quit_days.Querier(connection).delete_goal_quit_days(goal_id=goal_id, user_id=user_id)
+    urge_ratings.Querier(connection).delete_goal_urge_ratings(goal_id=goal_id, user_id=user_id)
+    recurring_items.Querier(connection).clear_from_goal(from_goal_id=goal_id, user_id=user_id)
+    queries.delete_goal(id=goal_id, user_id=user_id)
 
 
 def check_aspiration(connection: Connection, user_id: UUID, aspiration_id: UUID) -> None:

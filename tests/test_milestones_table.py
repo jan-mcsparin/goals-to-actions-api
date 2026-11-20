@@ -64,6 +64,15 @@ def test_two_milestones_of_a_goal_cannot_share_a_position(database: Database) ->
         add_milestone(database, goal_id)
 
 
+def test_a_deleted_milestone_gives_up_its_position(database: Database) -> None:
+    goal_id = add_goal(database)
+    deleted = add_milestone(database, goal_id)
+    with database.transaction(FIXED_USER_ID, "delete milestone") as tx:
+        tx.execute(text("update milestones set deleted_at = now() where id = :id"), {"id": deleted})
+
+    add_milestone(database, goal_id)
+
+
 def test_another_goal_can_use_the_same_position(database: Database) -> None:
     add_milestone(database, add_goal(database))
     add_milestone(database, add_goal(database))

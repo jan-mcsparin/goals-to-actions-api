@@ -17,3 +17,7 @@ where user_id = sqlc.arg(user_id) and goal_id = any(sqlc.arg(goal_ids)::uuid[])
   and day between sqlc.arg(from_day)::date and sqlc.arg(through_day)::date
   and deleted_at is null
 order by goal_id, day;
+
+-- name: DeleteGoalQuitDays :exec
+update quit_days set deleted_at = now()
+where goal_id = $1 and user_id = $2 and deleted_at is null;

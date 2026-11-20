@@ -34,6 +34,12 @@ where goal_id = :p1 and user_id = :p2 and day = :p3 and deleted_at is null
 """
 
 
+DELETE_GOAL_QUIT_DAYS = """-- name: delete_goal_quit_days \\:exec
+update quit_days set deleted_at = now()
+where goal_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 LIST_QUIT_DAYS = """-- name: list_quit_days \\:many
 select goal_id, day, held from quit_days
 where user_id = :p1 and goal_id = any(:p2\\:\\:uuid[])
@@ -64,6 +70,9 @@ class Querier:
 
     def clear_quit_day(self, *, goal_id: uuid.UUID, user_id: uuid.UUID, day: datetime.date) -> None:
         self._conn.execute(sqlalchemy.text(CLEAR_QUIT_DAY), {"p1": goal_id, "p2": user_id, "p3": day})
+
+    def delete_goal_quit_days(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_GOAL_QUIT_DAYS), {"p1": goal_id, "p2": user_id})
 
     def list_quit_days(self, *, user_id: uuid.UUID, goal_ids: List[uuid.UUID], from_day: datetime.date, through_day: datetime.date) -> Iterator[ListQuitDaysRow]:
         result = self._conn.execute(sqlalchemy.text(LIST_QUIT_DAYS), {

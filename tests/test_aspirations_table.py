@@ -29,6 +29,16 @@ def test_two_active_aspirations_cannot_share_a_position(database: Database) -> N
         add_active(database, 1)
 
 
+def test_a_deleted_aspiration_gives_up_its_position(database: Database) -> None:
+    deleted = add_active(database, 1)
+    with database.transaction(FIXED_USER_ID, "delete aspiration") as tx:
+        tx.execute(
+            text("update aspirations set deleted_at = now() where id = :id"), {"id": deleted}
+        )
+
+    add_active(database, 1)
+
+
 def test_one_statement_can_swap_two_positions(database: Database) -> None:
     first = add_active(database, 1)
     second = add_active(database, 2)

@@ -68,7 +68,7 @@ Then: `bin/dbmate up`, `bin/dbmate --test up`, the queries in `db/queries/<table
 ## Adding a route
 
 - It goes in its slice's `routes.py`, named for what the front end calls (`retire_aspiration`). `main.py` includes the router under `/api`, so its prefix is `/goals`, not `/api/goals`; a contract test fails for any route outside `/api`.
-- Creates are `PUT /things/{id}` with the id made on the device; actions are `POST /things/{id}/action`. Both are written so that sending them twice changes nothing more (`specs/README.md`, decisions 6 and 7).
+- Creates are `PUT /things/{id}` with the id made on the device; actions are `POST /things/{id}/action`; deletes are `DELETE /things/{id}`. All are written so that sending them twice changes nothing more (`specs/README.md`, decisions 6 and 7). A delete sets `deleted_at` on the row and on what goes with it, and empties links to it from rows that stay (`specs/delete.md`).
 - Request and response models are hand-written in `models.py` and extend `ApiModel`. Generated row models (`app/db/models.py`) never leave the API; a response model has a `from_row`.
 - A write that takes several queries is a function in `rules.py` that runs inside the route's transaction. It raises `NotFound` or `NotAllowed("why")`; the route declares them with `responses=NOT_FOUND` or `NOT_ALLOWED`.
 - A write that renumbers a user's rows, and every goal, milestone and check-in write, calls `lock_user` (`app/users.py`) first, so two arriving together run in turn.

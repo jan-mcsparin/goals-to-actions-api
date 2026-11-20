@@ -12,7 +12,7 @@ from app.db import goals, models, planner, recurring_items, tasks, turnover, use
 from app.db.users import GetUserRow
 from app.errors import NotAllowed
 from app.planner import place_new_work
-from app.tasks.rules import add_row, set_outcome
+from app.tasks.rules import add_row, hide, set_outcome
 from app.turnover.due import Slot, fixed_day, goal_slots, item_slots
 from app.turnover.endings import ending_of, schedule_of
 from app.users import lock_user
@@ -247,8 +247,7 @@ def trim_goal(
         )
     )
     for row in removable[: max(0, len(found) - sessions)]:
-        queries.delete_task_rows(task_id=row.task_id, user_id=user_id)
-        queries.delete_task(id=row.task_id, user_id=user_id)
+        hide(connection, user_id, row.task_id)
 
 
 def existing_slots(

@@ -94,3 +94,22 @@ def bring_back(connection: Connection, user_id: UUID, aspiration_id: UUID) -> mo
     if existing is None:
         raise NotFound
     return queries.bring_back_aspiration(id=aspiration_id, user_id=user_id) or existing
+
+
+def delete(connection: Connection, user_id: UUID, aspiration_id: UUID) -> None:
+    """A mistake: the aspiration is hidden everywhere and the ones below it move up. Its goals
+    and recurring items stay, with no aspiration. Sent again, it changes nothing."""
+    lock_user(connection, user_id)
+    queries = aspirations.Querier(connection)
+    existing = queries.get_aspiration(id=aspiration_id, user_id=user_id)
+    if existing is None:
+        if queries.aspiration_deleted(id=aspiration_id, user_id=user_id) is None:
+            raise NotFound
+        return
+    goals.Querier(connection).clear_aspiration_goals(aspiration_id=aspiration_id, user_id=user_id)
+    recurring_items.Querier(connection).clear_aspiration_items(
+        aspiration_id=aspiration_id, user_id=user_id
+    )
+    queries.delete_aspiration(id=aspiration_id, user_id=user_id)
+    if existing.position is not None:
+        queries.close_aspiration_gap(user_id=user_id, position=existing.position)

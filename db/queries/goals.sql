@@ -35,3 +35,17 @@ returning *;
 update goals set status = 'paused'
 where aspiration_id = $1 and user_id = $2 and status = 'active' and deleted_at is null
 returning id;
+
+-- A goal of the owner's that has been deleted: deleting it again changes nothing.
+-- name: GoalDeleted :one
+select * from goals
+where id = $1 and user_id = $2 and deleted_at is not null;
+
+-- name: DeleteGoal :exec
+update goals set deleted_at = now()
+where id = $1 and user_id = $2 and deleted_at is null;
+
+-- A deleted aspiration's goals stay, with no aspiration (Other goals).
+-- name: ClearAspirationGoals :exec
+update goals set aspiration_id = null
+where aspiration_id = $1 and user_id = $2 and deleted_at is null;

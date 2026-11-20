@@ -131,6 +131,27 @@ def keep(connection: Connection, user_id: UUID, milestone_id: UUID) -> UUID:
     return milestone.goal_id
 
 
+def delete(connection: Connection, user_id: UUID, milestone_id: UUID) -> UUID:
+    """A mistake: the milestone and its check-ins are hidden everywhere, and the ones after it
+    move up. Sent again, it changes nothing."""
+    lock_user(connection, user_id)
+    queries = milestones.Querier(connection)
+    milestone = queries.get_milestone(id=milestone_id, user_id=user_id)
+    if milestone is None:
+        deleted = queries.milestone_deleted(id=milestone_id, user_id=user_id)
+        if deleted is None:
+            raise NotFound
+        return deleted.goal_id
+    check_ins.Querier(connection).delete_milestone_check_ins(
+        milestone_id=milestone_id, user_id=user_id
+    )
+    queries.delete_milestone(id=milestone_id, user_id=user_id)
+    queries.close_milestone_gap(
+        goal_id=milestone.goal_id, user_id=user_id, position=milestone.position
+    )
+    return milestone.goal_id
+
+
 def pushed_dates(
     rows: list[models.Milestone],
     moved: models.Milestone,

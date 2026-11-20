@@ -32,6 +32,12 @@ class AddMilestoneParams(pydantic.BaseModel):
     target_date: Optional[datetime.date]
 
 
+CLOSE_MILESTONE_GAP = """-- name: close_milestone_gap \\:exec
+update milestones set position = position - 1
+where goal_id = :p1 and user_id = :p2 and deleted_at is null and position > :p3
+"""
+
+
 COUNT_MILESTONES = """-- name: count_milestones \\:many
 select goal_id, count(*)\\:\\:int as milestones, (count(*) filter (where status = 'hit'))\\:\\:int as hit
 from milestones
@@ -46,6 +52,18 @@ class CountMilestonesRow(pydantic.BaseModel):
     hit: int
 
 
+DELETE_GOAL_MILESTONES = """-- name: delete_goal_milestones \\:exec
+update milestones set deleted_at = now()
+where goal_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
+DELETE_MILESTONE = """-- name: delete_milestone \\:exec
+update milestones set deleted_at = now()
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 GET_MILESTONE = """-- name: get_milestone \\:one
 select id, user_id, goal_id, goal_type, position, measurable_line, target_date, status, created_at, updated_at, deleted_at from milestones
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -56,6 +74,12 @@ LIST_MILESTONES = """-- name: list_milestones \\:many
 select id, user_id, goal_id, goal_type, position, measurable_line, target_date, status, created_at, updated_at, deleted_at from milestones
 where goal_id = :p1 and user_id = :p2 and deleted_at is null
 order by position
+"""
+
+
+MILESTONE_DELETED = """-- name: milestone_deleted \\:one
+select id, user_id, goal_id, goal_type, position, measurable_line, target_date, status, created_at, updated_at, deleted_at from milestones
+where id = :p1 and user_id = :p2 and deleted_at is not null
 """
 
 
@@ -121,6 +145,9 @@ class Querier:
             deleted_at=row[10],
         )
 
+    def close_milestone_gap(self, *, goal_id: uuid.UUID, user_id: uuid.UUID, position: int) -> None:
+        self._conn.execute(sqlalchemy.text(CLOSE_MILESTONE_GAP), {"p1": goal_id, "p2": user_id, "p3": position})
+
     def count_milestones(self, *, user_id: uuid.UUID) -> Iterator[CountMilestonesRow]:
         result = self._conn.execute(sqlalchemy.text(COUNT_MILESTONES), {"p1": user_id})
         for row in result:
@@ -129,6 +156,12 @@ class Querier:
                 milestones=row[1],
                 hit=row[2],
             )
+
+    def delete_goal_milestones(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_GOAL_MILESTONES), {"p1": goal_id, "p2": user_id})
+
+    def delete_milestone(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_MILESTONE), {"p1": id, "p2": user_id})
 
     def get_milestone(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Milestone]:
         row = self._conn.execute(sqlalchemy.text(GET_MILESTONE), {"p1": id, "p2": user_id}).first()
@@ -164,6 +197,24 @@ class Querier:
                 updated_at=row[9],
                 deleted_at=row[10],
             )
+
+    def milestone_deleted(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Milestone]:
+        row = self._conn.execute(sqlalchemy.text(MILESTONE_DELETED), {"p1": id, "p2": user_id}).first()
+        if row is None:
+            return None
+        return models.Milestone(
+            id=row[0],
+            user_id=row[1],
+            goal_id=row[2],
+            goal_type=row[3],
+            position=row[4],
+            measurable_line=row[5],
+            target_date=row[6],
+            status=row[7],
+            created_at=row[8],
+            updated_at=row[9],
+            deleted_at=row[10],
+        )
 
     def set_milestone_date(self, *, id: uuid.UUID, user_id: uuid.UUID, target_date: Optional[datetime.date]) -> None:
         self._conn.execute(sqlalchemy.text(SET_MILESTONE_DATE), {"p1": id, "p2": user_id, "p3": target_date})

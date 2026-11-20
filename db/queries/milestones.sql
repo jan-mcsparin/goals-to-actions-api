@@ -50,3 +50,21 @@ select goal_id, count(*)::int as milestones, (count(*) filter (where status = 'h
 from milestones
 where user_id = $1 and deleted_at is null
 group by goal_id;
+
+-- A milestone of the owner's that has been deleted: deleting it again changes nothing.
+-- name: MilestoneDeleted :one
+select * from milestones
+where id = $1 and user_id = $2 and deleted_at is not null;
+
+-- name: DeleteMilestone :exec
+update milestones set deleted_at = now()
+where id = $1 and user_id = $2 and deleted_at is null;
+
+-- Moves up the goal's milestones below a position that has just been left.
+-- name: CloseMilestoneGap :exec
+update milestones set position = position - 1
+where goal_id = $1 and user_id = $2 and deleted_at is null and position > $3;
+
+-- name: DeleteGoalMilestones :exec
+update milestones set deleted_at = now()
+where goal_id = $1 and user_id = $2 and deleted_at is null;

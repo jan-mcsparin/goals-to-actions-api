@@ -22,3 +22,12 @@ returning *;
 select distinct on (milestone_id) milestone_id, result from check_ins
 where goal_id = $1 and user_id = $2 and milestone_id is not null and deleted_at is null
 order by milestone_id, outcome = 'hit' desc, checked_in_on desc, created_at desc;
+
+-- A deleted milestone's check-ins go with it.
+-- name: DeleteMilestoneCheckIns :exec
+update check_ins set deleted_at = now()
+where milestone_id = $1 and user_id = $2 and deleted_at is null;
+
+-- name: DeleteGoalCheckIns :exec
+update check_ins set deleted_at = now()
+where goal_id = $1 and user_id = $2 and deleted_at is null;

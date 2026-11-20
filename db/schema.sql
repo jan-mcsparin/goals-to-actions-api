@@ -441,7 +441,7 @@ ALTER TABLE ONLY public.aspirations
 --
 
 ALTER TABLE ONLY public.aspirations
-    ADD CONSTRAINT aspirations_position_unique UNIQUE (user_id, "position") DEFERRABLE;
+    ADD CONSTRAINT aspirations_position_unique EXCLUDE USING btree (user_id WITH =, "position" WITH =) WHERE ((deleted_at IS NULL)) DEFERRABLE;
 
 
 --
@@ -505,7 +505,7 @@ ALTER TABLE ONLY public.milestones
 --
 
 ALTER TABLE ONLY public.milestones
-    ADD CONSTRAINT milestones_position_unique UNIQUE (goal_id, "position") DEFERRABLE;
+    ADD CONSTRAINT milestones_position_unique EXCLUDE USING btree (goal_id WITH =, "position" WITH =) WHERE ((deleted_at IS NULL)) DEFERRABLE;
 
 
 --
@@ -1008,4 +1008,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261118000100'),
     ('20261118000200'),
     ('20261119000000'),
-    ('20261119100000');
+    ('20261119100000'),
+    ('20261120000000');

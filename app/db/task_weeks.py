@@ -28,6 +28,31 @@ class AddTaskWeekParams(pydantic.BaseModel):
     outcome: Optional[str]
 
 
+DELETE_GOAL_TASK_WEEKS = """-- name: delete_goal_task_weeks \\:exec
+update task_weeks set deleted_at = now()
+where task_weeks.user_id = :p2 and task_weeks.deleted_at is null and task_weeks.task_id in (
+  select tasks.id from tasks
+  where tasks.goal_id = :p1 and tasks.user_id = :p2 and tasks.deleted_at is null
+)
+"""
+
+
+DELETE_ITEM_OPEN_TASK_WEEKS = """-- name: delete_item_open_task_weeks \\:exec
+update task_weeks set deleted_at = now()
+where task_weeks.user_id = :p2 and task_weeks.deleted_at is null and task_weeks.task_id in (
+  select tasks.id from tasks
+  where tasks.recurring_item_id = :p1 and tasks.user_id = :p2 and tasks.state = 'open'
+    and tasks.deleted_at is null
+)
+"""
+
+
+DELETE_TASK_WEEKS = """-- name: delete_task_weeks \\:exec
+update task_weeks set deleted_at = now()
+where task_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 LIST_GOAL_TASK_WEEKS = """-- name: list_goal_task_weeks \\:many
 select task_weeks.id, task_weeks.user_id, task_weeks.task_id, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand, task_weeks.outcome, task_weeks.created_at, task_weeks.updated_at, task_weeks.deleted_at, tasks.origin from task_weeks
 join tasks on tasks.id = task_weeks.task_id and tasks.state = 'open' and tasks.deleted_at is null
@@ -107,6 +132,15 @@ class Querier:
             "p6": arg.placed_by_hand,
             "p7": arg.outcome,
         })
+
+    def delete_goal_task_weeks(self, *, goal_id: Optional[uuid.UUID], user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_GOAL_TASK_WEEKS), {"p1": goal_id, "p2": user_id})
+
+    def delete_item_open_task_weeks(self, *, recurring_item_id: Optional[uuid.UUID], user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_ITEM_OPEN_TASK_WEEKS), {"p1": recurring_item_id, "p2": user_id})
+
+    def delete_task_weeks(self, *, task_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_TASK_WEEKS), {"p1": task_id, "p2": user_id})
 
     def list_goal_task_weeks(self, *, goal_id: Optional[uuid.UUID], user_id: uuid.UUID) -> Iterator[ListGoalTaskWeeksRow]:
         result = self._conn.execute(sqlalchemy.text(LIST_GOAL_TASK_WEEKS), {"p1": goal_id, "p2": user_id})

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response, status
 
 from app.db import recurring_items
 from app.dependencies import CurrentDatabase, CurrentUserId
@@ -62,3 +62,16 @@ def turn_on_recurring_item(
     """Its set-aside tasks return to the bank of their week, if that week is still open."""
     with database.transaction(user_id, "turn on recurring item") as connection:
         return RecurringItem.from_row(rules.turn(connection, user_id, item_id, today, on=True))
+
+
+@router.delete(
+    "/{item_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    responses=NOT_FOUND,
+)
+def delete_recurring_item(item_id: UUID, database: CurrentDatabase, user_id: CurrentUserId) -> None:
+    """For a mistake: the item and its open tasks are hidden everywhere. Its done tasks stay,
+    with no item."""
+    with database.transaction(user_id, "delete recurring item") as connection:
+        rules.delete(connection, user_id, item_id)

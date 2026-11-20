@@ -2281,6 +2281,51 @@
       }
     },
     "/api/aspirations/{aspiration_id}": {
+      "delete": {
+        "description": "For a mistake: the aspiration is hidden everywhere and the ones below it move up. Its\ngoals and recurring items stay, with no aspiration.",
+        "operationId": "deleteAspiration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "aspiration_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Aspiration Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Aspiration",
+        "tags": [
+          "aspirations"
+        ]
+      },
       "patch": {
         "operationId": "updateAspiration",
         "parameters": [
@@ -2654,6 +2699,51 @@
       }
     },
     "/api/goals/{goal_id}": {
+      "delete": {
+        "description": "For a mistake: the goal is hidden everywhere, with its tasks, milestones, check-ins and\nrecords. A recurring item continued from it stays.",
+        "operationId": "deleteGoal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Goal",
+        "tags": [
+          "goals"
+        ]
+      },
       "get": {
         "description": "The goal's page: the goal, its milestones, progress and latest result.",
         "operationId": "getGoal",
@@ -3845,6 +3935,67 @@
       }
     },
     "/api/milestones/{milestone_id}": {
+      "delete": {
+        "description": "For a mistake: the milestone and its check-ins are hidden everywhere, and the ones after\nit move up. Returns the goal's page.",
+        "operationId": "deleteMilestone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "milestone_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Milestone Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Milestone",
+        "tags": [
+          "milestones"
+        ]
+      },
       "patch": {
         "description": "Also how a \"not yet\" is moved (a new date) or adjusted (a new line).",
         "operationId": "updateMilestone",
@@ -4103,6 +4254,51 @@
       }
     },
     "/api/recurring-items/{item_id}": {
+      "delete": {
+        "description": "For a mistake: the item and its open tasks are hidden everywhere. Its done tasks stay,\nwith no item.",
+        "operationId": "deleteRecurringItem",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Recurring Item",
+        "tags": [
+          "recurring items"
+        ]
+      },
       "patch": {
         "operationId": "updateRecurringItem",
         "parameters": [
@@ -4405,6 +4601,51 @@
       }
     },
     "/api/tasks/{task_id}": {
+      "delete": {
+        "description": "For a mistake: the task and its week records are hidden everywhere. Not a drop, which\nstays in history.",
+        "operationId": "deleteTask",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "No such row, or it belongs to someone else."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Task",
+        "tags": [
+          "tasks"
+        ]
+      },
       "patch": {
         "operationId": "updateTask",
         "parameters": [

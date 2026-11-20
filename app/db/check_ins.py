@@ -30,6 +30,18 @@ class AddCheckInParams(pydantic.BaseModel):
     checked_in_on: datetime.date
 
 
+DELETE_GOAL_CHECK_INS = """-- name: delete_goal_check_ins \\:exec
+update check_ins set deleted_at = now()
+where goal_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
+DELETE_MILESTONE_CHECK_INS = """-- name: delete_milestone_check_ins \\:exec
+update check_ins set deleted_at = now()
+where milestone_id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 GET_CHECK_IN = """-- name: get_check_in \\:one
 select id, user_id, goal_id, milestone_id, outcome, result, checked_in_on, created_at, updated_at, deleted_at from check_ins
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -84,6 +96,12 @@ class Querier:
             updated_at=row[8],
             deleted_at=row[9],
         )
+
+    def delete_goal_check_ins(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_GOAL_CHECK_INS), {"p1": goal_id, "p2": user_id})
+
+    def delete_milestone_check_ins(self, *, milestone_id: Optional[uuid.UUID], user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_MILESTONE_CHECK_INS), {"p1": milestone_id, "p2": user_id})
 
     def get_check_in(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.CheckIn]:
         row = self._conn.execute(sqlalchemy.text(GET_CHECK_IN), {"p1": id, "p2": user_id}).first()

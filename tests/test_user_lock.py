@@ -41,6 +41,7 @@ WRITES: dict[str, Callable[[Connection], object]] = {
     "reorder": lambda tx: rules.reorder(tx, FIXED_USER_ID, []),
     "retire": lambda tx: rules.retire(tx, FIXED_USER_ID, uuid4(), date(2026, 11, 16), True),
     "bring back": lambda tx: rules.bring_back(tx, FIXED_USER_ID, uuid4()),
+    "delete aspiration": lambda tx: rules.delete(tx, FIXED_USER_ID, uuid4()),
     "create goal": lambda tx: goal_rules.create(
         tx, FIXED_USER_ID, uuid4(), NEW_GOAL, date(2026, 11, 16)
     ),
@@ -57,6 +58,7 @@ WRITES: dict[str, Callable[[Connection], object]] = {
     "change goal status": lambda tx: goal_rules.change_status(
         tx, FIXED_USER_ID, uuid4(), goal_rules.PAUSE, date(2026, 11, 16)
     ),
+    "delete goal": lambda tx: goal_rules.delete(tx, FIXED_USER_ID, uuid4()),
     "add milestone": lambda tx: milestone_rules.add(
         tx, FIXED_USER_ID, uuid4(), NewMilestone(goal_id=uuid4(), measurable_line="Bench 155")
     ),
@@ -73,6 +75,7 @@ WRITES: dict[str, Callable[[Connection], object]] = {
         NewCheckIn(goal_id=uuid4(), milestone_id=None, outcome="hit"),
         date(2026, 11, 16),
     ),
+    "delete milestone": lambda tx: milestone_rules.delete(tx, FIXED_USER_ID, uuid4()),
     "keep milestone": lambda tx: milestone_rules.keep(tx, FIXED_USER_ID, uuid4()),
     "add task": lambda tx: task_rules.add(
         tx, FIXED_USER_ID, uuid4(), NewTask(title="Pack"), date(2026, 11, 16)
@@ -103,6 +106,7 @@ WRITES: dict[str, Callable[[Connection], object]] = {
         date(2026, 11, 16),
     ),
     "drop task": lambda tx: task_rules.drop(tx, FIXED_USER_ID, uuid4()),
+    "delete task": lambda tx: task_rules.delete(tx, FIXED_USER_ID, uuid4()),
     "answer still matters": lambda tx: task_rules.answer_still_matters(
         tx, FIXED_USER_ID, uuid4(), KeepIt(answer="keep"), date(2026, 11, 16)
     ),
@@ -113,6 +117,7 @@ WRITES: dict[str, Callable[[Connection], object]] = {
     "turn recurring item": lambda tx: item_rules.turn(
         tx, FIXED_USER_ID, uuid4(), date(2026, 11, 16), on=False
     ),
+    "delete recurring item": lambda tx: item_rules.delete(tx, FIXED_USER_ID, uuid4()),
     "update recurring item": lambda tx: item_rules.update(
         tx,
         FIXED_USER_ID,

@@ -11,6 +11,12 @@ import sqlalchemy
 from app.db import models
 
 
+ASPIRATION_DELETED = """-- name: aspiration_deleted \\:one
+select id, user_id, name, why, status, position, retired_on, created_at, updated_at, deleted_at from aspirations
+where id = :p1 and user_id = :p2 and deleted_at is not null
+"""
+
+
 BRING_BACK_ASPIRATION = """-- name: bring_back_aspiration \\:one
 update aspirations
 set status = 'active',
@@ -41,6 +47,12 @@ from aspirations
 where user_id = :p2 and status = 'active' and deleted_at is null
 on conflict (id) do nothing
 returning id, user_id, name, why, status, position, retired_on, created_at, updated_at, deleted_at
+"""
+
+
+DELETE_ASPIRATION = """-- name: delete_aspiration \\:exec
+update aspirations set deleted_at = now()
+where id = :p1 and user_id = :p2 and deleted_at is null
 """
 
 
@@ -87,6 +99,23 @@ class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
 
+    def aspiration_deleted(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Aspiration]:
+        row = self._conn.execute(sqlalchemy.text(ASPIRATION_DELETED), {"p1": id, "p2": user_id}).first()
+        if row is None:
+            return None
+        return models.Aspiration(
+            id=row[0],
+            user_id=row[1],
+            name=row[2],
+            why=row[3],
+            status=row[4],
+            position=row[5],
+            retired_on=row[6],
+            created_at=row[7],
+            updated_at=row[8],
+            deleted_at=row[9],
+        )
+
     def bring_back_aspiration(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Aspiration]:
         row = self._conn.execute(sqlalchemy.text(BRING_BACK_ASPIRATION), {"p1": id, "p2": user_id}).first()
         if row is None:
@@ -128,6 +157,9 @@ class Querier:
             updated_at=row[8],
             deleted_at=row[9],
         )
+
+    def delete_aspiration(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(DELETE_ASPIRATION), {"p1": id, "p2": user_id})
 
     def get_aspiration(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Aspiration]:
         row = self._conn.execute(sqlalchemy.text(GET_ASPIRATION), {"p1": id, "p2": user_id}).first()

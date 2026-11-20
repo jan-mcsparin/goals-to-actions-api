@@ -2,6 +2,16 @@
 select * from tasks
 where id = $1 and user_id = $2 and deleted_at is null;
 
+-- A task of the owner's that has been deleted: deleting it again changes nothing.
+-- name: TaskDeleted :one
+select * from tasks
+where id = $1 and user_id = $2 and deleted_at is not null;
+
+-- Hidden everywhere. It stays in the database, so a deleted session isn't made again.
+-- name: DeleteTask :exec
+update tasks set deleted_at = now()
+where id = $1 and user_id = $2 and deleted_at is null;
+
 -- Returns nothing when the id is taken.
 -- name: AddTask :one
 insert into tasks (id, user_id, title, origin, goal_id, due_date, time_kind, time_of_day)
@@ -155,3 +165,18 @@ order by tasks.due_date, tasks.created_at, tasks.id;
 -- name: SetStillMattersAnswered :exec
 update tasks set still_matters_answered_on = $3
 where id = $1 and user_id = $2 and deleted_at is null;
+
+-- A deleted item's open tasks go with it.
+-- name: DeleteItemOpenTasks :exec
+update tasks set deleted_at = now()
+where recurring_item_id = $1 and user_id = $2 and state = 'open' and deleted_at is null;
+
+-- A deleted item's other tasks stay as history, with the origin `recurring_item` and no item.
+-- name: UnlinkItemTasks :exec
+update tasks set recurring_item_id = null
+where recurring_item_id = $1 and user_id = $2 and deleted_at is null;
+
+-- A deleted goal's tasks go with it, whatever their state.
+-- name: DeleteGoalTasks :exec
+update tasks set deleted_at = now()
+where goal_id = $1 and user_id = $2 and deleted_at is null;

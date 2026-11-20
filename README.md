@@ -50,7 +50,7 @@ For the front end's cache and queue ([ADR-004](../docs/adr/0004-instant-open.md)
   - 404 or 409: it no longer applies (its task, goal or day is gone, or the task has left the week the edit names). Drop it.
   - Anything else (a 401, 403 or 422, a server error, no answer): keep it, stop sending, try again later.
 - **Every write is safe to send twice,** queueable or not: the second send gives the same answer and leaves the same data (`tests/test_repeats.py`, which fails for a new write without a case).
-- **A late write never ends in a 500** (`tests/test_queued_writes.py`). Aimed at a deleted task or goal it's a 404. A plan edit aimed at a set-aside task, or naming a week the task has left, is a 409. A check-off of a set-aside task still lands: done is done.
+- **A late write never ends in a 500** (`tests/test_queued_writes.py`). Aimed at a deleted task or goal it's a 404, or a 409 for an `addTask` resent after its task was deleted. A plan edit aimed at a set-aside task, or naming a week the task has left, is a 409. A check-off of a set-aside task still lands: done is done.
 - **A create is never refused over where it goes.** A task added to a day no longer allowed (a past day, or today after a wrap-up) is saved in the current week's bank.
 - **Two devices changing one row: the last write to arrive wins.** No versions, no conflict answers. The server never orders writes by the phone's clock.
 - **A queueable write's request body only changes by addition,** so a change queued by an older version of the app still sends.

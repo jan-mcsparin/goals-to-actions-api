@@ -50,7 +50,7 @@ quit_days + urge_ratings tables (1)
 
 ## Task list
 
-- [ ] Task 1: The quit_days and urge_ratings tables
+- [x] Task 1: The quit_days and urge_ratings tables
 - [ ] Task 2: Answer and clear a day
 - [ ] Task 3: Rate and clear the urge
 

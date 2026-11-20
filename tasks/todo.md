@@ -11,8 +11,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** One migration adds both tables with the shared columns and triggers, `goal_type` fixed to `'quitting'` with a foreign key to `goals (id, user_id, type)`, `urge_ratings.level` checked, and a unique index on `(goal_id, day)` / `(goal_id, rated_on)` over rows not deleted. Queries in `db/queries/quit_days.sql` and `db/queries/urge_ratings.sql`: upsert, clear, the day's row, and the rows in a range. `sqlc generate`.
 
 **Acceptance criteria:**
-- [ ] The database refuses a row on a building or one-off goal, on another owner's goal, a second live row for a day, and an unknown urge level (a test each).
-- [ ] Up, rollback, up leaves `db/schema.sql` unchanged.
+- [x] The database refuses a row on a building or one-off goal, on another owner's goal, a second live row for a day, and an unknown urge level (a test each).
+- [x] Up, rollback, up leaves `db/schema.sql` unchanged.
 
 **Verify:** `uv run pytest tests/test_quit_days_table.py`, then the four checks.
 

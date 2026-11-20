@@ -54,7 +54,7 @@ Settled:
 Settled with Jan on 2026-11-13, and used from slice 2 on. The front end's client foundation (its issue #40) is where each is first tried from a real client; one that doesn't survive that is changed here:
 
 6. **The device makes the id, and a create is safe to repeat.** A create is `PUT /things/{id}`: the first call creates the row, and the same call again returns the row as it is. This is what lets the phone's offline queue resend without making duplicates (ADR-004). The one exception is a quitting goal's day (`quitting-goals`): it is named by its goal and date, `PUT /goals/{id}/quit-days/{day}`, and the server makes the row's id.
-7. **Actions are `POST /things/{id}/action`** (`/goals/{id}/pause`), each written so that repeating it changes nothing: pausing a paused goal returns the paused goal.
+7. **Actions are `POST /things/{id}/action`** (`/goals/{id}/pause`), each written so that repeating it changes nothing: pausing a paused goal returns the paused goal. Deletes are `DELETE /things/{id}` (`delete`); deleting a deleted row gives the same answer.
 8. **Two devices changing the same row: the last write wins.** No version numbers or conflict responses.
 9. **The phone sends its time zone name with every request,** in the `X-Time-Zone` header (`America/Denver`). Routes that need the day refuse a request without one (422). "Today" and "this week" are worked out from it on the server. A check-off also carries the moment and the day as the phone saw them (`data-model.md`).
 10. **Errors use FastAPI's shape** (`{"detail": ...}`): 404 for a row that doesn't exist or belongs to someone else, 409 for a change the rules don't allow (resuming a goal that isn't paused), 422 for a body that doesn't validate.

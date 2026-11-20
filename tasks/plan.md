@@ -55,19 +55,19 @@ positions ignore deleted rows (1)
 
 ## Task list
 
-- [ ] Task 1: Positions ignore deleted rows
-- [ ] Task 2: Delete a task
-- [ ] Task 3: Delete a recurring item
+- [x] Task 1: Positions ignore deleted rows
+- [x] Task 2: Delete a task
+- [x] Task 3: Delete a recurring item
 
 Checkpoint after task 3: tasks and items can be deleted; the four checks pass.
 
-- [ ] Task 4: Delete a milestone
-- [ ] Task 5: Delete a goal
-- [ ] Task 6: Delete an aspiration
+- [x] Task 4: Delete a milestone
+- [x] Task 5: Delete a goal
+- [x] Task 6: Delete an aspiration
 
 Checkpoint after task 6: all five deletes work.
 
-- [ ] Task 7: No read shows a deleted row; docs, the contract and the front end's types
+- [x] Task 7: No read shows a deleted row; docs, the contract and the front end's types
 
 Checkpoint after task 7: the slice is done, and the front end's mock compiles against the new types.
 

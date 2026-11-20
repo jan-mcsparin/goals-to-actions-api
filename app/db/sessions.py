@@ -12,6 +12,12 @@ import sqlalchemy
 from app.db import models
 
 
+END_SESSION = """-- name: end_session \\:exec
+update sessions set deleted_at = now()
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 FIND_SESSION = """-- name: find_session \\:one
 select id, user_id, last_used_at
 from sessions
@@ -40,6 +46,9 @@ where id = :p1 and user_id = :p2 and deleted_at is null
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
+
+    def end_session(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._conn.execute(sqlalchemy.text(END_SESSION), {"p1": id, "p2": user_id})
 
     def find_session(self, *, token_hash: str) -> Optional[FindSessionRow]:
         row = self._conn.execute(sqlalchemy.text(FIND_SESSION), {"p1": token_hash}).first()

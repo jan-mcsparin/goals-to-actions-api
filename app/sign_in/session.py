@@ -50,6 +50,21 @@ def set_session_cookie(response: Response, token: str) -> None:
     )
 
 
+def clear_session_cookie(response: Response) -> None:
+    """With the attributes it was set with, or the browser keeps it."""
+    response.delete_cookie(SESSION_COOKIE, path="/", secure=True, httponly=True, samesite="lax")
+
+
+def end_session(database: Database, token: str) -> None:
+    """Ends the session this token belongs to, if it's still live."""
+    with database.read() as connection:
+        session = sessions.Querier(connection).find_session(token_hash=hash_token(token))
+    if session is None:
+        return
+    with database.transaction(session.user_id, "sign out") as connection:
+        sessions.Querier(connection).end_session(id=session.id, user_id=session.user_id)
+
+
 def current_user_id(
     response: Response,
     database: Annotated[Database, Depends(get_database)],

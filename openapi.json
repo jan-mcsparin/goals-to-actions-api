@@ -4869,6 +4869,26 @@
         ]
       }
     },
+    "/api/sign-in/sign-out": {
+      "post": {
+        "description": "Ends this device's session on the server and clears its cookie. Without a live session\nthere's nothing to end, and the answer is the same.",
+        "operationId": "signOut",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Sign Out",
+        "tags": [
+          "sign-in"
+        ]
+      }
+    },
     "/api/tasks/upcoming": {
       "get": {
         "description": "Open tasks with a due date and no row yet: they join a week's bank when it opens.",

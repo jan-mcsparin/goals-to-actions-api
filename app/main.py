@@ -15,6 +15,7 @@ from app.recurring_items.routes import router as recurring_items_router
 from app.schemas import ApiModel
 from app.settings.routes import router as settings_router
 from app.sign_in.origin import same_origin
+from app.sign_in.routes import router as sign_in_router
 from app.sign_in.session import current_user_id
 from app.tasks.routes import router as tasks_router
 from app.turnover.routes import router as turnover_router
@@ -38,6 +39,10 @@ api = APIRouter(prefix="/api", dependencies=[Depends(same_origin)])
 @api.get("/health")
 def health() -> Health:
     return Health(status="ok")
+
+
+# Open without a session: they're how one starts.
+api.include_router(sign_in_router)
 
 
 # Every route below answers 401 without a session (ADR-012). Listed here as well as asked for

@@ -11,3 +11,7 @@ where token_hash = $1 and deleted_at is null;
 -- name: TouchSession :exec
 update sessions set last_used_at = $3
 where id = $1 and user_id = $2 and deleted_at is null;
+
+-- name: EndSession :exec
+update sessions set deleted_at = now()
+where id = $1 and user_id = $2 and deleted_at is null;

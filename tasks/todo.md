@@ -47,15 +47,15 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `signOut`, `POST /api/sign-in/sign-out`: ends the session on the server and clears the cookie. Signing out with no session is a 204 too. A case in `test_repeats.py`.
 
 **Acceptance criteria:**
-- [ ] After signing out, the same cookie gets a 401.
-- [ ] Sent twice, the same answer.
+- [x] After signing out, the same cookie gets a 401.
+- [x] Sent twice, the same answer.
 
 **Verify:** `uv run pytest tests/test_sessions.py tests/test_repeats.py`, then the four checks.
 
 **Dependencies:** 2, 3.
 
 ## Checkpoint: after tasks 1–4
-- [ ] The four checks pass; every route is closed without a session.
+- [x] The four checks pass; every route is closed without a session.
 
 ### Task 5: One-time codes and the command
 

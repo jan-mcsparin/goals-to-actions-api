@@ -333,6 +333,13 @@ def set_intensity(given: Given) -> Request:
     return "PUT", "/api/settings/intensity", {"intensity": "goingHard"}
 
 
+# Sign-in
+
+
+def sign_out(given: Given) -> Request:
+    return "POST", "/api/sign-in/sign-out", None
+
+
 CASES: dict[str, Arrange] = {
     "createAspiration": create_aspiration,
     "updateAspiration": update_aspiration,
@@ -377,6 +384,7 @@ CASES: dict[str, Arrange] = {
     "deleteTask": delete_task,
     "wrapUpWeek": wrap_up_week,
     "setIntensity": set_intensity,
+    "signOut": sign_out,
 }
 
 

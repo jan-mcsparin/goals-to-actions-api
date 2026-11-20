@@ -81,9 +81,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `tests/test_queued_writes.py` over the ten queueable writes.
 
 **Acceptance criteria:**
-- [ ] Each, aimed at a deleted row, answers 404 or 409; the task writes also against a set-aside task and a week the task has left.
-- [ ] `addTask` onto a past day, or today when today is before the current week, lands in the current week's bank.
-- [ ] Two devices updating one task: the last to arrive wins, whatever moment either phone saw.
+- [x] Each, aimed at a deleted row, answers 404 or 409; the plan edits also against a set-aside task and a week the task has left. A check-off of a set-aside task lands, as `tasks-week` settled.
+- [x] `addTask` onto a past day, or today when today is before the current week, lands in the current week's bank.
+- [x] Two devices updating one task: the last to arrive wins.
 
 **Verify:** `uv run pytest tests/test_queued_writes.py`, then the four checks.
 
@@ -95,7 +95,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ## Checkpoint: after task 5
 
-- [ ] The four checks pass.
+- [x] The four checks pass.
 
 ### Task 6: What the queue can rely on; docs, the contract and the front end's types
 

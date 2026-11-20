@@ -49,8 +49,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `tests/test_repeats.py`: the table, the twice-and-compare test, the row snapshot; rows for every aspiration, goal, weekly target, milestone and check-in write.
 
 **Acceptance criteria:**
-- [ ] Each of those writes, sent twice, gives the same status and body and leaves the same rows.
-- [ ] Any write found unsafe is fixed in its own commit with a test, or raised.
+- [x] Each of those writes, sent twice, gives the same status and body and leaves the same rows.
+- [x] Any write found unsafe is fixed in its own commit with a test, or raised.
 
 **Verify:** `uv run pytest tests/test_repeats.py`, then the four checks.
 

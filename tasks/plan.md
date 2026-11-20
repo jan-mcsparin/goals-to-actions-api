@@ -48,7 +48,7 @@ getSettings, setIntensity (1)    time zone follows the phone (2)
 
 Checkpoint after task 2: the new behaviour is in; the four checks pass.
 
-- [ ] Task 3: Repeat test, first half
+- [x] Task 3: Repeat test, first half
 - [ ] Task 4: Repeat test, second half, and every write covered
 - [ ] Task 5: Queued writes that no longer apply
 

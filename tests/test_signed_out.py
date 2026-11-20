@@ -8,8 +8,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
-OPEN_PATHS = {"/api/health"}
-OPEN_PREFIX = "/api/sign-in/"
+# Named one by one, not by path: a signed-in route added under /api/sign-in/ must be caught.
+OPEN = {"health", "redeemCode", "addPasskey", "startSignIn", "finishSignIn", "signOut"}
 
 
 def path_value(parameter: dict[str, Any]) -> str:
@@ -22,9 +22,9 @@ def operations() -> list[tuple[str, str, str]]:
     """(operation id, method, a path with every parameter filled) for each protected route."""
     found = []
     for path, methods in app.openapi()["paths"].items():
-        if path in OPEN_PATHS or path.startswith(OPEN_PREFIX):
-            continue
         for method, operation in methods.items():
+            if operation["operationId"] in OPEN:
+                continue
             filled = path
             for parameter in operation.get("parameters", []):
                 if parameter["in"] == "path":

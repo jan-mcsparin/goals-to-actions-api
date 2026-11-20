@@ -313,6 +313,22 @@ CREATE TABLE public.sessions (
 
 
 --
+-- Name: sign_in_codes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sign_in_codes (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    code_hash text NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    used_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+--
 -- Name: task_weeks; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -572,6 +588,22 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: sign_in_codes sign_in_codes_code_hash_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sign_in_codes
+    ADD CONSTRAINT sign_in_codes_code_hash_unique UNIQUE (code_hash);
+
+
+--
+-- Name: sign_in_codes sign_in_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sign_in_codes
+    ADD CONSTRAINT sign_in_codes_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: task_weeks task_weeks_one_per_week; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -761,6 +793,20 @@ CREATE TRIGGER recurring_items_set_updated_at BEFORE UPDATE ON public.recurring_
 --
 
 CREATE TRIGGER sessions_set_updated_at BEFORE UPDATE ON public.sessions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: sign_in_codes sign_in_codes_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER sign_in_codes_audit AFTER INSERT OR DELETE OR UPDATE ON public.sign_in_codes FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: sign_in_codes sign_in_codes_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER sign_in_codes_set_updated_at BEFORE UPDATE ON public.sign_in_codes FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -960,6 +1006,14 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: sign_in_codes sign_in_codes_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sign_in_codes
+    ADD CONSTRAINT sign_in_codes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: task_weeks task_weeks_task_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1056,4 +1110,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261119000000'),
     ('20261119100000'),
     ('20261120000000'),
-    ('20261121000000');
+    ('20261121000000'),
+    ('20261121000100');

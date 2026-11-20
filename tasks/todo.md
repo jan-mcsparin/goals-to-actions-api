@@ -62,8 +62,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** The `sign_in_codes` table (audited) and its queries; `app/sign_in/codes.py` makes a code and keeps its hash; `python -m app.sign_in.command add-user` and `code <user-id>`.
 
 **Acceptance criteria:**
-- [ ] `add-user` makes a user at Normal intensity with no weeks opened, and prints their id and a code; `code` prints a code for an existing user and refuses an unknown one.
-- [ ] A code is 20 Crockford base-32 characters in groups of four; the table holds its hash and an expiry ten minutes on.
+- [x] `add-user` makes a user at Normal intensity with no weeks opened, and prints their id and a code; `code` prints a code for an existing user and refuses an unknown one.
+- [x] A code is 20 Crockford base-32 characters in groups of four; the table holds its hash and an expiry ten minutes on.
 
 **Verify:** `uv run pytest tests/test_sign_in_codes.py`, then the four checks.
 

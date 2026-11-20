@@ -96,11 +96,11 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ### Task 8: A second user can't reach the first's rows
 
-**Description:** `tests/test_other_user.py`: for every operation in the schema, arrange the first user's rows (reusing `test_repeats.py`'s cases), send the request as a second user, and check the first user's rows are unchanged and no id of theirs comes back. Fix what it finds.
+**Description:** `tests/test_other_user.py`: for every operation in the schema, arrange the first user's rows (reusing `test_repeats.py`'s cases), send the request as a second user, and check the first user's rows are unchanged and no id of theirs comes back. Fix what it finds. Also sends each device-made create again as the second user with the first's id. It found nothing to fix.
 
 **Acceptance criteria:**
-- [ ] Every operation has a case; the test fails for one without.
-- [ ] No answer is a 500.
+- [x] Every operation has a case; the test fails for one without.
+- [x] No answer is a 500.
 
 **Verify:** `uv run pytest tests/test_other_user.py`, then the four checks.
 

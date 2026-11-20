@@ -10,7 +10,7 @@ from sqlalchemy import Connection, text
 from app.weeks import week_of
 from tests.test_aspirations import add_other_user
 from tests.test_check_off import check_off
-from tests.test_goals import ZONE, create_goal, lifting, today
+from tests.test_goals import ZONE, create_goal, lifting, no_sugar, today
 from tests.test_tasks import add_task, open_next_week
 
 
@@ -182,3 +182,40 @@ def test_changing_intensity_changes_only_the_mark(
 
     connection.execute(text("update users set intensity = 'going_hard'"))
     assert {mark["cap"] for mark in get_week(tasks_client, this_week())["days"]} == {6}
+
+
+def quitting_goals(client: TestClient) -> list[Any]:
+    found: list[Any] = get_week(client, this_week())["quittingGoals"]
+    return found
+
+
+def test_the_week_carries_each_active_quitting_goals_days(tasks_client: TestClient) -> None:
+    goal = create_goal(tasks_client, no_sugar(startDate="2026-11-01"))
+    for path, body in [("quit-days", {"held": True}), ("urges", {"level": "some"})]:
+        response = tasks_client.put(f"/api/goals/{goal['id']}/{path}/2026-11-17", json=body)
+        assert response.status_code == 200, response.text
+
+    [found] = quitting_goals(tasks_client)
+
+    assert (found["id"], found["label"]) == (goal["id"], "No sugar")
+    assert [d["day"] for d in found["days"]] == [f"2026-11-{day}" for day in range(16, 23)]
+    tuesday = found["days"][1]
+    assert (tuesday["held"], tuesday["urge"]) == (True, "some")
+    assert all(d["held"] is None for d in found["days"] if d["day"] != "2026-11-17")
+
+
+def test_a_goal_started_midweek_has_its_days_from_the_start(tasks_client: TestClient) -> None:
+    create_goal(tasks_client, no_sugar(startDate="2026-11-18"))
+
+    [found] = quitting_goals(tasks_client)
+
+    assert [d["day"] for d in found["days"]] == [f"2026-11-{day}" for day in range(18, 23)]
+
+
+def test_paused_and_later_and_building_goals_are_left_out(tasks_client: TestClient) -> None:
+    paused = create_goal(tasks_client, no_sugar())
+    assert tasks_client.post(f"/api/goals/{paused['id']}/pause").status_code == 200
+    create_goal(tasks_client, no_sugar(label="No soda", startDate="2026-11-23"))
+    create_goal(tasks_client, lifting())
+
+    assert quitting_goals(tasks_client) == []

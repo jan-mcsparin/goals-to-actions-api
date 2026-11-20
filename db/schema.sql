@@ -234,6 +234,24 @@ CREATE TABLE public.milestones (
 
 
 --
+-- Name: quit_days; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.quit_days (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    goal_id uuid NOT NULL,
+    goal_type text DEFAULT 'quitting'::text NOT NULL,
+    day date NOT NULL,
+    held boolean NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT quit_days_goal_type_check CHECK ((goal_type = 'quitting'::text))
+);
+
+
+--
 -- Name: recurring_items; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -337,6 +355,25 @@ CREATE TABLE public.tasks (
     CONSTRAINT tasks_title_not_blank CHECK ((btrim(title) <> ''::text)),
     CONSTRAINT tasks_value_logged_check CHECK ((value_logged >= (0)::numeric)),
     CONSTRAINT tasks_weekly_target_has_goal CHECK (((origin <> 'weekly_target'::text) OR (goal_id IS NOT NULL)))
+);
+
+
+--
+-- Name: urge_ratings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.urge_ratings (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    goal_id uuid NOT NULL,
+    goal_type text DEFAULT 'quitting'::text NOT NULL,
+    rated_on date NOT NULL,
+    level text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT urge_ratings_goal_type_check CHECK ((goal_type = 'quitting'::text)),
+    CONSTRAINT urge_ratings_level_check CHECK ((level = ANY (ARRAY['low'::text, 'some'::text, 'strong'::text])))
 );
 
 
@@ -472,6 +509,14 @@ ALTER TABLE ONLY public.milestones
 
 
 --
+-- Name: quit_days quit_days_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quit_days
+    ADD CONSTRAINT quit_days_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: recurring_items recurring_items_id_owner; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -544,6 +589,14 @@ ALTER TABLE ONLY public.tasks
 
 
 --
+-- Name: urge_ratings urge_ratings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.urge_ratings
+    ADD CONSTRAINT urge_ratings_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -568,10 +621,24 @@ ALTER TABLE ONLY public.weekly_targets
 
 
 --
+-- Name: quit_days_one_per_day; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX quit_days_one_per_day ON public.quit_days USING btree (goal_id, day) WHERE (deleted_at IS NULL);
+
+
+--
 -- Name: task_weeks_one_in_play; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX task_weeks_one_in_play ON public.task_weeks USING btree (task_id) WHERE ((outcome IS NULL) AND (deleted_at IS NULL));
+
+
+--
+-- Name: urge_ratings_one_per_day; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX urge_ratings_one_per_day ON public.urge_ratings USING btree (goal_id, rated_on) WHERE (deleted_at IS NULL);
 
 
 --
@@ -631,6 +698,20 @@ CREATE TRIGGER milestones_set_updated_at BEFORE UPDATE ON public.milestones FOR 
 
 
 --
+-- Name: quit_days quit_days_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER quit_days_audit AFTER INSERT OR DELETE OR UPDATE ON public.quit_days FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: quit_days quit_days_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER quit_days_set_updated_at BEFORE UPDATE ON public.quit_days FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: recurring_items recurring_items_audit; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -684,6 +765,20 @@ CREATE CONSTRAINT TRIGGER tasks_rows_agree AFTER INSERT OR UPDATE ON public.task
 --
 
 CREATE TRIGGER tasks_set_updated_at BEFORE UPDATE ON public.tasks FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: urge_ratings urge_ratings_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER urge_ratings_audit AFTER INSERT OR DELETE OR UPDATE ON public.urge_ratings FOR EACH ROW EXECUTE FUNCTION public.audit();
+
+
+--
+-- Name: urge_ratings urge_ratings_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER urge_ratings_set_updated_at BEFORE UPDATE ON public.urge_ratings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -779,6 +874,22 @@ ALTER TABLE ONLY public.milestones
 
 
 --
+-- Name: quit_days quit_days_quitting_goal_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quit_days
+    ADD CONSTRAINT quit_days_quitting_goal_same_owner FOREIGN KEY (goal_id, user_id, goal_type) REFERENCES public.goals(id, user_id, type);
+
+
+--
+-- Name: quit_days quit_days_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quit_days
+    ADD CONSTRAINT quit_days_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: recurring_items recurring_items_aspiration_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -843,6 +954,22 @@ ALTER TABLE ONLY public.tasks
 
 
 --
+-- Name: urge_ratings urge_ratings_quitting_goal_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.urge_ratings
+    ADD CONSTRAINT urge_ratings_quitting_goal_same_owner FOREIGN KEY (goal_id, user_id, goal_type) REFERENCES public.goals(id, user_id, type);
+
+
+--
+-- Name: urge_ratings urge_ratings_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.urge_ratings
+    ADD CONSTRAINT urge_ratings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: weekly_targets weekly_targets_building_goal_same_owner; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -880,4 +1007,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261118000000'),
     ('20261118000100'),
     ('20261118000200'),
-    ('20261119000000');
+    ('20261119000000'),
+    ('20261119100000');

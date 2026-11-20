@@ -77,6 +77,18 @@ class Milestone(pydantic.BaseModel):
     deleted_at: Optional[datetime.datetime]
 
 
+class QuitDay(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    goal_id: uuid.UUID
+    goal_type: str
+    day: datetime.date
+    held: bool
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+
+
 class RecurringItem(pydantic.BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
@@ -125,6 +137,18 @@ class TaskWeek(pydantic.BaseModel):
     planned_day: Optional[datetime.date]
     placed_by_hand: bool
     outcome: Optional[str]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+
+
+class UrgeRating(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    goal_id: uuid.UUID
+    goal_type: str
+    rated_on: datetime.date
+    level: str
     created_at: datetime.datetime
     updated_at: datetime.datetime
     deleted_at: Optional[datetime.datetime]

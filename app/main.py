@@ -10,6 +10,7 @@ from app.config import APP_NAME
 from app.errors import NotAllowed, NotFound
 from app.goals.routes import router as goals_router
 from app.milestones.routes import router as milestones_router
+from app.quitting.routes import router as quitting_router
 from app.recurring_items.routes import router as recurring_items_router
 from app.schemas import ApiModel
 from app.tasks.routes import router as tasks_router
@@ -38,6 +39,7 @@ def health() -> Health:
 api.include_router(aspirations_router)
 api.include_router(goals_router)
 api.include_router(milestones_router)
+api.include_router(quitting_router)
 api.include_router(recurring_items_router)
 api.include_router(tasks_router)
 api.include_router(turnover_router)

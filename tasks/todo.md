@@ -111,14 +111,14 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** One test: `add-user`, redeem its code, add a passkey (library stood in), then a request that needs the day opens the new user's first week, and they see only their own rows.
 
 **Acceptance criteria:**
-- [ ] The new user's week opens on their first request, at Normal intensity.
+- [x] The new user's week opens on their first request, at Normal intensity.
 
 **Verify:** `uv run pytest tests/test_invited_tester.py`, then the four checks.
 
 **Dependencies:** 5, 6.
 
 ## Checkpoint: after tasks 5–9
-- [ ] The four checks pass; the spec's success criteria that tests can show are met.
+- [x] The four checks pass; the spec's success criteria that tests can show are met.
 
 ### Task 10: Docs
 

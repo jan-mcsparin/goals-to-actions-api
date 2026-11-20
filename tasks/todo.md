@@ -98,8 +98,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `openapi.json` written; the spec marked built, with what changed while building; the map and `CLAUDE.md` (the new slice folder) updated; `../docs/data-model.md` checked against what was built (the server-made id, clearing). In `../web-frontend`, on its own branch: `npm run api:types`, and the mock compiles.
 
 **Acceptance criteria:**
-- [ ] `tests/test_contract.py` passes; every operation is named as the front end will call it.
-- [ ] The front end builds against the regenerated types, and its tests pass.
+- [x] `tests/test_contract.py` passes; every operation is named as the front end will call it.
+- [x] The front end builds against the regenerated types, and its tests pass.
 
 **Verify:** the four checks; in `../web-frontend`, `nvm use`, then its lint, tests and build.
 
@@ -111,6 +111,6 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ## Checkpoint: complete
 
-- [ ] The four checks pass.
-- [ ] The front end compiles against the new types.
-- [ ] Every success criterion in the spec is met.
+- [x] The four checks pass.
+- [x] The front end compiles against the new types.
+- [x] Every success criterion in the spec is met.

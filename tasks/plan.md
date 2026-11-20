@@ -58,7 +58,7 @@ Checkpoint after task 3: the four writes work; the four checks pass.
 
 - [x] Task 4: The record on the goal's page
 - [x] Task 5: Quitting goals on the week read
-- [ ] Task 6: Docs, the contract and the front end's types
+- [x] Task 6: Docs, the contract and the front end's types
 
 Checkpoint after task 6: the slice is done, and the front end's mock compiles against the new types.
 

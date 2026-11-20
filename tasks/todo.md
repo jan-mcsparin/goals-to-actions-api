@@ -28,9 +28,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `today()` saves the header's zone on the user when it differs from the stored one.
 
 **Acceptance criteria:**
-- [ ] A request with `X-Time-Zone: Asia/Tokyo` leaves Tokyo on the user; a later one from Denver leaves Denver.
-- [ ] A second request from the same zone writes nothing (no audit row).
-- [ ] A name that isn't a zone is refused (422) and nothing is saved.
+- [x] A request with `X-Time-Zone: Asia/Tokyo` leaves Tokyo on the user; a later one from Denver leaves Denver.
+- [x] A second request from the same zone writes nothing (no audit row).
+- [x] A name that isn't a zone is refused (422) and nothing is saved.
 
 **Verify:** `uv run pytest tests/test_time_zone.py`, then the four checks.
 
@@ -42,7 +42,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ## Checkpoint: after task 2
 
-- [ ] The four checks pass.
+- [x] The four checks pass.
 
 ### Task 3: Repeat test, first half
 

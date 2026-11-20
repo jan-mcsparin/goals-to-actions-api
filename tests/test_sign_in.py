@@ -229,3 +229,10 @@ def test_signing_in_again_ends_the_devices_old_session(
     client.cookies.clear()
     client.cookies.set(SESSION_COOKIE, old)
     assert client.get("/api/aspirations").status_code == 401
+
+
+def test_a_refused_sign_in_leaves_the_devices_session(client: TestClient, owner: UUID) -> None:
+    response = finish(client)
+
+    assert response.status_code == 401
+    assert client.get("/api/aspirations").status_code == 200

@@ -49,7 +49,7 @@ There's no sign-up. A user is added by a command, which prints their first one-t
 uv run python -m app.sign_in.command add-user                  # a new user, and their first code
 uv run python -m app.sign_in.command code <user-id>            # a new code for a user
 uv run python -m app.sign_in.command end-sessions <user-id>    # a lost phone: signed out everywhere
-uv run python -m app.sign_in.command remove-passkeys <user-id> # no longer trusted: only a new code gets them back
+uv run python -m app.sign_in.command remove-passkeys <user-id> # no longer trusted: signed out, and only a new code gets them back
 ```
 
 Signing in again on a device ends that device's earlier session.

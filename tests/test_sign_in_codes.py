@@ -171,7 +171,7 @@ def test_end_sessions_signs_a_user_out_everywhere(
     status, output = run(database, capsys, "end-sessions", str(user_id))
 
     assert status == 0
-    assert "Ended 2 sessions" in output
+    assert "Sessions ended: 2" in output
     assert live(connection, "sessions", user_id) == 0
     assert live(connection, "passkeys", user_id) == 2
 
@@ -196,9 +196,23 @@ def test_remove_passkeys_removes_every_passkey_of_a_user(
     status, output = run(database, capsys, "remove-passkeys", str(user_id))
 
     assert status == 0
-    assert "Removed 2 passkeys" in output
+    assert "Passkeys removed: 2" in output
+    assert "Sessions ended: 2" in output
     assert live(connection, "passkeys", user_id) == 0
     assert live(connection, "passkeys", other) == 2
+
+
+def test_removing_passkeys_signs_the_user_out_everywhere(
+    database: Database, connection: Connection, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Someone no longer trusted is cut off now, not when their sessions run out."""
+    user_id = signed_in_user(database, connection)
+    other = signed_in_user(database, connection)
+
+    run(database, capsys, "remove-passkeys", str(user_id))
+
+    assert live(connection, "sessions", user_id) == 0
+    assert live(connection, "sessions", other) == 2
 
 
 def test_removing_passkeys_is_in_the_audit_log(

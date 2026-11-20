@@ -45,11 +45,13 @@ def end_sessions(database: Database, user_id: UUID) -> int:
         return sessions.Querier(connection).end_user_sessions(user_id=user_id)
 
 
-def remove_passkeys(database: Database, user_id: UUID) -> int:
-    """Removes every passkey of the user; only a new code lets them add one again. Returns how
-    many were removed."""
+def remove_passkeys(database: Database, user_id: UUID) -> tuple[int, int]:
+    """Cuts the user off: removes every passkey and signs them out on every device, so only a
+    new code lets them back in. Returns how many passkeys were removed and sessions ended."""
     with database.transaction(user_id, "remove passkeys") as connection:
-        return passkeys.Querier(connection).remove_user_passkeys(user_id=user_id)
+        removed = passkeys.Querier(connection).remove_user_passkeys(user_id=user_id)
+        ended = sessions.Querier(connection).end_user_sessions(user_id=user_id)
+    return removed, ended
 
 
 def main(
@@ -60,12 +62,12 @@ def main(
     parser = argparse.ArgumentParser(prog="python -m app.sign_in.command")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("add-user", help="add a user and print their first code")
-    for name, help in (
+    for name, summary in (
         ("code", "print a new code for a user"),
         ("end-sessions", "sign a user out on every device"),
-        ("remove-passkeys", "remove every passkey of a user"),
+        ("remove-passkeys", "remove every passkey of a user, and sign them out everywhere"),
     ):
-        commands.add_parser(name, help=help).add_argument("user_id", type=UUID)
+        commands.add_parser(name, help=summary).add_argument("user_id", type=UUID)
     arguments = parser.parse_args(argv)
 
     if arguments.command == "add-user":
@@ -81,9 +83,11 @@ def main(
     if arguments.command == "code":
         print(f"Code: {code_for(database, user_id, now())} (works once, for ten minutes)")
     elif arguments.command == "end-sessions":
-        print(f"Ended {end_sessions(database, user_id)} sessions")
+        print(f"Sessions ended: {end_sessions(database, user_id)}")
     else:
-        print(f"Removed {remove_passkeys(database, user_id)} passkeys")
+        removed, ended = remove_passkeys(database, user_id)
+        print(f"Passkeys removed: {removed}")
+        print(f"Sessions ended: {ended}")
     return 0
 
 

@@ -79,3 +79,14 @@ def keep_milestone(
     with database.transaction(user_id, "keep milestone") as connection:
         goal_id = rules.keep(connection, user_id, milestone_id)
         return goal_page(connection, user_id, goal_id, today)
+
+
+@router.delete("/milestones/{milestone_id}", responses=NOT_FOUND)
+def delete_milestone(
+    milestone_id: UUID, database: CurrentDatabase, user_id: CurrentUserId, today: Today
+) -> GoalPage:
+    """For a mistake: the milestone and its check-ins are hidden everywhere, and the ones after
+    it move up. Returns the goal's page."""
+    with database.transaction(user_id, "delete milestone") as connection:
+        goal_id = rules.delete(connection, user_id, milestone_id)
+        return goal_page(connection, user_id, goal_id, today)

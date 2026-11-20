@@ -48,7 +48,7 @@ As shared. **Never:** trust the phone's clock for ordering; store an offset.
 
 - **`getSettings` and `setIntensity` return `{intensity}` only.** The time zone isn't a setting, and the date intensity was set on is in the audit log (`data-model.md`). Plan approved by Jan, 2026-11-19.
 - **The time zone is kept by every route that works out the day,** written only when it changes. Routes that don't need the day don't take the header.
-- **A check-off or uncheck of a set-aside task lands** rather than being refused: done is done, as `tasks-week` settled. Only the plan edits (place, bank, swap) are refused on a set-aside task.
+- **A check-off or uncheck of a set-aside task lands** rather than being refused: done is done, as `tasks-week` settled. Only the plan edits (place, bank, swap) are refused on a set-aside task. Confirmed by Jan, 2026-11-19: any task that gets done can be checked off.
 
 ## Open questions
 

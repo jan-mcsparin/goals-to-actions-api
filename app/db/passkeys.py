@@ -46,6 +46,12 @@ class FindPasskeyRow(pydantic.BaseModel):
     sign_count: int
 
 
+REMOVE_USER_PASSKEYS = """-- name: remove_user_passkeys \\:execrows
+update passkeys set deleted_at = now()
+where user_id = :p1 and deleted_at is null
+"""
+
+
 SET_SIGN_COUNT = """-- name: set_sign_count \\:exec
 update passkeys set sign_count = :p3
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -81,6 +87,10 @@ class Querier:
             public_key=row[2],
             sign_count=row[3],
         )
+
+    def remove_user_passkeys(self, *, user_id: uuid.UUID) -> int:
+        result = self._conn.execute(sqlalchemy.text(REMOVE_USER_PASSKEYS), {"p1": user_id})
+        return result.rowcount
 
     def set_sign_count(self, *, id: uuid.UUID, user_id: uuid.UUID, sign_count: int) -> None:
         self._conn.execute(sqlalchemy.text(SET_SIGN_COUNT), {"p1": id, "p2": user_id, "p3": sign_count})

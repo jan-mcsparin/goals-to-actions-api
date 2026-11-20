@@ -15,3 +15,8 @@ where id = $1 and user_id = $2 and deleted_at is null;
 -- name: EndSession :exec
 update sessions set deleted_at = now()
 where id = $1 and user_id = $2 and deleted_at is null;
+
+-- Signs a user out everywhere: the command, for a lost phone.
+-- name: EndUserSessions :execrows
+update sessions set deleted_at = now()
+where user_id = $1 and deleted_at is null;

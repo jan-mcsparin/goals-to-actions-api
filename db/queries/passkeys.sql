@@ -14,3 +14,9 @@ where credential_id = $1 and deleted_at is null;
 -- name: SetSignCount :exec
 update passkeys set sign_count = $3
 where id = $1 and user_id = $2 and deleted_at is null;
+
+-- Every passkey of a user: the command, for someone no longer trusted. A new code lets them
+-- add one again.
+-- name: RemoveUserPasskeys :execrows
+update passkeys set deleted_at = now()
+where user_id = $1 and deleted_at is null;

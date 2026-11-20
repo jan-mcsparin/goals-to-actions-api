@@ -18,6 +18,12 @@ where id = :p1 and user_id = :p2 and deleted_at is null
 """
 
 
+END_USER_SESSIONS = """-- name: end_user_sessions \\:execrows
+update sessions set deleted_at = now()
+where user_id = :p1 and deleted_at is null
+"""
+
+
 FIND_SESSION = """-- name: find_session \\:one
 select id, user_id, last_used_at
 from sessions
@@ -49,6 +55,10 @@ class Querier:
 
     def end_session(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
         self._conn.execute(sqlalchemy.text(END_SESSION), {"p1": id, "p2": user_id})
+
+    def end_user_sessions(self, *, user_id: uuid.UUID) -> int:
+        result = self._conn.execute(sqlalchemy.text(END_USER_SESSIONS), {"p1": user_id})
+        return result.rowcount
 
     def find_session(self, *, token_hash: str) -> Optional[FindSessionRow]:
         row = self._conn.execute(sqlalchemy.text(FIND_SESSION), {"p1": token_hash}).first()

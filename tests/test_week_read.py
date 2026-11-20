@@ -191,8 +191,9 @@ def quitting_goals(client: TestClient) -> list[Any]:
 
 def test_the_week_carries_each_active_quitting_goals_days(tasks_client: TestClient) -> None:
     goal = create_goal(tasks_client, no_sugar(startDate="2026-11-01"))
-    tasks_client.put(f"/api/goals/{goal['id']}/quit-days/2026-11-17", json={"held": True})
-    tasks_client.put(f"/api/goals/{goal['id']}/urges/2026-11-17", json={"level": "some"})
+    for path, body in [("quit-days", {"held": True}), ("urges", {"level": "some"})]:
+        response = tasks_client.put(f"/api/goals/{goal['id']}/{path}/2026-11-17", json=body)
+        assert response.status_code == 200, response.text
 
     [found] = quitting_goals(tasks_client)
 

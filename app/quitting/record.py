@@ -36,34 +36,42 @@ class Run:
     unknown: int
 
 
-def run_of(answers: dict[date, bool], start: date, today: date) -> Run:
-    """Held answers since the last no (or the start), and the days before today since then
-    with no answer. An unknown day neither ends the run nor adds to it."""
+def run_of(answers: dict[date, bool], start: date, last: date) -> Run:
+    """Held answers since the last no (or the start), and the days before `last` (today, or
+    the day the goal ended) since then with no answer. An unknown day neither ends the run
+    nor adds to it."""
     noes = [day for day, held in answers.items() if not held]
     first = max(noes) + timedelta(days=1) if noes else start
-    held = sum(held and day >= first for day, held in answers.items())
-    past = [first + timedelta(days=n) for n in range(max(0, (today - first).days))]
-    return Run(held=held, unknown=sum(day not in answers for day in past))
+    held_days = sum(was_held and day >= first for day, was_held in answers.items())
+    past = [first + timedelta(days=n) for n in range(max(0, (last - first).days))]
+    return Run(held=held_days, unknown=sum(day not in answers for day in past))
+
+
+def last_day(goal: models.Goal, today: date) -> date:
+    """The last day of a goal's record: today, or the day it ended or was reached. Days after
+    that aren't asked about or counted as unknown."""
+    return min(today, goal.ended_on) if goal.ended_on is not None else today
 
 
 def quit_record(
     connection: Connection, user_id: UUID, goal: models.Goal, today: date
 ) -> QuitRecord:
+    through = last_day(goal, today)
     answers = {
         row.day: row.held
         for row in quit_days.Querier(connection).list_quit_days(
-            user_id=user_id, goal_ids=[goal.id], from_day=goal.start_date, through_day=today
+            user_id=user_id, goal_ids=[goal.id], from_day=goal.start_date, through_day=through
         )
     }
-    first = max(goal.start_date, today - timedelta(days=RECENT_DAYS - 1))
+    first = max(goal.start_date, through - timedelta(days=RECENT_DAYS - 1))
     urges = {
         row.rated_on: row.level
         for row in urge_ratings.Querier(connection).list_urge_ratings(
-            user_id=user_id, goal_ids=[goal.id], from_day=first, through_day=today
+            user_id=user_id, goal_ids=[goal.id], from_day=first, through_day=through
         )
     }
-    days = [today - timedelta(days=n) for n in range((today - first).days + 1)]
-    run = run_of(answers, goal.start_date, today)
+    days = [through - timedelta(days=n) for n in range((through - first).days + 1)]
+    run = run_of(answers, goal.start_date, through)
     return QuitRecord(
         days=[
             QuitDay(goal_id=goal.id, day=day, held=answers.get(day), urge=urges.get(day))

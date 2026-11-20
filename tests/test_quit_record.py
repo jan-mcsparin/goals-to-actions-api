@@ -2,13 +2,14 @@
 days inside it (spec `quitting-goals`). Worked out on every read."""
 
 from collections.abc import Iterator
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.quitting.record import Run, run_of
+from tests.conftest import FixedClock
 from tests.test_goals import ZONE, create_goal, lifting, no_sugar
 from tests.test_quit_days import answer, ok
 from tests.test_urges import rate
@@ -102,3 +103,31 @@ def test_other_goals_have_no_record(quit_client: TestClient) -> None:
     goal_id = str(create_goal(quit_client, lifting())["id"])
 
     assert record(quit_client, goal_id) is None
+
+
+def test_a_reached_goals_record_stops_on_the_day_it_was_reached(
+    quit_client: TestClient, fixed_clock: FixedClock
+) -> None:
+    goal_id = str(create_goal(quit_client, no_sugar(startDate="2026-11-15"))["id"])
+    ok(answer(quit_client, goal_id, "2026-11-16", True))
+    ok(quit_client.post(f"/api/goals/{goal_id}/mark-reached"))  # on Wed 18 Nov
+
+    fixed_clock.instant = datetime(2027, 3, 1, 19, 0, tzinfo=UTC)
+    found = record(quit_client, goal_id)
+
+    assert found["days"][0]["day"] == "2026-11-18"
+    assert len(found["days"]) == 4
+    assert (found["heldRun"], found["unknownInRun"]) == (1, 2)  # 15 and 17 Nov
+
+
+def test_a_day_after_the_goal_ended_is_refused(
+    quit_client: TestClient, fixed_clock: FixedClock
+) -> None:
+    goal_id = str(create_goal(quit_client, no_sugar(startDate="2026-11-15"))["id"])
+    ok(quit_client.post(f"/api/goals/{goal_id}/end"))
+
+    fixed_clock.instant = datetime(2026, 11, 20, 19, 0, tzinfo=UTC)
+
+    assert answer(quit_client, goal_id, "2026-11-19", True).status_code == 409
+    assert rate(quit_client, goal_id, "2026-11-19", "low").status_code == 409
+    assert ok(answer(quit_client, goal_id, "2026-11-18", True))["held"] is True

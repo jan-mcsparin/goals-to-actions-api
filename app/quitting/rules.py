@@ -9,11 +9,13 @@ from sqlalchemy import Connection
 from app.db import goals, quit_days, urge_ratings
 from app.errors import NotAllowed, NotFound
 from app.quitting.models import UrgeLevel
+from app.quitting.record import last_day
 
 
 def check_day(connection: Connection, user_id: UUID, goal_id: UUID, day: date, today: date) -> None:
     """Any day from the goal's start to today, so an answer queued offline still lands days
-    later. The goal's status doesn't matter: the record is history."""
+    later, and not after the day the goal ended or was reached. Otherwise the goal's status
+    doesn't matter: the record is history."""
     goal = goals.Querier(connection).get_goal(id=goal_id, user_id=user_id)
     if goal is None:
         raise NotFound
@@ -23,6 +25,8 @@ def check_day(connection: Connection, user_id: UUID, goal_id: UUID, day: date, t
         raise NotAllowed("That day is before the goal started.")
     if day > today:
         raise NotAllowed("That day hasn't come yet.")
+    if day > last_day(goal, today):
+        raise NotAllowed("That day is after the goal ended.")
 
 
 def answer(

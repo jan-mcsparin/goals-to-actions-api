@@ -1219,6 +1219,27 @@
         "title": "NewTask",
         "type": "object"
       },
+      "PasskeyOptions": {
+        "description": "What the browser's passkey functions take, as JSON, and the challenge to send back.",
+        "properties": {
+          "challengeId": {
+            "format": "uuid",
+            "title": "Challengeid",
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "challengeId",
+          "options"
+        ],
+        "title": "PasskeyOptions",
+        "type": "object"
+      },
       "Placing": {
         "description": "Onto a day, placed by hand, in the week the change was made in.",
         "properties": {
@@ -1516,6 +1537,20 @@
         "title": "RecurringItemList",
         "type": "object"
       },
+      "RedeemCode": {
+        "properties": {
+          "code": {
+            "maxLength": 64,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "RedeemCode",
+        "type": "object"
+      },
       "Retirement": {
         "description": "What happens to the aspiration's work: its active goals pause, or keep going without\nan aspiration. Recurring items join \"pause\" when they're built.",
         "properties": {
@@ -1579,6 +1614,27 @@
           "intensity"
         ],
         "title": "Settings",
+        "type": "object"
+      },
+      "SignedChallenge": {
+        "description": "The browser's `PublicKeyCredential` as JSON, for the challenge it signed.",
+        "properties": {
+          "challengeId": {
+            "format": "uuid",
+            "title": "Challengeid",
+            "type": "string"
+          },
+          "credential": {
+            "additionalProperties": true,
+            "title": "Credential",
+            "type": "object"
+          }
+        },
+        "required": [
+          "challengeId",
+          "credential"
+        ],
+        "title": "SignedChallenge",
         "type": "object"
       },
       "Swap": {
@@ -4866,6 +4922,103 @@
         "summary": "Set Intensity",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/sign-in/code": {
+      "post": {
+        "description": "Spends a one-time code; returns the options for the browser to make a passkey.",
+        "operationId": "redeemCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemCode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The code, challenge or passkey didn't work."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redeem Code",
+        "tags": [
+          "sign-in"
+        ]
+      }
+    },
+    "/api/sign-in/passkeys": {
+      "post": {
+        "description": "Keeps the passkey made for a redeemed code, and signs this device in.",
+        "operationId": "addPasskey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignedChallenge"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The code, challenge or passkey didn't work."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Passkey",
+        "tags": [
+          "sign-in"
         ]
       }
     },

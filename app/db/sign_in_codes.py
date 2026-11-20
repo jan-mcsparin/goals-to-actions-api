@@ -3,11 +3,25 @@
 #   sqlc v1.31.1
 # source: sign_in_codes.sql
 import datetime
+import pydantic
+from typing import Optional
 import uuid
 
 import sqlalchemy
 
 from app.db import models
+
+
+FIND_CODE = """-- name: find_code \\:one
+select id, user_id
+from sign_in_codes
+where code_hash = :p1 and deleted_at is null
+"""
+
+
+class FindCodeRow(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
 
 
 MAKE_CODE = """-- name: make_code \\:exec
@@ -16,9 +30,30 @@ values (:p1, :p2, :p3, :p4)
 """
 
 
+SPEND_CODE = """-- name: spend_code \\:one
+update sign_in_codes set used_at = :p3
+where id = :p1 and user_id = :p2 and used_at is null and expires_at > :p3 and deleted_at is null
+returning id, user_id
+"""
+
+
+class SpendCodeRow(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+
+
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
+
+    def find_code(self, *, code_hash: str) -> Optional[FindCodeRow]:
+        row = self._conn.execute(sqlalchemy.text(FIND_CODE), {"p1": code_hash}).first()
+        if row is None:
+            return None
+        return FindCodeRow(
+            id=row[0],
+            user_id=row[1],
+        )
 
     def make_code(self, *, id: uuid.UUID, user_id: uuid.UUID, code_hash: str, expires_at: datetime.datetime) -> None:
         self._conn.execute(sqlalchemy.text(MAKE_CODE), {
@@ -27,3 +62,12 @@ class Querier:
             "p3": code_hash,
             "p4": expires_at,
         })
+
+    def spend_code(self, *, id: uuid.UUID, user_id: uuid.UUID, used_at: Optional[datetime.datetime]) -> Optional[SpendCodeRow]:
+        row = self._conn.execute(sqlalchemy.text(SPEND_CODE), {"p1": id, "p2": user_id, "p3": used_at}).first()
+        if row is None:
+            return None
+        return SpendCodeRow(
+            id=row[0],
+            user_id=row[1],
+        )

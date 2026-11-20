@@ -16,6 +16,7 @@ from app.schemas import ApiModel
 from app.settings.routes import router as settings_router
 from app.sign_in.origin import same_origin
 from app.sign_in.routes import router as sign_in_router
+from app.sign_in.rules import SignInFailed
 from app.sign_in.session import current_user_id
 from app.tasks.routes import router as tasks_router
 from app.turnover.routes import router as turnover_router
@@ -76,3 +77,8 @@ def not_found(request: Request, error: NotFound) -> JSONResponse:
 @app.exception_handler(NotAllowed)
 def not_allowed(request: Request, error: NotAllowed) -> JSONResponse:
     return JSONResponse(status_code=409, content={"detail": str(error)})
+
+
+@app.exception_handler(SignInFailed)
+def sign_in_failed(request: Request, error: SignInFailed) -> JSONResponse:
+    return JSONResponse(status_code=401, content={"detail": "That didn't work"})

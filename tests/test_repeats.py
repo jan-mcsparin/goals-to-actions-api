@@ -434,6 +434,10 @@ def test_a_write_sent_twice_gives_the_same_answer_and_data(
     assert snapshot(connection) == after_first
 
 
+# A code and a challenge work once, on purpose (spec `sign-in`).
+ONE_SHOT = {"redeemCode", "addPasskey", "startSignIn", "finishSignIn"}
+
+
 def test_every_write_in_the_api_has_a_case(client: TestClient) -> None:
     schema = client.get("/api/openapi.json").json()
     writes = {
@@ -443,5 +447,5 @@ def test_every_write_in_the_api_has_a_case(client: TestClient) -> None:
         if method in {"put", "post", "patch", "delete"}
     }
 
-    assert writes - CASES.keys() == set()
+    assert writes - CASES.keys() - ONE_SHOT == set()
     assert CASES.keys() - writes == set()

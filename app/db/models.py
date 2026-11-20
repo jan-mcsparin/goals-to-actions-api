@@ -77,6 +77,17 @@ class Milestone(pydantic.BaseModel):
     deleted_at: Optional[datetime.datetime]
 
 
+class Passkey(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    credential_id: str
+    public_key: str
+    sign_count: int
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+
+
 class QuitDay(pydantic.BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
@@ -115,6 +126,15 @@ class Session(pydantic.BaseModel):
     created_at: datetime.datetime
     updated_at: datetime.datetime
     deleted_at: Optional[datetime.datetime]
+
+
+class SignInChallenge(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: Optional[uuid.UUID]
+    kind: str
+    challenge: str
+    expires_at: datetime.datetime
+    created_at: datetime.datetime
 
 
 class SignInCode(pydantic.BaseModel):

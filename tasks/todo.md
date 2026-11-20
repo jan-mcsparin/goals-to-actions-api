@@ -74,9 +74,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** The `sign_in_challenges` and `passkeys` tables; `redeemCode` and `addPasskey`. Redeeming spends the code and returns registration options and a challenge; adding verifies the credential with the library, keeps the passkey and starts a session.
 
 **Acceptance criteria:**
-- [ ] A code works once, not twice, and not after ten minutes; a wrong one is a 401. Case, dashes and spaces don't matter.
-- [ ] A credential the library rejects, or an expired or used challenge, is a 401 and keeps nothing; one it accepts keeps the passkey and sets the cookie, which then reads the user's rows.
-- [ ] The options ask for a discoverable passkey and user verification, for the configured relying party.
+- [x] A code works once, not twice, and not after ten minutes; a wrong one is a 401. Case, dashes and spaces don't matter.
+- [x] A credential the library rejects, or an expired or used challenge, is a 401 and keeps nothing; one it accepts keeps the passkey and sets the cookie, which then reads the user's rows.
+- [x] The options ask for a discoverable passkey and user verification, for the configured relying party.
 
 **Verify:** `uv run pytest tests/test_add_passkey.py`, then the four checks.
 

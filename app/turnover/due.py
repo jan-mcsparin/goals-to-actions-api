@@ -43,17 +43,9 @@ def item_slots(item: ItemSchedule, week: date, first_day: date) -> list[Slot]:
     """The tasks an item has in the period that `week` is in, or none if it isn't due.
     A flexible item's period task is the same for each week of the period, so a caller
     that skips what exists makes it once."""
-    if item.kind == "weekly":
-        assert item.weekday is not None
-        day = week + timedelta(days=item.weekday - 1)
-        return [(week, 1)] if day >= item.starts_on else []
-    if item.kind == "monthly":
-        assert item.day_of_month is not None
-        for offset in range(7):
-            day = week + timedelta(days=offset)
-            if day.day == item.day_of_month:
-                return [(week, 1)] if day >= item.starts_on else []
-        return []
+    if item.kind in ("weekly", "monthly"):
+        day = fixed_day(item.kind, item.weekday, item.day_of_month, week)
+        return [(week, 1)] if day is not None and day >= item.starts_on else []
     assert item.times is not None and item.period is not None
     if week < week_of(item.starts_on):
         return []
@@ -63,6 +55,21 @@ def item_slots(item: ItemSchedule, week: date, first_day: date) -> list[Slot]:
     else:
         count = item.times
     return [(start, number) for number in range(1, count + 1)]
+
+
+def fixed_day(
+    kind: str | None, weekday: int | None, day_of_month: int | None, week: date
+) -> date | None:
+    """A weekly or monthly item's day in `week`, or `None` if it has none there (a monthly
+    item's day falls in one week of the month)."""
+    if kind == "weekly" and weekday is not None:
+        return week + timedelta(days=weekday - 1)
+    if kind == "monthly":
+        for offset in range(7):
+            day = week + timedelta(days=offset)
+            if day.day == day_of_month:
+                return day
+    return None
 
 
 def period_start(item: ItemSchedule, week: date) -> date:

@@ -91,7 +91,8 @@ def test_the_first_request_in_a_week_opens_it(work: Connection) -> None:
         ("Stretch", 1),
         ("Stretch", 2),
     ]
-    assert all(row.planned_day is None for row in rows(work, WEEK))
+    # The planner puts them on days (tests/test_planner.py).
+    assert all(row.planned_day is not None for row in rows(work, WEEK))
     assert rows(work, NEXT_WEEK) == []
 
 

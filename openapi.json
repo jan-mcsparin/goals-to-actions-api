@@ -192,6 +192,33 @@
         "title": "CheckOff",
         "type": "object"
       },
+      "DayMark": {
+        "description": "A day's cap and whether it's reached: a guide shown on Week, never enforced (ADR-013).",
+        "properties": {
+          "cap": {
+            "description": "Tasks a day holds at the person's intensity: 3, 4 or 6.",
+            "title": "Cap",
+            "type": "integer"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "full": {
+            "description": "The day holds at least `cap` tasks, open or done.",
+            "title": "Full",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "day",
+          "cap",
+          "full"
+        ],
+        "title": "DayMark",
+        "type": "object"
+      },
       "DropIt": {
         "properties": {
           "answer": {
@@ -1794,6 +1821,14 @@
       "Week": {
         "description": "The plan read (ADR-010). The phone keeps it and draws Today, any day and the bank\nfrom it.",
         "properties": {
+          "days": {
+            "description": "Monday to Sunday, each with the full-day mark.",
+            "items": {
+              "$ref": "#/components/schemas/DayMark"
+            },
+            "title": "Days",
+            "type": "array"
+          },
           "goals": {
             "description": "Every active building goal with a target that week, and its progress.",
             "items": {
@@ -1830,7 +1865,8 @@
           "isCurrent",
           "nextWeekOpen",
           "tasks",
-          "goals"
+          "goals",
+          "days"
         ],
         "title": "Week",
         "type": "object"

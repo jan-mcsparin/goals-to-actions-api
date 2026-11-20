@@ -8,12 +8,12 @@ from uuid import UUID, uuid4
 from sqlalchemy import Connection
 
 from app.database import set_audit_action
-from app.db import goals, models, recurring_items, tasks, turnover, users, weekly_targets
+from app.db import goals, models, planner, recurring_items, tasks, turnover, users, weekly_targets
 from app.db.users import GetUserRow
 from app.errors import NotAllowed
 from app.planner import place_new_work
 from app.tasks.rules import add_row, set_outcome
-from app.turnover.due import Slot, goal_slots, item_slots
+from app.turnover.due import Slot, fixed_day, goal_slots, item_slots
 from app.turnover.endings import ending_of, schedule_of
 from app.users import lock_user
 from app.weeks import OpenWeeks, current_week, open_weeks
@@ -57,8 +57,8 @@ def catch_up(connection: Connection, user_id: UUID, now: datetime) -> bool:
     if due.close:
         last = current - timedelta(weeks=1)
         close_weeks(connection, user_id, last, current, owner.closed_through_week)
-        set_audit_action(connection, "open week")
         mark_closed(connection, user_id, last)
+    set_audit_action(connection, "open week")
     if due.open_current:
         open_week(connection, user_id, current, now.date())
     if due.open_next:
@@ -188,10 +188,24 @@ def fill_item(
     made: list[UUID] = []
     for week in (weeks.current, weeks.next) if weeks.next_open else (weeks.current,):
         existing = existing_slots(connection, user_id, week)
-        made += make_item_tasks(connection, user_id, item, week, today, existing)
+        new = make_item_tasks(connection, user_id, item, week, today, existing)
+        if fixed_day(item.schedule_kind, item.weekday, item.day_of_month, week) == today:
+            # Due today: the person just asked for it, so it goes on today. Not a planner write.
+            for task_id in new:
+                put_on_day(connection, user_id, task_id, week, today)
+        else:
+            made += new
     # A change places only on later days: today only changes because of something the person did.
     if made:
         place_new_work(connection, user_id, made, today + timedelta(days=1))
+
+
+def put_on_day(connection: Connection, user_id: UUID, task_id: UUID, week: date, day: date) -> None:
+    planner.Querier(connection).place_generated_task(
+        planner.PlaceGeneratedTaskParams(
+            day=day, task_id=task_id, user_id=user_id, week=week, first_day=day
+        )
+    )
 
 
 def fill_goal(

@@ -45,7 +45,7 @@ New, none queueable (ADR-010). All under `/api/sign-in`, all open without a sess
 - **Tests make a session row directly.** The `client` fixture signs in as the fixed user that way, sends `Origin: APP_ORIGIN`, and uses `https://testserver` so the `Secure` cookie is sent. Every existing test keeps working unchanged. The passkey routes are tested for refusal through the real library; their success paths replace the library's two verify functions with stand-ins that return a result, since tests don't act out a passkey (spec).
 - **Two tests over the whole schema,** each failing for an operation without a case: every route but `health` and the sign-in routes is a 401 with no session (`tests/test_signed_out.py`); and for every operation, a second user acting on the first user's rows leaves them unchanged and gets back none of their ids (`tests/test_other_user.py`, reusing `test_repeats.py`'s cases and snapshot).
 - **The repeat test leaves out `redeemCode`, `addPasskey`, `startSignIn` and `finishSignIn`** by name: a code and a challenge work once on purpose. `signOut` is in it.
-- **Dependency:** `webauthn==3.0.1`, which brings `cryptography`, `cbor2`, `pyOpenSSL`, `pyasn1` and `pyasn1-modules`. Asked for in the approval.
+- **Dependency:** `webauthn>=3.0.1` (3.0.1 locked), which brings `cryptography`, `cbor2`, `pyOpenSSL`, `pyasn1` and `pyasn1-modules`. Asked for in the approval.
 
 ## Dependency graph
 

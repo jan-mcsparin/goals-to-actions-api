@@ -8,10 +8,10 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ### Task 1: Add the WebAuthn library
 
-**Description:** `uv add webauthn==3.0.1` (asked for and agreed in the plan's approval).
+**Description:** `uv add "webauthn>=3.0.1"` (asked for and agreed in the plan's approval).
 
 **Acceptance criteria:**
-- [ ] It and `cryptography` install on Python 3.15 and import; `uv.lock` is committed.
+- [x] It and `cryptography` install on Python 3.15 and import; `uv.lock` is committed.
 
 **Verify:** `uv run python -c "import webauthn"`, then the four checks.
 

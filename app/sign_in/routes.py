@@ -42,6 +42,22 @@ def add_passkey(body: SignedChallenge, database: CurrentDatabase, moment: Moment
     return response
 
 
+@router.post("/start")
+def start_sign_in(database: CurrentDatabase, moment: Moment) -> PasskeyOptions:
+    """The options for the browser to sign in with a passkey, and the challenge to send back."""
+    options = rules.start_sign_in(database, moment)
+    return PasskeyOptions(challenge_id=options.challenge_id, options=options.options)
+
+
+@router.post("/finish", status_code=204, responses=SIGN_IN_FAILED)
+def finish_sign_in(body: SignedChallenge, database: CurrentDatabase, moment: Moment) -> Response:
+    """Checks the passkey's signature and signs this device in."""
+    token = rules.finish_sign_in(database, body.challenge_id, body.credential, moment)
+    response = Response(status_code=204)
+    set_session_cookie(response, token)
+    return response
+
+
 @router.post("/sign-out", status_code=204)
 def sign_out(
     database: CurrentDatabase, token: Annotated[str | None, Depends(session_cookie)]

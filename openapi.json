@@ -4977,6 +4977,51 @@
         ]
       }
     },
+    "/api/sign-in/finish": {
+      "post": {
+        "description": "Checks the passkey's signature and signs this device in.",
+        "operationId": "finishSignIn",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignedChallenge"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            },
+            "description": "The code, challenge or passkey didn't work."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Finish Sign In",
+        "tags": [
+          "sign-in"
+        ]
+      }
+    },
     "/api/sign-in/passkeys": {
       "post": {
         "description": "Keeps the passkey made for a redeemed code, and signs this device in.",
@@ -5037,6 +5082,28 @@
           }
         ],
         "summary": "Sign Out",
+        "tags": [
+          "sign-in"
+        ]
+      }
+    },
+    "/api/sign-in/start": {
+      "post": {
+        "description": "The options for the browser to sign in with a passkey, and the challenge to send back.",
+        "operationId": "startSignIn",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start Sign In",
         "tags": [
           "sign-in"
         ]

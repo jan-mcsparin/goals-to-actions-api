@@ -3,6 +3,7 @@
 #   sqlc v1.31.1
 # source: passkeys.sql
 import pydantic
+from typing import Optional
 import uuid
 
 import sqlalchemy
@@ -25,6 +26,26 @@ class AddPasskeyParams(pydantic.BaseModel):
     sign_count: int
 
 
+FIND_PASSKEY = """-- name: find_passkey \\:one
+select id, user_id, public_key, sign_count
+from passkeys
+where credential_id = :p1 and deleted_at is null
+"""
+
+
+class FindPasskeyRow(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    public_key: str
+    sign_count: int
+
+
+SET_SIGN_COUNT = """-- name: set_sign_count \\:exec
+update passkeys set sign_count = :p3
+where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
 class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
@@ -37,3 +58,17 @@ class Querier:
             "p4": arg.public_key,
             "p5": arg.sign_count,
         })
+
+    def find_passkey(self, *, credential_id: str) -> Optional[FindPasskeyRow]:
+        row = self._conn.execute(sqlalchemy.text(FIND_PASSKEY), {"p1": credential_id}).first()
+        if row is None:
+            return None
+        return FindPasskeyRow(
+            id=row[0],
+            user_id=row[1],
+            public_key=row[2],
+            sign_count=row[3],
+        )
+
+    def set_sign_count(self, *, id: uuid.UUID, user_id: uuid.UUID, sign_count: int) -> None:
+        self._conn.execute(sqlalchemy.text(SET_SIGN_COUNT), {"p1": id, "p2": user_id, "p3": sign_count})

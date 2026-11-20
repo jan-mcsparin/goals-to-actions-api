@@ -87,8 +87,8 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `startSignIn` and `finishSignIn`. Start makes a challenge with no user; finish finds the passkey by its credential id, verifies with the library, records the new sign count and starts a session.
 
 **Acceptance criteria:**
-- [ ] An unknown credential, a rejected one, a deleted passkey and an expired or used challenge are a 401.
-- [ ] An accepted one sets the cookie for the passkey's owner and updates the sign count.
+- [x] An unknown credential, a rejected one, a deleted passkey and an expired or used challenge are a 401.
+- [x] An accepted one sets the cookie for the passkey's owner and updates the sign count.
 
 **Verify:** `uv run pytest tests/test_sign_in.py`, then the four checks.
 

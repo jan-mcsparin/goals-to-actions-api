@@ -13,8 +13,10 @@ from uuid import UUID, uuid4
 
 from webauthn import (
     base64url_to_bytes,
+    generate_authentication_options,
     generate_registration_options,
     options_to_json,
+    verify_authentication_response,
     verify_registration_response,
 )
 from webauthn.helpers import bytes_to_base64url
@@ -116,3 +118,60 @@ def add_passkey(
             )
         )
         return start_session(connection, taken.user_id, moment)
+
+
+def start_sign_in(database: Database, moment: datetime) -> Options:
+    """The options for signing in with any passkey kept for this app. No user is named: the
+    passkey says whose it is."""
+    options = generate_authentication_options(
+        rp_id=PASSKEY_RP_ID,
+        timeout=int(CHALLENGE_LIFETIME.total_seconds() * 1000),
+        user_verification=UserVerificationRequirement.REQUIRED,
+    )
+    challenge_id = uuid4()
+    with database.transaction(None, "start sign-in") as connection:
+        sign_in_challenges.Querier(connection).add_challenge(
+            AddChallengeParams(
+                id=challenge_id,
+                user_id=None,
+                kind="sign_in",
+                challenge=bytes_to_base64url(options.challenge),
+                expires_at=moment + CHALLENGE_LIFETIME,
+            )
+        )
+    return Options(challenge_id, json.loads(options_to_json(options)))
+
+
+def finish_sign_in(
+    database: Database, challenge_id: UUID, credential: dict[str, Any], moment: datetime
+) -> str:
+    """Checks the challenge was signed by a kept passkey, and starts a session for its owner.
+    Returns the session's token."""
+    with database.transaction(None, "sign in") as connection:
+        taken = sign_in_challenges.Querier(connection).take_challenge(
+            id=challenge_id, kind="sign_in"
+        )
+    credential_id = credential.get("id")
+    if taken is None or moment >= taken.expires_at or not isinstance(credential_id, str):
+        raise SignInFailed
+    with database.read() as connection:
+        passkey = passkeys.Querier(connection).find_passkey(credential_id=credential_id)
+    if passkey is None:
+        raise SignInFailed
+    try:
+        verified = verify_authentication_response(
+            credential=credential,
+            expected_challenge=base64url_to_bytes(taken.challenge),
+            expected_rp_id=PASSKEY_RP_ID,
+            expected_origin=APP_ORIGIN,
+            credential_public_key=base64url_to_bytes(passkey.public_key),
+            credential_current_sign_count=passkey.sign_count,
+            require_user_verification=True,
+        )
+    except REFUSED as error:
+        raise SignInFailed from error
+    with database.transaction(passkey.user_id, "sign in") as connection:
+        passkeys.Querier(connection).set_sign_count(
+            id=passkey.id, user_id=passkey.user_id, sign_count=verified.new_sign_count
+        )
+        return start_session(connection, passkey.user_id, moment)

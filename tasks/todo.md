@@ -137,7 +137,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 **Acceptance criteria:**
 - [x] The review has been run, and its findings are listed in the PR.
-- [x] Every finding to be fixed before hosting is fixed, with a test; the rest are noted as left for open sign-up. Fixed: expired challenges cleared as new ones are made; any failure in the library's parsing is a 401, not a 500; a credential already kept is refused instead of reported as added. For hosting (ADR-011): `Origin` forwarded, a rate limit on `/api/sign-in/*`. Left for Jan: commands to end a user's sessions and remove a passkey; ending the old session on signing in again.
+- [x] Every finding to be fixed before hosting is fixed, with a test; the rest are noted as left for open sign-up. Fixed: expired challenges cleared as new ones are made; any failure in the library's parsing is a 401, not a 500; a credential already kept is refused instead of reported as added. For hosting (ADR-011): `Origin` forwarded, a rate limit on `/api/sign-in/*`. Then, agreed with Jan: `end-sessions` and `remove-passkeys` commands, and signing in again ends the device's old session. The code review's fix: the signed-out test names its open routes by operation id.
 
 **Verify:** the four checks after the fixes.
 

@@ -46,9 +46,13 @@ Every route but `health` and `/api/sign-in/*` answers 401 without a session ([AD
 There's no sign-up. A user is added by a command, which prints their first one-time code (used once, for ten minutes); typed into the app, it lets that device add a passkey. The same command makes a new code for a new device, or to get back in:
 
 ```bash
-uv run python -m app.sign_in.command add-user           # a new user, and their first code
-uv run python -m app.sign_in.command code <user-id>     # a new code for a user
+uv run python -m app.sign_in.command add-user                  # a new user, and their first code
+uv run python -m app.sign_in.command code <user-id>            # a new code for a user
+uv run python -m app.sign_in.command end-sessions <user-id>    # a lost phone: signed out everywhere
+uv run python -m app.sign_in.command remove-passkeys <user-id> # no longer trusted: only a new code gets them back
 ```
+
+Signing in again on a device ends that device's earlier session.
 
 Hosted, it runs inside AWS against the hosted database. The founder's account is the user from before sign-in (`FIXED_USER_ID`), so to sign in locally the first time: `uv run python -m app.sign_in.command code 00000000-0000-4000-8000-000000000001`.
 

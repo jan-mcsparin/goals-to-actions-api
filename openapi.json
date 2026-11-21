@@ -1263,7 +1263,7 @@
         "type": "object"
       },
       "PlanAspiration": {
-        "description": "The aspiration a task's goal is under, so the phone can order and label the plan from\nthe week read alone.",
+        "description": "The aspiration a task is under, so the phone can order and label the plan from the week\nread alone.",
         "properties": {
           "id": {
             "format": "uuid",
@@ -1725,7 +1725,7 @@
                 "type": "null"
               }
             ],
-            "description": "Its goal's aspiration. Empty with no goal, or a goal under none."
+            "description": "Its goal's aspiration, or for a recurring item's task with no goal, the item's. Empty when it's under none."
           },
           "atClose": {
             "anyOf": [

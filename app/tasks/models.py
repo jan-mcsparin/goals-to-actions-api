@@ -54,8 +54,8 @@ class TimeOfDay(ApiModel):
 
 
 class PlanAspiration(ApiModel):
-    """The aspiration a task's goal is under, so the phone can order and label the plan from
-    the week read alone."""
+    """The aspiration a task is under, so the phone can order and label the plan from the week
+    read alone."""
 
     id: UUID
     name: str
@@ -78,7 +78,10 @@ class Task(ApiModel):
     goal_id: UUID | None
     goal_label: str | None
     aspiration: PlanAspiration | None = Field(
-        description="Its goal's aspiration. Empty with no goal, or a goal under none."
+        description=(
+            "Its goal's aspiration, or for a recurring item's task with no goal, the item's."
+            " Empty when it's under none."
+        )
     )
     recurring_item_id: UUID | None
     fixed_day: bool = Field(

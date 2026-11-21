@@ -95,9 +95,9 @@ left join task_weeks shown on shown.id = (
   limit 1
 )
 left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
-left join aspirations on aspirations.id = goals.aspiration_id
-  and aspirations.deleted_at is null
 left join recurring_items items on items.id = tasks.recurring_item_id
+left join aspirations on aspirations.id = coalesce(goals.aspiration_id, items.aspiration_id)
+  and aspirations.deleted_at is null
 where tasks.id = :p1 and tasks.user_id = :p2 and tasks.deleted_at is null
 """
 
@@ -285,9 +285,9 @@ select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.
 from task_weeks
 join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
 left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
-left join aspirations on aspirations.id = goals.aspiration_id
-  and aspirations.deleted_at is null
 left join recurring_items items on items.id = tasks.recurring_item_id
+left join aspirations on aspirations.id = coalesce(goals.aspiration_id, items.aspiration_id)
+  and aspirations.deleted_at is null
 where task_weeks.user_id = :p1 and task_weeks.week = :p2 and task_weeks.deleted_at is null
   and (task_weeks.outcome is null or task_weeks.outcome = 'done')
 order by task_weeks.planned_day nulls last, tasks.time_of_day nulls last, tasks.created_at,

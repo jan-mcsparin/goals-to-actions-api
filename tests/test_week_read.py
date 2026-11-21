@@ -353,3 +353,27 @@ def test_an_upcoming_task_names_its_goals_aspiration(tasks_client: TestClient) -
     [waiting] = tasks_client.get("/api/tasks/upcoming").json()["tasks"]
 
     assert waiting["aspiration"] == {"id": aspiration["id"], "name": "Be fit", "position": 1}
+
+
+def test_a_recurring_items_task_with_no_goal_names_the_items_aspiration(
+    tasks_client: TestClient,
+) -> None:
+    aspiration = create_aspiration(tasks_client, "Be fit")
+    create_item(
+        tasks_client,
+        item(
+            name="Stretch",
+            aspirationId=aspiration["id"],
+            schedule={"kind": "weekly", "weekday": "thursday"},
+        ),
+    )
+    create_item(
+        tasks_client, item(name="Laundry", schedule={"kind": "weekly", "weekday": "thursday"})
+    )
+
+    week = get_week(tasks_client, this_week())
+
+    assert {task["title"]: task["aspiration"] for task in week["tasks"]} == {
+        "Stretch": {"id": aspiration["id"], "name": "Be fit", "position": 1},
+        "Laundry": None,
+    }

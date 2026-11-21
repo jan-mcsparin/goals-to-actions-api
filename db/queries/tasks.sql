@@ -19,11 +19,14 @@ values ($1, $2, $3, 'by_hand', $4, $5, $6, $7)
 on conflict (id) do nothing
 returning *;
 
--- A task as the screens show it: with its goal's label, how often it has carried over, and
+-- A task as the screens show it: with its goal's label, its aspiration (its goal's, or for a
+-- recurring item's task with no goal, the item's), how often it has carried over, and
 -- its row in play, or its done row. A task that's waiting, or set aside, has no week.
 -- name: GetTaskView :one
 select tasks.*, shown.week, shown.planned_day, shown.placed_by_hand,
   goals.label as goal_label,
+  aspirations.id as aspiration_id, aspirations.name as aspiration_name,
+  aspirations.position as aspiration_position,
   items.schedule_kind as item_kind, items.period as item_period,
   (select count(*) from task_weeks rolled
     where rolled.task_id = tasks.id and rolled.outcome = 'rolled_over'
@@ -44,6 +47,8 @@ left join task_weeks shown on shown.id = (
 )
 left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
 left join recurring_items items on items.id = tasks.recurring_item_id
+left join aspirations on aspirations.id = coalesce(goals.aspiration_id, items.aspiration_id)
+  and aspirations.deleted_at is null
 where tasks.id = $1 and tasks.user_id = $2 and tasks.deleted_at is null;
 
 -- The week read: the week's rows in play or done, by day, then the bank; timed tasks first
@@ -51,6 +56,8 @@ where tasks.id = $1 and tasks.user_id = $2 and tasks.deleted_at is null;
 -- name: ListWeekTasks :many
 select tasks.*, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand,
   goals.label as goal_label,
+  aspirations.id as aspiration_id, aspirations.name as aspiration_name,
+  aspirations.position as aspiration_position,
   items.schedule_kind as item_kind, items.period as item_period,
   (select count(*) from task_weeks rolled
     where rolled.task_id = tasks.id and rolled.outcome = 'rolled_over'
@@ -64,6 +71,8 @@ from task_weeks
 join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
 left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
 left join recurring_items items on items.id = tasks.recurring_item_id
+left join aspirations on aspirations.id = coalesce(goals.aspiration_id, items.aspiration_id)
+  and aspirations.deleted_at is null
 where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.deleted_at is null
   and (task_weeks.outcome is null or task_weeks.outcome = 'done')
 order by task_weeks.planned_day nulls last, tasks.time_of_day nulls last, tasks.created_at,
@@ -109,6 +118,8 @@ group by tasks.goal_id;
 -- name: ListSteps :many
 select tasks.*, shown.week, shown.planned_day, shown.placed_by_hand,
   goals.label as goal_label,
+  aspirations.id as aspiration_id, aspirations.name as aspiration_name,
+  aspirations.position as aspiration_position,
   items.schedule_kind as item_kind, items.period as item_period,
   (select count(*) from task_weeks rolled
     where rolled.task_id = tasks.id and rolled.outcome = 'rolled_over'
@@ -128,6 +139,8 @@ left join task_weeks shown on shown.id = (
   limit 1
 )
 join goals on goals.id = tasks.goal_id
+left join aspirations on aspirations.id = goals.aspiration_id
+  and aspirations.deleted_at is null
 left join recurring_items items on items.id = tasks.recurring_item_id
 where tasks.goal_id = $1 and tasks.user_id = $2 and tasks.state <> 'dropped'
   and tasks.deleted_at is null
@@ -150,10 +163,14 @@ where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.outcome = 
 -- name: ListUpcoming :many
 select tasks.*, null::date as week, null::date as planned_day, false as placed_by_hand,
   goals.label as goal_label,
+  aspirations.id as aspiration_id, aspirations.name as aspiration_name,
+  aspirations.position as aspiration_position,
   null::text as item_kind, null::text as item_period, 0::integer as rolled_since_answer,
   0::integer as carried_over
 from tasks
 left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
+left join aspirations on aspirations.id = goals.aspiration_id
+  and aspirations.deleted_at is null
 where tasks.user_id = $1 and tasks.origin = 'by_hand' and tasks.state = 'open'
   and tasks.due_date is not null and tasks.deleted_at is null
   and not exists (

@@ -9,8 +9,11 @@ from sqlalchemy import Connection, text
 
 from app.weeks import week_of
 from tests.test_aspirations import add_other_user
+from tests.test_aspirations import create as create_aspiration
 from tests.test_check_off import check_off
 from tests.test_goals import ZONE, create_goal, lifting, no_sugar, today
+from tests.test_recurring_items import create as create_item
+from tests.test_recurring_items import item
 from tests.test_tasks import add_task, open_next_week
 
 
@@ -219,3 +222,158 @@ def test_paused_and_later_and_building_goals_are_left_out(tasks_client: TestClie
     create_goal(tasks_client, lifting())
 
     assert quitting_goals(tasks_client) == []
+
+
+# What Today and Week need from the week read alone (#45): each task's and goal's aspiration,
+# and whether a task is fixed to its day.
+
+
+def test_a_goals_task_and_the_goal_name_its_aspiration_and_priority(
+    tasks_client: TestClient,
+) -> None:
+    create_aspiration(tasks_client, "Be fit")
+    second = create_aspiration(tasks_client, "Be kind")
+    goal = create_goal(tasks_client, lifting(aspirationId=second["id"]))
+    add_task(tasks_client, title="Lift", goalId=goal["id"])
+
+    week = get_week(tasks_client, this_week())
+
+    named = {"id": second["id"], "name": "Be kind", "position": 2}
+    [lift] = [task for task in week["tasks"] if task["title"] == "Lift"]
+    assert lift["aspiration"] == named
+    [bar] = week["goals"]
+    assert bar["aspiration"] == named
+
+
+def test_a_loose_task_and_a_goal_with_no_aspiration_name_none(tasks_client: TestClient) -> None:
+    goal = create_goal(tasks_client, lifting())
+    add_task(tasks_client, title="Lift", goalId=goal["id"])
+    add_task(tasks_client, title="Call the vet")
+
+    week = get_week(tasks_client, this_week())
+
+    assert {
+        task["title"]: task["aspiration"] for task in week["tasks"] if task["origin"] == "byHand"
+    } == {
+        "Lift": None,
+        "Call the vet": None,
+    }
+    assert week["goals"][0]["aspiration"] is None
+
+
+def test_a_retired_aspiration_has_no_priority(tasks_client: TestClient) -> None:
+    aspiration = create_aspiration(tasks_client, "Be fit")
+    goal = create_goal(tasks_client, lifting(aspirationId=aspiration["id"]))
+    add_task(tasks_client, title="Lift", goalId=goal["id"])
+    retired = tasks_client.post(
+        f"/api/aspirations/{aspiration['id']}/retire", json={"itsWork": "keep"}
+    )
+    assert retired.status_code == 200, retired.text
+
+    week = get_week(tasks_client, this_week())
+
+    [lift] = [task for task in week["tasks"] if task["title"] == "Lift"]
+    assert lift["aspiration"] == {"id": aspiration["id"], "name": "Be fit", "position": None}
+
+
+def test_a_weekly_or_monthly_items_task_is_fixed_to_its_day(tasks_client: TestClient) -> None:
+    create_item(
+        tasks_client,
+        item(name="Water the plants", schedule={"kind": "weekly", "weekday": "thursday"}),
+    )
+    create_item(
+        tasks_client,
+        item(name="Laundry", schedule={"kind": "flexible", "times": 1, "period": "week"}),
+    )
+    add_task(tasks_client, title="Call the vet")
+
+    week = get_week(tasks_client, this_week())
+
+    fixed = {task["title"]: task["fixedDay"] for task in week["tasks"]}
+    assert fixed == {"Water the plants": True, "Laundry": False, "Call the vet": False}
+
+
+def test_a_task_write_and_the_upcoming_list_carry_both(tasks_client: TestClient) -> None:
+    aspiration = create_aspiration(tasks_client, "Be fit")
+    goal = create_goal(tasks_client, lifting(aspirationId=aspiration["id"]))
+
+    added = add_task(tasks_client, title="Lift", goalId=goal["id"])
+    add_task(tasks_client, title="Waiting", dueDate=(today() + timedelta(days=8)).isoformat())
+    upcoming = tasks_client.get("/api/tasks/upcoming").json()["tasks"]
+
+    assert (added["aspiration"]["name"], added["fixedDay"]) == ("Be fit", False)
+    assert [(task["aspiration"], task["fixedDay"]) for task in upcoming] == [(None, False)]
+
+
+def test_a_monthly_items_task_is_fixed_to_its_day(tasks_client: TestClient) -> None:
+    create_item(tasks_client, item(name="Pay rent", schedule={"kind": "monthly", "dayOfMonth": 20}))
+
+    [rent] = [
+        task for task in get_week(tasks_client, this_week())["tasks"] if task["title"] == "Pay rent"
+    ]
+
+    assert rent["fixedDay"] is True
+
+
+def test_a_fixed_day_task_that_carried_over_is_placed_like_any_task(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    create_item(
+        tasks_client,
+        item(name="Water the plants", schedule={"kind": "weekly", "weekday": "thursday"}),
+    )
+    connection.execute(
+        text(
+            "insert into task_weeks (id, user_id, task_id, week, outcome)"
+            " select :id, user_id, id, :week, 'rolled_over' from tasks"
+            " where title = 'Water the plants'"
+        ),
+        {"id": uuid4(), "week": week_of(today()) - timedelta(weeks=1)},
+    )
+
+    [plants] = [
+        task
+        for task in get_week(tasks_client, this_week())["tasks"]
+        if task["title"] == "Water the plants"
+    ]
+
+    assert (plants["carriedOver"], plants["fixedDay"]) == (1, False)
+
+
+def test_an_upcoming_task_names_its_goals_aspiration(tasks_client: TestClient) -> None:
+    aspiration = create_aspiration(tasks_client, "Be fit")
+    goal = create_goal(tasks_client, lifting(aspirationId=aspiration["id"]))
+    add_task(
+        tasks_client,
+        title="Book a race",
+        goalId=goal["id"],
+        dueDate=(today() + timedelta(days=40)).isoformat(),
+    )
+
+    [waiting] = tasks_client.get("/api/tasks/upcoming").json()["tasks"]
+
+    assert waiting["aspiration"] == {"id": aspiration["id"], "name": "Be fit", "position": 1}
+
+
+def test_a_recurring_items_task_with_no_goal_names_the_items_aspiration(
+    tasks_client: TestClient,
+) -> None:
+    aspiration = create_aspiration(tasks_client, "Be fit")
+    create_item(
+        tasks_client,
+        item(
+            name="Stretch",
+            aspirationId=aspiration["id"],
+            schedule={"kind": "weekly", "weekday": "thursday"},
+        ),
+    )
+    create_item(
+        tasks_client, item(name="Laundry", schedule={"kind": "weekly", "weekday": "thursday"})
+    )
+
+    week = get_week(tasks_client, this_week())
+
+    assert {task["title"]: task["aspiration"] for task in week["tasks"]} == {
+        "Stretch": {"id": aspiration["id"], "name": "Be fit", "position": 1},
+        "Laundry": None,
+    }

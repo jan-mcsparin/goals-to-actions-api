@@ -1785,7 +1785,7 @@
             "title": "Duedate"
           },
           "fixedDay": {
-            "description": "From a weekly or monthly recurring item: it stays on its day.",
+            "description": "From a weekly or monthly recurring item, in the week it was due: it stays on its day. One that carried over is placed like any task.",
             "title": "Fixedday",
             "type": "boolean"
           },
@@ -2160,7 +2160,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "The aspiration it's under. Empty when it's under none."
           },
           "id": {
             "format": "uuid",

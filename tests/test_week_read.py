@@ -303,3 +303,53 @@ def test_a_task_write_and_the_upcoming_list_carry_both(tasks_client: TestClient)
 
     assert (added["aspiration"]["name"], added["fixedDay"]) == ("Be fit", False)
     assert [(task["aspiration"], task["fixedDay"]) for task in upcoming] == [(None, False)]
+
+
+def test_a_monthly_items_task_is_fixed_to_its_day(tasks_client: TestClient) -> None:
+    create_item(tasks_client, item(name="Pay rent", schedule={"kind": "monthly", "dayOfMonth": 20}))
+
+    [rent] = [
+        task for task in get_week(tasks_client, this_week())["tasks"] if task["title"] == "Pay rent"
+    ]
+
+    assert rent["fixedDay"] is True
+
+
+def test_a_fixed_day_task_that_carried_over_is_placed_like_any_task(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    create_item(
+        tasks_client,
+        item(name="Water the plants", schedule={"kind": "weekly", "weekday": "thursday"}),
+    )
+    connection.execute(
+        text(
+            "insert into task_weeks (id, user_id, task_id, week, outcome)"
+            " select :id, user_id, id, :week, 'rolled_over' from tasks"
+            " where title = 'Water the plants'"
+        ),
+        {"id": uuid4(), "week": week_of(today()) - timedelta(weeks=1)},
+    )
+
+    [plants] = [
+        task
+        for task in get_week(tasks_client, this_week())["tasks"]
+        if task["title"] == "Water the plants"
+    ]
+
+    assert (plants["carriedOver"], plants["fixedDay"]) == (1, False)
+
+
+def test_an_upcoming_task_names_its_goals_aspiration(tasks_client: TestClient) -> None:
+    aspiration = create_aspiration(tasks_client, "Be fit")
+    goal = create_goal(tasks_client, lifting(aspirationId=aspiration["id"]))
+    add_task(
+        tasks_client,
+        title="Book a race",
+        goalId=goal["id"],
+        dueDate=(today() + timedelta(days=40)).isoformat(),
+    )
+
+    [waiting] = tasks_client.get("/api/tasks/upcoming").json()["tasks"]
+
+    assert waiting["aspiration"] == {"id": aspiration["id"], "name": "Be fit", "position": 1}

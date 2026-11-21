@@ -82,7 +82,8 @@ class Task(ApiModel):
     )
     recurring_item_id: UUID | None
     fixed_day: bool = Field(
-        description="From a weekly or monthly recurring item: it stays on its day."
+        description="From a weekly or monthly recurring item, in the week it was due: it stays "
+        "on its day. One that carried over is placed like any task."
     )
     due_date: date | None
     time_of_day: TimeOfDay | None
@@ -121,7 +122,7 @@ class Task(ApiModel):
                 row.aspiration_id, row.aspiration_name, row.aspiration_position
             ),
             recurring_item_id=row.recurring_item_id,
-            fixed_day=row.item_kind in FIXED_KINDS,
+            fixed_day=row.item_kind in FIXED_KINDS and row.carried_over == 0,
             due_date=row.due_date,
             time_of_day=TimeOfDay.from_columns(row.time_kind, row.time_of_day),
             value_logged=None if row.value_logged is None else float(row.value_logged),
@@ -180,7 +181,9 @@ class WeekGoal(ApiModel):
 
     id: UUID
     label: str
-    aspiration: PlanAspiration | None
+    aspiration: PlanAspiration | None = Field(
+        description="The aspiration it's under. Empty when it's under none."
+    )
     weekly_target: WeeklyTarget
     progress: WeekProgress
 

@@ -35,7 +35,7 @@ def week_read(connection: Connection, user_id: UUID, week: date, today: date) ->
     all_goals = list(goals.Querier(connection).list_goals(user_id=user_id))
     active = [goal for goal in all_goals if goal.status == "active" and goal.id in targets]
     under = {
-        row.id: PlanAspiration(id=row.id, name=row.name, position=row.position)
+        row.id: PlanAspiration.from_columns(row.id, row.name, row.position)
         for row in aspirations.Querier(connection).list_aspirations(user_id=user_id)
     }
     return Week(

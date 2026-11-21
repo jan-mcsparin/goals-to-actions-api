@@ -21,6 +21,7 @@ from app.tasks.models import (
     Swap,
     TaskEdit,
     ToBank,
+    is_fixed_day,
 )
 from app.turnover.endings import ending_for
 from app.users import lock_user
@@ -290,6 +291,7 @@ def place(
     it to another day."""
     owner = lock_user(connection, user_id)
     row = row_in_week(connection, user_id, task_id, placing.week)
+    keep_on_its_day(connection, user_id, task_id, row, placing.day)
     check_day(
         placing.day,
         row.week,
@@ -303,6 +305,7 @@ def move_to_bank(connection: Connection, user_id: UUID, task_id: UUID, to_bank: 
     """Clears the task's day. Nothing else changes."""
     lock_user(connection, user_id)
     row = row_in_week(connection, user_id, task_id, to_bank.week)
+    keep_on_its_day(connection, user_id, task_id, row, None)
     to_the_bank(connection, user_id, row)
 
 
@@ -323,6 +326,18 @@ def row_in_week(connection: Connection, user_id: UUID, task_id: UUID, week: date
     return row
 
 
+def keep_on_its_day(
+    connection: Connection, user_id: UUID, task_id: UUID, row: TaskWeek, day: date | None
+) -> None:
+    """A fixed-day task stays on its day in the week it was due. One with no day yet can be
+    placed."""
+    if row.planned_day is None or day == row.planned_day:
+        return
+    view = tasks.Querier(connection).get_task_view(id=task_id, user_id=user_id)
+    if view is not None and is_fixed_day(view.item_kind, view.carried_over):
+        raise NotAllowed("This one stays on its day.")
+
+
 def check_day(day: date, week: date, today: date, weeks: OpenWeeks) -> None:
     if week_of(day) != week or not day_allowed(day, today, weeks):
         raise NotAllowed("A task goes on a day from today on, in its own week.")
@@ -335,6 +350,7 @@ def swap(connection: Connection, user_id: UUID, task_id: UUID, swap: Swap, today
     if swap.bank_task_id == task_id:
         raise NotAllowed("A task can't be swapped with itself.")
     to_bank = row_in_week(connection, user_id, task_id, swap.week)
+    keep_on_its_day(connection, user_id, task_id, to_bank, None)
     placed = row_in_week(connection, user_id, swap.bank_task_id, swap.week)
     check_day(
         swap.day,

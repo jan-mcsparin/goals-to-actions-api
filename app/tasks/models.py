@@ -125,7 +125,7 @@ class Task(ApiModel):
                 row.aspiration_id, row.aspiration_name, row.aspiration_position
             ),
             recurring_item_id=row.recurring_item_id,
-            fixed_day=row.item_kind in FIXED_KINDS and row.carried_over == 0,
+            fixed_day=is_fixed_day(row.item_kind, row.carried_over),
             due_date=row.due_date,
             time_of_day=TimeOfDay.from_columns(row.time_kind, row.time_of_day),
             value_logged=None if row.value_logged is None else float(row.value_logged),
@@ -152,6 +152,11 @@ def at_close(
         == "rolls_over"
     )
     return "carriesOver" if rolls_over else "ends"
+
+
+def is_fixed_day(item_kind: str | None, carried_over: int) -> bool:
+    """From a weekly or monthly item, in the week it was due: it stays on its day."""
+    return item_kind in FIXED_KINDS and carried_over == 0
 
 
 def still_matters(

@@ -294,8 +294,9 @@ def uncheck_task(given: Given) -> Request:
 
 
 def place_task(given: Given) -> Request:
-    body = {"week": this_week().isoformat(), "day": today().isoformat()}
-    return "POST", f"/api/tasks/{task(given.client)}/place", body
+    # To a day in a later week, the widest move (spec `on-a-day`).
+    body = {"week": this_week().isoformat(), "day": (today() + timedelta(weeks=3)).isoformat()}
+    return "POST", f"/api/tasks/{on_today(given.client)}/place", body
 
 
 def move_task_to_bank(given: Given) -> Request:

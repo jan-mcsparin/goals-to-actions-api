@@ -25,17 +25,17 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `MoveTaskWeek` in `db/queries/task_weeks.sql`, `sqlc generate`; `place` moves a task added by hand to another week; generated tasks and `swap` stay in their week; the `placeTask` description; `openapi.json`.
 
 **Acceptance criteria:**
-- [ ] This week's task to a day in December and back to tomorrow; a pinned task from one later week to another. Still placed by hand, no `rolled_over` row.
-- [ ] 409: a goal session to next week, a fixed-day task off its day, a stale `week`, a day before today, another row of the task in the target week.
-- [ ] `answerStillMatters` with `schedule` to a later week.
-- [ ] Repeats (a move twice), a queued move after the task left its week (`test_queued_writes.py`).
+- [x] This week's task to a day in December and back to tomorrow; a pinned task from one later week to another. Still placed by hand, no `rolled_over` row.
+- [x] 409: a goal session to next week, a fixed-day task off its day, a stale `week`, a day before today, another row of the task in the target week.
+- [x] `answerStillMatters` with `schedule` to a later week.
+- [x] Repeats (a move twice), a queued move after the task left its week (`test_queued_writes.py`).
 
 **Verify:** `uv run pytest tests/test_task_moves.py tests/test_still_matters.py`, then the four checks.
 
 **Dependencies:** 1.
 
 ## Checkpoint: after tasks 1–2
-- [ ] The four checks pass; `openapi.json` differs only in the two descriptions.
+- [x] The four checks pass; `openapi.json` differs only in the two descriptions.
 
 ### Task 3: Opening and skipping a pinned week
 

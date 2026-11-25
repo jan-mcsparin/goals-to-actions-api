@@ -254,7 +254,10 @@ class Placing(ApiModel):
     week: date = Field(
         description="The week the change was made in. Refused once the task has left it."
     )
-    day: date
+    day: date = Field(
+        description="A day from today on. A task added by hand can go to another week; a "
+        "generated one stays in its own."
+    )
 
 
 class ToBank(ApiModel):

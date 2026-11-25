@@ -83,6 +83,15 @@ def test_placing_it_on_another_day_is_refused(tasks_client: TestClient) -> None:
     assert plants_day(tasks_client) == today().isoformat()
 
 
+def test_placing_it_in_a_later_week_is_refused(tasks_client: TestClient) -> None:
+    plants = todays_item(tasks_client)
+
+    response = place(tasks_client, plants["id"], today() + timedelta(weeks=3), week_of(today()))
+
+    assert response.status_code == 409
+    assert plants_day(tasks_client) == today().isoformat()
+
+
 def test_placing_it_on_its_own_day_and_checking_it_off_still_work(
     tasks_client: TestClient,
 ) -> None:

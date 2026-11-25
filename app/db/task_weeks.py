@@ -104,6 +104,12 @@ order by week
 """
 
 
+MOVE_TASK_WEEK = """-- name: move_task_week \\:exec
+update task_weeks set week = :p3, planned_day = :p4, placed_by_hand = true
+where id = :p1 and user_id = :p2 and deleted_at is null and outcome is null
+"""
+
+
 SET_TASK_WEEK = """-- name: set_task_week \\:exec
 update task_weeks set planned_day = :p3, placed_by_hand = :p4, outcome = :p5
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -191,6 +197,14 @@ class Querier:
                 updated_at=row[8],
                 deleted_at=row[9],
             )
+
+    def move_task_week(self, *, id: uuid.UUID, user_id: uuid.UUID, week: datetime.date, planned_day: Optional[datetime.date]) -> None:
+        self._conn.execute(sqlalchemy.text(MOVE_TASK_WEEK), {
+            "p1": id,
+            "p2": user_id,
+            "p3": week,
+            "p4": planned_day,
+        })
 
     def set_task_week(self, arg: SetTaskWeekParams) -> None:
         self._conn.execute(sqlalchemy.text(SET_TASK_WEEK), {

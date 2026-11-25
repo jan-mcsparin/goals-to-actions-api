@@ -169,7 +169,8 @@ def test_a_plan_edit_made_in_a_week_the_task_has_left_is_refused(
     tasks_client: TestClient, name: str
 ) -> None:
     send = PLAN_EDITS[name]
-    task_id = add_task(tasks_client, day=day())["id"]
+    # On tomorrow, so each edit would change something: one that changes nothing is a repeat.
+    task_id = add_task(tasks_client, day=(today() + timedelta(days=1)).isoformat())["id"]
     other_id = counterpart(tasks_client, send)
     last_week = (this_week() - timedelta(weeks=1)).isoformat()
 

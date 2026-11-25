@@ -11,10 +11,10 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `day_allowed` from today on in the current week or later; `landing` uses it; the `addTask` `day` description; `openapi.json`.
 
 **Acceptance criteria:**
-- [ ] A day three weeks out: a hand-placed row in that week; this week's read and the upcoming list (with a due date set) leave it out.
-- [ ] Yesterday, and a day in a week a wrap-up closed: the current week's bank.
-- [ ] Checking off a task pinned in a week that hasn't started: 409.
-- [ ] The add sent twice changes nothing more (`test_repeats.py`).
+- [x] A day three weeks out: a hand-placed row in that week; this week's read and the upcoming list (with a due date set) leave it out.
+- [x] Yesterday, and a day in a week a wrap-up closed: the current week's bank.
+- [x] Checking off a task pinned in a week that hasn't started: 409.
+- [x] The add sent twice changes nothing more (`test_repeats.py`).
 
 **Verify:** `uv run pytest tests/test_tasks.py`, then the four checks.
 

@@ -179,8 +179,8 @@ class NewTask(ApiModel):
     time_of_day: TimeOfDay | None = None
     day: date | None = Field(
         default=None,
-        description="A day to put it on, placed by hand. A day no longer allowed (a past day, "
-        "or one outside the open weeks) saves it in the current week's bank instead.",
+        description="A day from today on, in this week or a later one. The task is placed "
+        "there by hand. A day before today goes to the current week's bank.",
     )
 
 

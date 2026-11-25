@@ -101,9 +101,10 @@ def landing(new: NewTask, goal_type: str | None, today: date, weeks: OpenWeeks) 
 
 
 def day_allowed(day: date, today: date, weeks: OpenWeeks) -> bool:
-    """A task can go on a day from today on, in an open week. When today is before the current
-    week (after a wrap-up, or a flight west), that leaves today out."""
-    return day >= today and week_of(day) in weeks
+    """A task can go on a day from today on, in the current week or a later one, opened or
+    not (spec `on-a-day`). When today is before the current week (after a wrap-up, or a
+    flight west), that leaves today out."""
+    return day >= today and week_of(day) >= weeks.current
 
 
 def add_row(

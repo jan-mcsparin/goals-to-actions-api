@@ -64,7 +64,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** Spec status and As built; `recurring-items.md`, `week-turnover.md`, `planner.md`, the map; `../docs/flows.md` flow 4 on a parent-repo branch. A Sonnet agent runs the four checks and the spec's cases against the running API (items named "Verification: …").
 
 **Acceptance criteria:**
-- [ ] Every doc describes what was built; the agent's findings are in the PR.
+- [x] Every doc describes what was built; the agent's findings are in the PR.
 
 **Verify:** read through; the four checks.
 

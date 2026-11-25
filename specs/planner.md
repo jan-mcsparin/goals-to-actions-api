@@ -31,7 +31,7 @@ References: [`product-rules.md`](../../docs/product-rules.md#planning), [`flows.
 ## When it runs
 
 1. **The first placement,** when a week opens (`week-turnover`), in the same transaction. It places the new week's recurring work and may use any day from today on. Opened on Sunday evening, that is the whole week.
-2. **New recurring work,** in the transaction that creates it: a new building goal's sessions, a session added by a raised target, a new or changed recurring item's tasks, and sessions or recurring tasks made fresh when a goal or item comes back. It places only the arriving tasks, on days after today. With no day after today left in the week, they stay in the bank.
+2. **New recurring work,** in the transaction that creates it: a new building goal's sessions, a session added by a raised target, a new or changed recurring item's tasks, and sessions or recurring tasks made fresh when a goal or item comes back. It places only the arriving tasks, on days after today. With no day after today left in the week, they stay in the bank. An edited recurring item's own tasks moving to their new day is the edit's write, not the planner's ([`recurring-edit`](recurring-edit.md)).
 
 It never runs because a slot came free, and never for a carry-over: carry-overs arrive in the bank. A task the person sent to the bank, added to the bank, or got back by resuming a goal stays there until they place it.
 

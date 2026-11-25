@@ -1,6 +1,6 @@
 # Spec: Editing a recurring item moves this week's work
 
-Status: settled with Jan 2026-11-25, as recommended; plan in [`../tasks/plan.md`](../tasks/plan.md). Issue: [#49](https://github.com/jan-mcsparin/goals-to-actions-api/issues/49); its acceptance criteria were settled with Jan on 2026-11-20, and this spec adds recommendations for the three questions it left open (decisions 1 to 3) and one more found while writing it (decision 4). Module `recurring-edit` in the [map](README.md), an addition to `recurring-items`, `week-turnover` and `planner`. The front end's [#76](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/76) (spec [076](../../web-frontend/specs/076-edit-recurring-item.md)) waits on it.
+Status: built 2026-11-25; decisions settled with Jan the same day, as recommended. The plan is in git history (`tasks/plan.md`). Issue: [#49](https://github.com/jan-mcsparin/goals-to-actions-api/issues/49); its acceptance criteria were settled with Jan on 2026-11-20, and this spec adds recommendations for the three questions it left open (decisions 1 to 3) and one more found while writing it (decision 4). Module `recurring-edit` in the [map](README.md), an addition to `recurring-items`, `week-turnover` and `planner`. The front end's [#76](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/76) (spec [076](../../web-frontend/specs/076-edit-recurring-item.md)) waits on it.
 
 ## Objective
 
@@ -95,3 +95,14 @@ Through the `client` fixture against real Postgres, the clock pinned to Wed 18 N
 ## Open questions
 
 None.
+
+## As built
+
+- **The rule is pure** (`app/turnover/rework.py`) and tested by example (`tests/test_rework.py`); `rework_item` in `app/turnover/rules.py` reads the week, calls it and writes the result. Through the API: `tests/test_item_edits.py`.
+- **Only a schedule change reworks the week** (kind, its fields or `startsOn`). A rename or a new aspiration only renames.
+- **What a week is due is counted from its Monday** (or `startsOn` if later), so an edit late in the week doesn't make anything done look extra.
+- **A week's own tasks** are its rows that didn't roll over into it, plus a flexible task carrying inside the period the schedule before the edit gives that week.
+- **Keys:** survivors take the new slots; removed and surplus tasks move to numbers past any in use, in two steps, so the unique index (deleted rows included) is never met. Removed tasks are soft-deleted.
+- **Turning on** brings set-aside tasks back, reworks with no new tasks, then fills as before (`fill_item`), so a short week after coming back still gets one task per day left.
+- **New queries:** `RenameItemOpenTasks`, `ListItemSlots`, `SetTaskSlot`, `ListItemTasksInWeek`, `MoveItemTask`. `updateRecurringItem` now asks for `Today`, so it needs `X-Time-Zone`.
+- **Accepted:** an item turned off, changed, and turned on mid-period may get a fresh flexible task beside one carrying from earlier in the period.

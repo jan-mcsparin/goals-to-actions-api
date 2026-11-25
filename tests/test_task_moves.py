@@ -193,6 +193,16 @@ def test_a_queued_move_after_the_task_left_its_week_is_refused(tasks_client: Tes
     assert stale.json()["detail"] == "The task has moved on to another week."
 
 
+def test_a_pinned_task_can_be_dropped(tasks_client: TestClient, connection: Connection) -> None:
+    task = add_task(tasks_client, day=DECEMBER_DAY.isoformat())
+
+    dropped = tasks_client.post(f"/api/tasks/{task['id']}/drop")
+
+    assert dropped.status_code == 200, dropped.text
+    assert dropped.json()["state"] == "dropped"
+    assert rows(connection, task["id"]) == [(date(2026, 12, 7), DECEMBER_DAY, True, "dropped")]
+
+
 def week_read(client: TestClient) -> Any:
     return client.get(f"/api/weeks/{this_week()}").json()
 

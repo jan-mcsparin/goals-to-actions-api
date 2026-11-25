@@ -40,9 +40,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 ### Task 3: Opening and skipping a pinned week
 
 **Acceptance criteria:**
-- [ ] The clock moved to the pinned week's Sunday 6 p.m.: the row stays on its day, placed by hand; recurring work is placed around it and the day counts it as load.
-- [ ] The clock jumps past the pinned week: one `rolled_over` row, the task in the current week's bank.
-- [ ] Dropping a pinned task: dropped, no row in play.
+- [x] The clock moved to the pinned week's Sunday 6 p.m.: the row stays on its day, placed by hand; recurring work is placed around it and the day counts it as load.
+- [x] The clock jumps past the pinned week: one `rolled_over` row, the task in the current week's bank.
+- [x] Dropping a pinned task: dropped, no row in play.
 
 **Verify:** `uv run pytest tests/test_open_week.py tests/test_close_week.py tests/test_planner.py`, then the four checks.
 

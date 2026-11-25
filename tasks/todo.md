@@ -37,9 +37,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** Removing and making through the API, placed by the planner from tomorrow.
 
 **Acceptance criteria:**
-- [ ] Flexible 2 → 3, 3 → 1 with one done, 3 → 1 with two by hand; monthly day 20 → 25 and → 1.
-- [ ] Weekly → 3 a week (done): two more. Weekly → once a month: the open task counts as the month's; opening next week in the same month makes nothing.
-- [ ] Editing back and forth never hits the unique index.
+- [x] Flexible 2 → 3, 3 → 1 with one done, 3 → 1 with two by hand; monthly day 20 → 25 and → 1.
+- [x] Weekly → 3 a week (done): two more. Weekly → once a month: the open task counts as the month's; opening next week in the same month makes nothing.
+- [x] Editing back and forth never hits the unique index.
 
 **Verify:** `uv run pytest tests/test_item_tasks.py`, then the four checks.
 

@@ -205,3 +205,128 @@ def test_a_carry_over_from_last_week_stays_in_the_bank(
     edit(items_client, created, schedule={"kind": "weekly", "weekday": "friday"})
 
     assert sorted(days(items_client), key=str) == [FRI, None]
+
+
+# Counts, and a change of kind or period
+
+
+def flexible(times: int, period: str = "week") -> dict[str, Any]:
+    return {"kind": "flexible", "times": times, "period": period}
+
+
+def stretch(times: int) -> dict[str, Any]:
+    return item(name="Stretch", schedule=flexible(times), startsOn=STARTS)
+
+
+def live_count(connection: Connection, item_id: str) -> int:
+    return int(
+        connection.execute(
+            text("select count(*) from tasks where recurring_item_id = :id and deleted_at is null"),
+            {"id": item_id},
+        ).scalar_one()
+    )
+
+
+def test_raising_a_flexible_count_adds_one_after_today(items_client: TestClient) -> None:
+    created = create(items_client, stretch(2))
+    before = days(items_client)
+
+    edit(items_client, created, schedule=flexible(3))
+
+    after = days(items_client)
+    assert len(after) == 3
+    [added] = [day for day in after if day not in before] or [None]
+    assert added is not None and added > WED
+
+
+def test_lowering_a_flexible_count_removes_the_bank_first_then_the_latest_day(
+    items_client: TestClient, connection: Connection
+) -> None:
+    created = create(items_client, stretch(3))
+    first, second, third = item_tasks(items_client)
+    check_off(items_client, first["id"])
+    set_day(connection, second["id"], None)
+    set_day(connection, third["id"], SAT)
+
+    edit(items_client, created, schedule=flexible(1))
+
+    [left] = item_tasks(items_client)
+    assert (left["id"], left["state"]) == (first["id"], "done")
+
+
+def test_lowering_never_removes_tasks_placed_by_hand(
+    items_client: TestClient, connection: Connection
+) -> None:
+    created = create(items_client, stretch(3))
+    tasks = item_tasks(items_client)
+    for task, day in zip(tasks[:2], (date(2026, 11, 20), date(2026, 11, 21)), strict=True):
+        set_day(connection, task["id"], None)
+        assert place(items_client, task["id"], day).status_code == 200
+
+    edit(items_client, created, schedule=flexible(1))
+
+    assert sorted(days(items_client)) == [FRI, SAT]
+
+
+def test_a_monthly_day_later_this_week_moves_the_task(items_client: TestClient) -> None:
+    created = create(
+        items_client,
+        item(name="Pay rent", schedule={"kind": "monthly", "dayOfMonth": 19}, startsOn=STARTS),
+    )
+
+    edit(items_client, created, schedule={"kind": "monthly", "dayOfMonth": 20})
+
+    assert days(items_client) == [FRI]
+
+
+def test_a_monthly_day_outside_this_week_removes_the_open_task(
+    items_client: TestClient, connection: Connection
+) -> None:
+    created = create(
+        items_client,
+        item(name="Pay rent", schedule={"kind": "monthly", "dayOfMonth": 19}, startsOn=STARTS),
+    )
+
+    edit(items_client, created, schedule={"kind": "monthly", "dayOfMonth": 1})
+
+    assert item_tasks(items_client) == []
+    assert live_count(connection, created["id"]) == 0
+
+
+def test_weekly_done_to_three_a_week_adds_two_after_today(items_client: TestClient) -> None:
+    created = create(items_client, weekly("wednesday", "Stretch"))
+    check_off(items_client, item_tasks(items_client)[0]["id"])
+
+    edit(items_client, created, schedule=flexible(3))
+
+    tasks = item_tasks(items_client)
+    assert [task["state"] for task in tasks].count("done") == 1
+    assert all(task["plannedDay"] > WED for task in tasks if task["state"] == "open")
+    assert len(tasks) == 3
+
+
+def test_weekly_to_once_a_month_keeps_the_task_as_the_months(
+    items_client: TestClient, fixed_clock: FixedClock, connection: Connection
+) -> None:
+    created = create(items_client, weekly("thursday"))
+    [before] = item_tasks(items_client)
+
+    edit(items_client, created, schedule=flexible(1, "month"))
+
+    [after] = item_tasks(items_client)
+    assert (after["id"], after["plannedDay"]) == (before["id"], THU)
+    fixed_clock.instant = datetime(2026, 11, 23, 2, 0, tzinfo=UTC)  # Sunday evening
+    items_client.get("/api/weeks/2026-11-23")  # opens next week, still November
+    assert live_count(connection, created["id"]) == 1
+
+
+def test_editing_back_and_forth_keeps_one_task(
+    items_client: TestClient, connection: Connection
+) -> None:
+    created = create(items_client, stretch(3))
+
+    for times in (1, 3, 2, 1, 3):
+        edit(items_client, created, schedule=flexible(times))
+        assert len(item_tasks(items_client)) == times
+
+    assert live_count(connection, created["id"]) == 3

@@ -330,3 +330,48 @@ def test_editing_back_and_forth_keeps_one_task(
         assert len(item_tasks(items_client)) == times
 
     assert live_count(connection, created["id"]) == 3
+
+
+# Off and on, and two open weeks
+
+
+def test_an_edit_while_off_renames_only_and_turning_on_follows_the_new_schedule(
+    items_client: TestClient, connection: Connection
+) -> None:
+    created = create(items_client, weekly("thursday"))
+    turn(items_client, created["id"], "off")
+
+    edit(items_client, created, name="Recycling", schedule={"kind": "weekly", "weekday": "friday"})
+    assert item_tasks(items_client) == []
+    turn(items_client, created["id"], "on")
+
+    [task] = item_tasks(items_client)
+    assert (task["title"], task["plannedDay"]) == ("Recycling", FRI)
+    assert live_count(connection, created["id"]) == 1
+
+
+def test_turned_on_after_a_count_was_lowered_while_off_nothing_doubles(
+    items_client: TestClient, connection: Connection
+) -> None:
+    created = create(items_client, stretch(3))
+    turn(items_client, created["id"], "off")
+
+    edit(items_client, created, schedule=flexible(1))
+    turn(items_client, created["id"], "on")
+
+    assert len(item_tasks(items_client)) == 1
+    assert live_count(connection, created["id"]) == 1
+
+
+def test_on_sunday_evening_both_open_weeks_follow_and_today_is_untouched(
+    items_client: TestClient, fixed_clock: FixedClock
+) -> None:
+    created = create(items_client, weekly("thursday"))
+    fixed_clock.instant = datetime(2026, 11, 23, 2, 0, tzinfo=UTC)  # Sunday 22nd, 7 p.m.
+    next_week = date(2026, 11, 23)
+    assert [t["plannedDay"] for t in item_tasks(items_client, next_week)] == ["2026-11-26"]
+
+    edit(items_client, created, schedule={"kind": "weekly", "weekday": "friday"})
+
+    assert [t["plannedDay"] for t in item_tasks(items_client, next_week)] == ["2026-11-27"]
+    assert days(items_client) == [THU]  # this week's Friday has passed; it stays

@@ -48,16 +48,16 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 ### Task 4: Off and on; two open weeks; repeats
 
 **Acceptance criteria:**
-- [ ] Off, edited (renamed only), turned on: the week matches the new schedule, nothing doubled.
-- [ ] Sunday evening: both weeks follow the edit; today and earlier days unchanged.
-- [ ] `test_repeats.py`: the same edit twice changes nothing more; audit action `update recurring item`; the lock test still covers `update`.
+- [x] Off, edited (renamed only), turned on: the week matches the new schedule, nothing doubled.
+- [x] Sunday evening: both weeks follow the edit; today and earlier days unchanged.
+- [x] `test_repeats.py`: the same edit twice changes nothing more; audit action `update recurring item`; the lock test still covers `update`.
 
 **Verify:** the four checks.
 
 **Dependencies:** 3.
 
 ## Checkpoint: after tasks 1–4
-- [ ] The four checks pass; every "What changes" item in the spec has a test.
+- [x] The four checks pass; every "What changes" item in the spec has a test.
 
 ### Task 5: Docs and a check
 

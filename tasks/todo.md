@@ -53,15 +53,15 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `bring_back` returns a set-aside row in a week that hasn't opened to its day; its callers pass the owner's `planned_through_week`.
 
 **Acceptance criteria:**
-- [ ] Paused: the pinned row is set aside. Resumed: back on its day, placed by hand.
-- [ ] A set-aside task in an open week still goes to the bank.
+- [x] Paused: the pinned row is set aside. Resumed: back on its day, placed by hand.
+- [x] A set-aside task in an open week still goes to the bank.
 
 **Verify:** `uv run pytest tests/test_goal_status.py`, then the four checks.
 
 **Dependencies:** 1.
 
 ## Checkpoint: after tasks 1–4
-- [ ] The four checks pass; every "What changes" item in the spec has a test.
+- [x] The four checks pass; every "What changes" item in the spec has a test.
 
 ### Task 5: Docs and a check
 

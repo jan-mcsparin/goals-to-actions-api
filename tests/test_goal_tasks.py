@@ -98,6 +98,21 @@ def test_next_weeks_tasks_are_set_aside_too(
     assert rows(connection, task["id"]) == [(next_week, None, False, None)]
 
 
+@pytest.mark.parametrize(("away", "back"), AWAY_AND_BACK)
+def test_a_task_pinned_in_a_week_not_open_comes_back_on_its_day(
+    tasks_client: TestClient, connection: Connection, away: str, back: str
+) -> None:
+    goal_id = create_goal(tasks_client, lifting())["id"]
+    day = today() + timedelta(weeks=3)
+    pinned = add_task(tasks_client, title="Dentist", goalId=goal_id, day=day.isoformat())
+
+    change(tasks_client, goal_id, away)
+    assert rows(connection, pinned["id"]) == [(week_of(day), day, True, "set_aside")]
+    change(tasks_client, goal_id, back)
+
+    assert rows(connection, pinned["id"]) == [(week_of(day), day, True, None)]
+
+
 def test_a_task_added_by_hand_whose_week_closed_comes_back_in_this_weeks_bank(
     tasks_client: TestClient, connection: Connection
 ) -> None:

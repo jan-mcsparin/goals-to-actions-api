@@ -471,15 +471,25 @@ def set_aside(connection: Connection, user_id: UUID, rows: list[WorkRow], curren
             set_outcome(connection, user_id, row, "set_aside")
 
 
-def bring_back(connection: Connection, user_id: UUID, rows: list[WorkRow], current: date) -> None:
-    """A goal resumed, reopened or gone again, or an item turned on. A set-aside task whose
-    week is still open returns to that week's bank; one added by hand whose week has closed
-    gets a row in the current week's bank. Last week's generated tasks don't come back."""
+def bring_back(
+    connection: Connection,
+    user_id: UUID,
+    rows: list[WorkRow],
+    current: date,
+    planned_through_week: date | None,
+) -> None:
+    """A goal resumed, reopened or gone again, or an item turned on. A set-aside task in a
+    week that hasn't opened returns to its day, placed by hand (spec `on-a-day`, decision 2);
+    one whose week is open returns to that week's bank; one added by hand whose week has
+    closed gets a row in the current week's bank. Last week's generated tasks don't come
+    back."""
     latest = {row.task_id: row for row in rows}  # oldest week first, so the last one wins
     for row in latest.values():
         if row.outcome != "set_aside":
             continue
-        if row.week >= current:
+        if planned_through_week is None or row.week > planned_through_week:
+            set_outcome(connection, user_id, row, None)
+        elif row.week >= current:
             to_the_bank(connection, user_id, row)
         elif row.origin == "by_hand":
             add_row(connection, user_id, row.task_id, current)

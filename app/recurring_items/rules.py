@@ -121,7 +121,7 @@ def turn(
     current = open_weeks(today, owner.planned_through_week, owner.closed_through_week).current
     rows = task_rules.item_task_weeks(connection, user_id, item_id)
     if on:
-        task_rules.bring_back(connection, user_id, rows, current)
+        task_rules.bring_back(connection, user_id, rows, current, owner.planned_through_week)
         weeks = open_weeks(today, owner.planned_through_week, owner.closed_through_week)
         # The schedule may have changed while it was off (spec `recurring-edit`, decision 4).
         rework_item(connection, user_id, updated, schedule_of(updated), weeks, today, make=False)

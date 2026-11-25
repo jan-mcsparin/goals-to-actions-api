@@ -31,7 +31,7 @@ References: [`data-model.md`](../../docs/data-model.md#task_weeks) (how a week e
 - **What closing will do,** on the week's read: each unfinished task says whether it will carry over or end with the week, so the wrap-up sheet shows it without the front end knowing the rules.
 - **Two markers on the user:** `planned_through_week` (the latest week opened; already on `users`) and `closed_through_week` (the latest week closed; a column this slice adds). The current week is the one after `closed_through_week` or the phone's week, whichever is later. The week never goes backwards.
 - **Safe to run twice.** Generated tasks are unique per goal or item, period and number, and the two markers record how far opening and closing have got.
-- **A week nobody opened is skipped.** A week with no rows is never filled or closed after the fact. Coming back after three weeks closes the weeks that have rows, in order, and opens the current one; a hand-added task carries straight into it as one carry-over.
+- **A week nobody opened is skipped.** It is never filled after the fact. Coming back after three weeks closes the weeks that have rows, in order, and opens the current one; a hand-added task carries straight into it as one carry-over. A skipped week can hold rows only for tasks pinned to a day in it ([`on-a-day`](on-a-day.md)); they carry over the same way, once.
 - `getUpcoming`: open tasks with a later due date and no row yet.
 - "Still matter?": the read marks a task added by hand, or a fixed-day recurring task, that has rolled over twice and hasn't been answered since. A flexible item carrying inside its period is never asked; `answerStillMatters` takes keep, schedule (onto a day) or drop.
 - **A change acts on every open week:** a goal created, paused, resumed, ended or reopened; an item added, changed, turned on or off. The one exception is a target change once next week is open, which takes effect from next week.
@@ -75,7 +75,7 @@ As shared. **Always:** closing a week is one transaction, and so is opening one 
 - [ ] A week opens on Sunday evening with exactly what the rules say, and Sunday's plan is untouched.
 - [ ] A week closes on Monday, or when wrapped up, with each row given the right outcome and the carry-overs in the new week.
 - [ ] Opening or closing again changes nothing.
-- [ ] A week nobody opened leaves no rows.
+- [ ] A week nobody opened leaves no rows in play (a task pinned there carries over, `on-a-day`).
 - [ ] The upcoming list and "Still matter?" read and answer correctly.
 - [ ] The front end's types are regenerated from the new schema and its mock client compiles against them.
 - [ ] The four checks pass.

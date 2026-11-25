@@ -264,6 +264,19 @@ def test_three_weeks_away_the_weeks_with_rows_close_and_a_task_carries_once(
     assert weeks_with_rows == []
 
 
+def test_a_task_pinned_in_a_week_nobody_opened_carries_over_once(connection: Connection) -> None:
+    task = new_task(connection, W4)
+    connection.execute(
+        text("update task_weeks set planned_day = :day, placed_by_hand = true where task_id = :id"),
+        {"day": date(2026, 11, 25), "id": task},
+    )
+
+    close_on(connection, date(2026, 12, 9))
+
+    assert history(connection, task) == [(W4, "rolled_over"), (date(2026, 12, 7), None)]
+    assert state(connection, task) == "open"
+
+
 def test_closing_twice_changes_nothing(connection: Connection) -> None:
     task = new_task(connection, W2)
     close_on(connection, date(2026, 11, 18))

@@ -57,6 +57,18 @@ def test_schedule_puts_the_task_on_the_day_by_hand_and_clears_the_question(
     )
 
 
+def test_schedule_can_put_the_task_on_a_day_in_a_later_week(
+    client: TestClient, connection: Connection
+) -> None:
+    task = asked_about(connection)
+
+    response = answer(client, task, answer="schedule", week=W3.isoformat(), day="2026-12-09")
+
+    assert response.status_code == 200, response.text
+    assert (response.json()["week"], response.json()["plannedDay"]) == ("2026-12-07", "2026-12-09")
+    assert history(connection, task)[-1] == (date(2026, 12, 7), None)
+
+
 def test_schedule_follows_the_rules_for_the_day_and_the_week(
     client: TestClient, connection: Connection
 ) -> None:

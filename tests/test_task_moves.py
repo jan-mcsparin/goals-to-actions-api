@@ -13,7 +13,7 @@ from sqlalchemy import Connection, text
 from app.weeks import week_of
 from tests.test_aspirations import add_other_user
 from tests.test_check_off import check_off
-from tests.test_goals import ZONE, today
+from tests.test_goals import ZONE, create_goal, lifting, today
 from tests.test_tasks import add_task, add_task_for, open_next_week, row_actions, rows
 
 
@@ -103,14 +103,108 @@ def test_next_weeks_tasks_can_be_placed_on_its_days(
     "day",
     [
         lambda: today() - timedelta(days=1),
-        lambda: this_week() + timedelta(weeks=1),
+        lambda: this_week() - timedelta(days=1),
     ],
-    ids=["a past day", "a day in another week"],
+    ids=["a past day", "a day in an earlier week"],
 )
 def test_placing_on_a_day_not_allowed_is_refused(tasks_client: TestClient, day: Any) -> None:
     task = add_task(tasks_client)
 
     assert place(tasks_client, task["id"], day(), week=this_week()).status_code == 409
+
+
+# Across weeks (spec `on-a-day`)
+
+DECEMBER_DAY = date(2026, 12, 9)
+
+
+def test_a_task_moves_to_a_day_in_a_later_week_and_back(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    task = add_task(tasks_client, day=today().isoformat())
+
+    away = place(tasks_client, task["id"], DECEMBER_DAY, week=this_week())
+    assert away.status_code == 200, away.text
+    assert (away.json()["week"], away.json()["plannedDay"]) == ("2026-12-07", "2026-12-09")
+    assert rows(connection, task["id"]) == [(date(2026, 12, 7), DECEMBER_DAY, True, None)]
+
+    tomorrow = today() + timedelta(days=1)
+    back = place(tasks_client, task["id"], tomorrow, week=date(2026, 12, 7))
+    assert back.status_code == 200, back.text
+    assert rows(connection, task["id"]) == [(this_week(), tomorrow, True, None)]
+    assert task["id"] in [row["id"] for row in week_read(tasks_client)["tasks"]]
+
+
+def test_a_pinned_task_moves_from_one_later_week_to_another(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    task = add_task(tasks_client, day=DECEMBER_DAY.isoformat())
+    later = date(2027, 1, 14)
+
+    response = place(tasks_client, task["id"], later, week=date(2026, 12, 7))
+
+    assert response.status_code == 200, response.text
+    assert rows(connection, task["id"]) == [(week_of(later), later, True, None)]
+    assert row_actions(connection, task["id"]) == ["add task", "place task"]
+
+
+def test_a_bank_task_moves_to_a_later_week(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    task = add_task(tasks_client)
+
+    assert place(tasks_client, task["id"], DECEMBER_DAY, week=this_week()).status_code == 200
+    assert rows(connection, task["id"]) == [(date(2026, 12, 7), DECEMBER_DAY, True, None)]
+
+
+def test_a_goal_session_stays_in_its_week(tasks_client: TestClient) -> None:
+    create_goal(tasks_client, lifting())
+    session = next(row for row in week_read(tasks_client)["tasks"] if row["goalId"])
+
+    response = place(tasks_client, session["id"], next_week() + timedelta(days=1), this_week())
+
+    assert response.status_code == 409
+    assert place(tasks_client, session["id"], last_day_this_week()).status_code == 200
+
+
+def test_a_move_onto_a_week_the_task_already_has_a_row_in_is_refused(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    task = add_task(tasks_client, day=today().isoformat())
+    connection.execute(
+        text(
+            "insert into task_weeks (id, user_id, task_id, week, outcome)"
+            " select gen_random_uuid(), user_id, task_id, :week, 'rolled_over' from task_weeks"
+            " where task_id = :id"
+        ),
+        {"week": date(2026, 12, 7), "id": task["id"]},
+    )
+
+    assert place(tasks_client, task["id"], DECEMBER_DAY, week=this_week()).status_code == 409
+
+
+def test_a_queued_move_after_the_task_left_its_week_is_refused(tasks_client: TestClient) -> None:
+    task = add_task(tasks_client, day=today().isoformat())
+    place(tasks_client, task["id"], DECEMBER_DAY, week=this_week())
+
+    stale = place(tasks_client, task["id"], last_day_this_week(), week=this_week())
+
+    assert stale.status_code == 409
+    assert stale.json()["detail"] == "The task has moved on to another week."
+
+
+def test_a_pinned_task_can_be_dropped(tasks_client: TestClient, connection: Connection) -> None:
+    task = add_task(tasks_client, day=DECEMBER_DAY.isoformat())
+
+    dropped = tasks_client.post(f"/api/tasks/{task['id']}/drop")
+
+    assert dropped.status_code == 200, dropped.text
+    assert dropped.json()["state"] == "dropped"
+    assert rows(connection, task["id"]) == [(date(2026, 12, 7), DECEMBER_DAY, True, "dropped")]
+
+
+def week_read(client: TestClient) -> Any:
+    return client.get(f"/api/weeks/{this_week()}").json()
 
 
 def test_a_placing_made_in_a_week_the_task_has_left_is_refused(

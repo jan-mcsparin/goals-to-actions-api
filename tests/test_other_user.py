@@ -17,7 +17,16 @@ from app.database import Database
 from app.sign_in.session import SESSION_COOKIE, start_session
 from tests.conftest import PINNED, FixedClock
 from tests.test_goals import ZONE
-from tests.test_repeats import CASES, Given, aspiration, goal, ok, snapshot, user_tables
+from tests.test_repeats import (
+    CASES,
+    Given,
+    aspiration,
+    goal,
+    ok,
+    on_today,
+    snapshot,
+    user_tables,
+)
 
 # The sign-in routes act on no one's rows: they're how a session starts or ends.
 OPEN = {"health", "redeemCode", "addPasskey", "startSignIn", "finishSignIn", "signOut"}
@@ -65,7 +74,7 @@ def get_settings(given: Given) -> str:
 
 
 def get_week(given: Given) -> str:
-    made(given, "addTask")
+    on_today(given.client)
     return "/api/weeks/2026-11-16"
 
 

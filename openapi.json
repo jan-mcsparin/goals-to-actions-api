@@ -1169,7 +1169,7 @@
                 "type": "null"
               }
             ],
-            "description": "A day to put it on, placed by hand. A day no longer allowed (a past day, or one outside the open weeks) saves it in the current week's bank instead.",
+            "description": "A day from today on, in this week or a later one. The task is placed there by hand. A day before today goes to the current week's bank.",
             "title": "Day"
           },
           "dueDate": {
@@ -1244,6 +1244,7 @@
         "description": "Onto a day, placed by hand, in the week the change was made in.",
         "properties": {
           "day": {
+            "description": "A day from today on. A task added by hand can go to another week; a generated one stays in its own.",
             "format": "date",
             "title": "Day",
             "type": "string"

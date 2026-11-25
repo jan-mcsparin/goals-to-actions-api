@@ -45,3 +45,9 @@ where task_weeks.user_id = $2 and task_weeks.deleted_at is null and task_weeks.t
   select tasks.id from tasks
   where tasks.goal_id = $1 and tasks.user_id = $2 and tasks.deleted_at is null
 );
+
+-- A task added by hand moved to a day in another week: the same row, in play, placed by hand
+-- (spec `on-a-day`). The audit log keeps the week it left.
+-- name: MoveTaskWeek :exec
+update task_weeks set week = $3, planned_day = $4, placed_by_hand = true
+where id = $1 and user_id = $2 and deleted_at is null and outcome is null;

@@ -1,67 +1,71 @@
-# Tasks: Editing a recurring item moves this week's work (#49)
+# Tasks: On a day (#50)
 
-Plan: [`plan.md`](plan.md). Spec: [`../specs/recurring-edit.md`](../specs/recurring-edit.md).
+Plan: [`plan.md`](plan.md). Spec: [`../specs/on-a-day.md`](../specs/on-a-day.md).
 
-Every task: write the tests first, run the four checks (`uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`), then one commit. A task that changes a route also runs `uv run python -m app.openapi`.
+Every task: write the tests first, run the four checks (`uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`), then one commit. A task that changes a description runs `uv run python -m app.openapi`.
 
-# PR: `recurring-edit` (closes #49)
+# PR: `on-a-day` (closes #50)
 
-### Task 1: The pure rule
+### Task 1: Add on any later day
 
-**Description:** `app/turnover/rework.py`: from one week's tasks of the item, the new slots, the new fixed day and today, what to re-key, move, remove and make.
+**Description:** `day_allowed` from today on in the current week or later; `landing` uses it; the `addTask` `day` description; `openapi.json`.
 
 **Acceptance criteria:**
-- [x] Moves: a fixed-day task the app placed, or in the bank, goes to its new day when that day is today or later; otherwise stays. Done and hand-placed never move. A carry-over is never touched.
-- [x] Counts: survivors in order (done, by hand, on a day, bank) take the slots; extras removed bank first, then latest day; done and hand-placed never removed; missing slots made.
-- [x] Keys: no two tasks end on one key; removed and surplus tasks get numbers past any in use.
+- [x] A day three weeks out: a hand-placed row in that week; this week's read and the upcoming list (with a due date set) leave it out.
+- [x] Yesterday, and a day in a week a wrap-up closed: the current week's bank.
+- [x] Checking off a task pinned in a week that hasn't started: 409.
+- [x] The add sent twice changes nothing more (`test_repeats.py`).
 
-**Verify:** `uv run pytest tests/test_rework.py`, then the four checks.
+**Verify:** `uv run pytest tests/test_tasks.py`, then the four checks.
 
 **Dependencies:** none.
 
-### Task 2: Rename, and fixed-day tasks move
+### Task 2: Move across weeks
 
-**Description:** The queries and `sqlc generate`; `rules.update(…, today)` renames open tasks and, when the schedule changed, reworks each open week; the route asks for `Today`; `openapi.json`.
+**Description:** `MoveTaskWeek` in `db/queries/task_weeks.sql`, `sqlc generate`; `place` moves a task added by hand to another week; generated tasks and `swap` stay in their week; the `placeTask` description; `openapi.json`.
 
 **Acceptance criteria:**
-- [x] Open tasks (carry-overs and set-aside ones too) take the new name; done, dropped and lapsed keep the old.
-- [x] The spec's weekly day cases on the week read, including the carry-over and the hand-placed task.
-- [x] A rename or an aspiration change alone moves nothing.
+- [x] This week's task to a day in December and back to tomorrow; a pinned task from one later week to another. Still placed by hand, no `rolled_over` row.
+- [x] 409: a goal session to next week, a fixed-day task off its day, a stale `week`, a day before today, another row of the task in the target week.
+- [x] `answerStillMatters` with `schedule` to a later week.
+- [x] Repeats (a move twice), a queued move after the task left its week (`test_queued_writes.py`).
 
-**Verify:** `uv run pytest tests/test_item_tasks.py tests/test_recurring_items.py`, then the four checks.
+**Verify:** `uv run pytest tests/test_task_moves.py tests/test_still_matters.py`, then the four checks.
 
 **Dependencies:** 1.
 
-### Task 3: Counts, and a change of kind or period
+## Checkpoint: after tasks 1–2
+- [x] The four checks pass; `openapi.json` differs only in the two descriptions.
 
-**Description:** Removing and making through the API, placed by the planner from tomorrow.
-
-**Acceptance criteria:**
-- [x] Flexible 2 → 3, 3 → 1 with one done, 3 → 1 with two by hand; monthly day 20 → 25 and → 1.
-- [x] Weekly → 3 a week (done): two more. Weekly → once a month: the open task counts as the month's; opening next week in the same month makes nothing.
-- [x] Editing back and forth never hits the unique index.
-
-**Verify:** `uv run pytest tests/test_item_tasks.py`, then the four checks.
-
-**Dependencies:** 2.
-
-### Task 4: Off and on; two open weeks; repeats
+### Task 3: Opening and skipping a pinned week
 
 **Acceptance criteria:**
-- [x] Off, edited (renamed only), turned on: the week matches the new schedule, nothing doubled.
-- [x] Sunday evening: both weeks follow the edit; today and earlier days unchanged.
-- [x] `test_repeats.py`: the same edit twice changes nothing more; audit action `update recurring item`; the lock test still covers `update`.
+- [x] The clock moved to the pinned week's Sunday 6 p.m.: the row stays on its day, placed by hand; recurring work is placed around it and the day counts it as load.
+- [x] The clock jumps past the pinned week: one `rolled_over` row, the task in the current week's bank.
+- [x] Dropping a pinned task: dropped, no row in play.
 
-**Verify:** the four checks.
+**Verify:** `uv run pytest tests/test_open_week.py tests/test_close_week.py tests/test_planner.py`, then the four checks.
 
-**Dependencies:** 3.
+**Dependencies:** 1.
+
+### Task 4: A goal paused and resumed
+
+**Description:** `bring_back` returns a set-aside row in a week that hasn't opened to its day; its callers pass the owner's `planned_through_week`.
+
+**Acceptance criteria:**
+- [x] Paused: the pinned row is set aside. Resumed: back on its day, placed by hand.
+- [x] A set-aside task in an open week still goes to the bank.
+
+**Verify:** `uv run pytest tests/test_goal_status.py`, then the four checks.
+
+**Dependencies:** 1.
 
 ## Checkpoint: after tasks 1–4
 - [x] The four checks pass; every "What changes" item in the spec has a test.
 
 ### Task 5: Docs and a check
 
-**Description:** Spec status and As built; `recurring-items.md`, `week-turnover.md`, `planner.md`, the map; `../docs/flows.md` flow 4 on a parent-repo branch. A Sonnet agent runs the four checks and the spec's cases against the running API (items named "Verification: …").
+**Description:** Spec status and As built; `tasks-week.md`, `week-turnover.md`, `planner.md`, the map; `../docs/data-model.md`, `product-rules.md` rule 10, `flows.md` flow 3 on a parent-repo branch. A Sonnet agent runs the four checks and the spec's cases against the running API (tasks named "Verification: …").
 
 **Acceptance criteria:**
 - [x] Every doc describes what was built; the agent's findings are in the PR.

@@ -101,9 +101,10 @@ def landing(new: NewTask, goal_type: str | None, today: date, weeks: OpenWeeks) 
 
 
 def day_allowed(day: date, today: date, weeks: OpenWeeks) -> bool:
-    """A task can go on a day from today on, in an open week. When today is before the current
-    week (after a wrap-up, or a flight west), that leaves today out."""
-    return day >= today and week_of(day) in weeks
+    """A task can go on a day from today on, in the current week or a later one, opened or
+    not (spec `on-a-day`). When today is before the current week (after a wrap-up, or a
+    flight west), that leaves today out."""
+    return day >= today and week_of(day) >= weeks.current
 
 
 def add_row(
@@ -287,18 +288,51 @@ def set_row(
 def place(
     connection: Connection, user_id: UUID, task_id: UUID, placing: Placing, today: date
 ) -> None:
-    """Puts the task on a day of its week, placed by hand: pulling it from the bank, or moving
-    it to another day."""
+    """Puts the task on a day, placed by hand: pulling it from the bank, or moving it to
+    another day. A task added by hand can go to a day in another week; a generated one stays
+    in its own."""
     owner = lock_user(connection, user_id)
+    if already_there(connection, user_id, task_id, placing.day):
+        return
     row = row_in_week(connection, user_id, task_id, placing.week)
     keep_on_its_day(connection, user_id, task_id, row, placing.day)
-    check_day(
-        placing.day,
-        row.week,
-        today,
-        open_weeks(today, owner.planned_through_week, owner.closed_through_week),
+    weeks = open_weeks(today, owner.planned_through_week, owner.closed_through_week)
+    if week_of(placing.day) == row.week:
+        check_day(placing.day, row.week, today, weeks)
+        set_row(connection, user_id, row, day=placing.day, placed_by_hand=True, outcome=None)
+    else:
+        move_to_week(connection, user_id, task_id, row, placing.day, today, weeks)
+
+
+def already_there(connection: Connection, user_id: UUID, task_id: UUID, day: date) -> bool:
+    """A move sent again: its row has left the week it was sent from, for the day it named."""
+    rows = list(task_weeks.Querier(connection).list_task_weeks(task_id=task_id, user_id=user_id))
+    row = in_play(rows)
+    return row is not None and row.planned_day == day and row.placed_by_hand
+
+
+def move_to_week(
+    connection: Connection,
+    user_id: UUID,
+    task_id: UUID,
+    row: TaskWeek,
+    day: date,
+    today: date,
+    weeks: OpenWeeks,
+) -> None:
+    """The row in play moves to the day's week: a change of mind, not an ending, so nothing
+    rolls over (spec `on-a-day`, decisions 1, 3 and 4)."""
+    if get(connection, user_id, task_id).origin != "by_hand":
+        raise NotAllowed("A goal session or a recurring task stays in its own week.")
+    if not day_allowed(day, today, weeks):
+        raise NotAllowed("A task goes on a day from today on.")
+    week = week_of(day)
+    rows = task_weeks.Querier(connection).list_task_weeks(task_id=task_id, user_id=user_id)
+    if any(other.week == week for other in rows):
+        raise NotAllowed("The task already has a row in that week.")
+    task_weeks.Querier(connection).move_task_week(
+        id=row.id, user_id=user_id, week=week, planned_day=day
     )
-    set_row(connection, user_id, row, day=placing.day, placed_by_hand=True, outcome=None)
 
 
 def move_to_bank(connection: Connection, user_id: UUID, task_id: UUID, to_bank: ToBank) -> None:
@@ -437,15 +471,25 @@ def set_aside(connection: Connection, user_id: UUID, rows: list[WorkRow], curren
             set_outcome(connection, user_id, row, "set_aside")
 
 
-def bring_back(connection: Connection, user_id: UUID, rows: list[WorkRow], current: date) -> None:
-    """A goal resumed, reopened or gone again, or an item turned on. A set-aside task whose
-    week is still open returns to that week's bank; one added by hand whose week has closed
-    gets a row in the current week's bank. Last week's generated tasks don't come back."""
+def bring_back(
+    connection: Connection,
+    user_id: UUID,
+    rows: list[WorkRow],
+    current: date,
+    planned_through_week: date | None,
+) -> None:
+    """A goal resumed, reopened or gone again, or an item turned on. A set-aside task in a
+    week that hasn't opened returns to its day, placed by hand (spec `on-a-day`, decision 2);
+    one whose week is open returns to that week's bank; one added by hand whose week has
+    closed gets a row in the current week's bank. Last week's generated tasks don't come
+    back."""
     latest = {row.task_id: row for row in rows}  # oldest week first, so the last one wins
     for row in latest.values():
         if row.outcome != "set_aside":
             continue
-        if row.week >= current:
+        if planned_through_week is None or row.week > planned_through_week:
+            set_outcome(connection, user_id, row, None)
+        elif row.week >= current:
             to_the_bank(connection, user_id, row)
         elif row.origin == "by_hand":
             add_row(connection, user_id, row.task_id, current)

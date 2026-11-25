@@ -14,6 +14,7 @@ from app.config import FIXED_USER_ID
 from app.db import planner
 from app.planner import place_new_work
 from app.turnover.rules import catch_up
+from app.weeks import week_of
 from tests.conftest import FixedClock
 from tests.test_goal_sessions import set_target
 from tests.test_goals import ZONE, create_goal, lifting
@@ -99,6 +100,39 @@ def test_sunday_evening_places_next_weeks_recurring_work(work: Connection) -> No
         "Stretch": [nov(23), nov(26)],
         "Be strong": [nov(25), nov(27), nov(29)],
     }
+
+
+def pin(connection: Connection, title: str, day: date) -> UUID:
+    """A task added by hand on a day of a week that hasn't opened (spec `on-a-day`)."""
+    task_id = add_by_hand(connection, title)
+    connection.execute(
+        text(
+            "insert into task_weeks (id, user_id, task_id, week, planned_day, placed_by_hand)"
+            " values (gen_random_uuid(), :user_id, :task_id, :week, :day, true)"
+        ),
+        {"user_id": FIXED_USER_ID, "task_id": task_id, "week": week_of(day), "day": day},
+    )
+    return task_id
+
+
+def test_opening_a_week_keeps_a_pinned_task_on_its_day_and_counts_it(work: Connection) -> None:
+    pin(work, "Dentist", nov(23))
+
+    catch_up(work, FIXED_USER_ID, at(nov(22), 19))
+
+    # Monday holds the dentist, so Stretch and the goal start where the days are lighter
+    # than in the week without it (Stretch on the 23rd and 26th).
+    assert days(work, NEXT_WEEK) == {
+        "Dentist": [nov(23)],
+        "Take out the trash": [nov(24)],
+        "Stretch": [nov(25), nov(28)],
+        "Be strong": [nov(25), nov(27), nov(29)],
+    }
+    placed_by_hand = work.execute(
+        text("select placed_by_hand from task_weeks where week = :week and planned_day = :day"),
+        {"week": NEXT_WEEK, "day": nov(23)},
+    ).scalars()
+    assert list(placed_by_hand) == [True]
 
 
 def test_a_first_request_on_wednesday_places_from_wednesday(work: Connection) -> None:

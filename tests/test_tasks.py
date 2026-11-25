@@ -138,6 +138,51 @@ def test_a_past_day_saves_the_task_in_the_bank(tasks_client: TestClient) -> None
     assert (task["week"], task["plannedDay"]) == (week_of(today()).isoformat(), None)
 
 
+def three_weeks_out() -> date:
+    return today() + timedelta(weeks=3)
+
+
+def test_a_day_in_a_week_not_open_yet_is_pinned_there(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    day = three_weeks_out()
+
+    task = add_task(tasks_client, day=day.isoformat(), dueDate=day.isoformat())
+
+    assert (task["week"], task["plannedDay"], task["placedByHand"]) == (
+        week_of(day).isoformat(),
+        day.isoformat(),
+        True,
+    )
+    assert rows(connection, task["id"]) == [(week_of(day), day, True, None)]
+
+
+def test_a_pinned_task_is_left_out_of_this_week_and_the_upcoming_list(
+    tasks_client: TestClient,
+) -> None:
+    day = three_weeks_out()
+    task = add_task(tasks_client, day=day.isoformat(), dueDate=day.isoformat())
+
+    this_week = tasks_client.get(f"/api/weeks/{week_of(today())}").json()
+    upcoming = tasks_client.get("/api/tasks/upcoming").json()
+
+    assert task["id"] not in [row["id"] for row in this_week["tasks"]]
+    assert task["id"] not in [row["id"] for row in upcoming["tasks"]]
+
+
+def test_a_pinned_task_cant_be_checked_off_before_its_week_starts(
+    tasks_client: TestClient,
+) -> None:
+    task = add_task(tasks_client, day=three_weeks_out().isoformat())
+
+    response = tasks_client.post(
+        f"/api/tasks/{task['id']}/check-off",
+        json={"completedAt": f"{today()}T07:30:00Z", "completedOn": today().isoformat()},
+    )
+
+    assert response.status_code == 409
+
+
 def test_a_due_date_in_an_open_next_week_goes_to_that_weeks_bank(
     tasks_client: TestClient, connection: Connection
 ) -> None:
@@ -260,10 +305,18 @@ def test_today_before_the_current_week_still_allows_its_days() -> None:
     )
 
 
-def test_a_day_in_a_week_not_open_yet_puts_the_task_in_the_current_bank() -> None:
+def test_a_day_in_a_week_not_open_yet_is_placed_there() -> None:
     new = NewTask(title="Pack", day=date(2026, 12, 2))
 
-    assert landing(new, None, SUNDAY, AFTER_WRAP_UP) == Landing(date(2026, 11, 23))
+    assert landing(new, None, SUNDAY, AFTER_WRAP_UP) == Landing(
+        date(2026, 11, 30), date(2026, 12, 2)
+    )
+
+
+def test_a_day_in_a_week_a_wrap_up_closed_puts_the_task_in_the_current_bank() -> None:
+    new = NewTask(title="Pack", day=date(2026, 11, 23) - timedelta(days=1))
+
+    assert landing(new, None, date(2026, 11, 21), AFTER_WRAP_UP) == Landing(date(2026, 11, 23))
 
 
 # updateTask

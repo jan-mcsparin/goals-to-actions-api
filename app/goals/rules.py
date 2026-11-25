@@ -164,7 +164,7 @@ def change_status(
             task_rules.set_aside(connection, user_id, rows, current)
         elif change.to == "active":
             rows = task_rules.goal_task_weeks(connection, user_id, goal_id)
-            task_rules.bring_back(connection, user_id, rows, current)
+            task_rules.bring_back(connection, user_id, rows, current, owner.planned_through_week)
             fill_goal(connection, user_id, goal_id, weeks_of(owner, today), today)
     return goal, latest_target(connection, user_id, goal_id)
 

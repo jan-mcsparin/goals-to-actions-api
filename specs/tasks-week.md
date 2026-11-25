@@ -20,8 +20,8 @@ References: [`data-model.md`](../../docs/data-model.md#tasks) (tasks, task_weeks
 - Two weeks can be open at once (ADR-009): the current week and, from Sunday evening, the next. Nothing opens a second week until `week-turnover`, but the read and the writes below are written for it from the start.
 - **The queueable writes** (ADR-010) are `addTask`, `checkOffTask`, `uncheckTask`, `placeTask`, `moveTaskToBank` and `swapTasks`. Three rules hold for them:
   - each states its end result, so sending it twice changes nothing more. `swapTasks` names the task going to the bank, the task being placed, and the day;
-  - `placeTask`, `moveTaskToBank` and `swapTasks` name the week they were made in, and are refused (409) if the task's row in play is in another week;
-  - `addTask` is never refused over where the task goes. A day that is no longer allowed (a past day, or today when today is before the current week) saves it in the current week's bank.
+  - `placeTask`, `moveTaskToBank` and `swapTasks` name the week they were made in, and are refused (409) if the task's row in play is in another week. A `placeTask` whose row is already on that day, placed by hand, is a repeat and changes nothing (`on-a-day`);
+  - `addTask` is never refused over where the task goes. A day that is no longer allowed (a past day, a day in a week before the current one, or today when today is before the current week) saves it in the current week's bank. Any day from today on, in any later week, opened or not, is allowed (`on-a-day`).
 - Writes, all of them things the person did:
   - `addTask`: to the bank or straight onto a day; with or without a goal; a one-off goal's step is a task with that goal. A task due in a week that is already open goes into that week's bank.
   - When today is before the current week (after a wrap-up, or a flight west), `placeTask` onto today is refused (409): a planned day must be inside its row's week.
@@ -99,7 +99,7 @@ Every route but `updateTask` and `dropTask` needs `X-Time-Zone`.
 
 ## Settled
 
-1. **Adding a task dated in a later week that isn't open:** it waits on the upcoming list, with no row. Placing it on a day in that week isn't offered.
+1. **Adding a task dated in a later week that isn't open:** it waits on the upcoming list, with no row. Replaced in part by [`on-a-day`](on-a-day.md) (#50): a task given a `day` in such a week is pinned there, with a row placed by hand, and `placeTask` can move a task added by hand to another week. A due date alone still waits on the upcoming list.
 2. **A swap trades a task on a day for one from the bank.** The day's task goes to the bank and the bank task takes its day. Two day tasks trading days is out.
 3. **Unchecking has one rule** (Jan, 2026-11-18): the row goes back in play as it was. A waiting step checked off on the goal's page made a row on the day it was done, so unchecking leaves it on that day. If the row's week has closed, the task gets the ending that week would have given it: a task added by hand rolls over into the current week's bank, and a generated one lapses. `week-turnover` adds the endings for recurring tasks, with the closing rules they share.
 4. **`addTask` takes `day`,** not an "on today" flag, so a queued add states where it ends up.
@@ -108,7 +108,7 @@ Every route but `updateTask` and `dropTask` needs `X-Time-Zone`.
 7. **A check-off from the bank leaves the task off the days.** It shows as done in the week read, with no `plannedDay`.
 8. **Checking off is allowed on a task whose row is in a week before the current one.** Until `week-turnover` closes weeks, such a row is still in play.
 9. **The current week is the phone's week** (`app/weeks.py`, `open_weeks`). `week-turnover` adds `closed_through_week`. "Today before the current week" is tested on the rule directly until then.
-10. **Pausing sets aside rows in play from the current week on.** Coming back returns a set-aside row whose week is open to that week's bank. A task added by hand whose set-aside week has closed gets a row in the current week's bank.
+10. **Pausing sets aside rows in play from the current week on.** Coming back returns a set-aside row whose week is open to that week's bank. A task added by hand whose set-aside week has closed gets a row in the current week's bank. One pinned in a week that hasn't opened comes back on its day (`on-a-day`, decision 2).
 11. **A one-off goal's step with no date waits with no row** until the person pulls it in or dates it (settled 2026-11-16).
 12. **For a check-off, the phone's stated day wins,** even when its week has closed (settled 2026-11-16).
 13. **A task added under a goal that isn't active is saved set aside,** not refused (review, 2026-11-18). A queued add made offline while another device paused the goal is kept, and comes back when the goal does. Creates are never refused (ADR-010).

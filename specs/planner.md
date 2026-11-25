@@ -98,4 +98,5 @@ Settled with Jan when the plan was written (`../tasks/plan.md`, 2026-11-19):
 Found while building:
 
 - **The database refuses the two forbidden writes in the planner's one query** (`PlaceGeneratedTask` in `db/queries/planner.sql`): it only places a row still in the bank, not placed by hand and unsettled, on a day on or after the first day allowed. No trigger: the database can't know the phone's today.
+- **A task pinned to a day in a week that hasn't opened** ([`on-a-day`](on-a-day.md), #50) keeps its day when the week opens: `PlaceGeneratedTask` never writes to a row placed by hand, and `ListWeekPlaces` counts it as that day's load, so recurring work is placed around it.
 - **Opening a week is audited as "open week"** even when no week closes first. Before, an opening with nothing to close was recorded as "close week".

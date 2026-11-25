@@ -9,6 +9,7 @@ what it holds. A last test fails for any write in the schema without a case."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -268,7 +269,9 @@ def on_today(client: TestClient) -> str:
 
 
 def add_task(given: Given) -> Request:
-    return "PUT", f"/api/tasks/{uuid4()}", {"title": "Call the dentist", "day": today().isoformat()}
+    # A day in a week that hasn't opened, the widest case (spec `on-a-day`).
+    day = (today() + timedelta(weeks=3)).isoformat()
+    return "PUT", f"/api/tasks/{uuid4()}", {"title": "Call the dentist", "day": day}
 
 
 def update_task(given: Given) -> Request:
@@ -291,8 +294,9 @@ def uncheck_task(given: Given) -> Request:
 
 
 def place_task(given: Given) -> Request:
-    body = {"week": this_week().isoformat(), "day": today().isoformat()}
-    return "POST", f"/api/tasks/{task(given.client)}/place", body
+    # To a day in a later week, the widest move (spec `on-a-day`).
+    body = {"week": this_week().isoformat(), "day": (today() + timedelta(weeks=3)).isoformat()}
+    return "POST", f"/api/tasks/{on_today(given.client)}/place", body
 
 
 def move_task_to_bank(given: Given) -> Request:

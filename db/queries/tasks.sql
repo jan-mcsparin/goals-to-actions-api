@@ -197,3 +197,18 @@ where recurring_item_id = $1 and user_id = $2 and deleted_at is null;
 -- name: DeleteGoalTasks :exec
 update tasks set deleted_at = now()
 where goal_id = $1 and user_id = $2 and deleted_at is null;
+
+-- An edited item's open tasks take its new name; done, dropped and lapsed ones keep theirs.
+-- name: RenameItemOpenTasks :exec
+update tasks set title = $3
+where recurring_item_id = $1 and user_id = $2 and state = 'open' and deleted_at is null;
+
+-- Every key an item's tasks hold, deleted ones too: keys are never used twice.
+-- name: ListItemSlots :many
+select period_start, number from tasks
+where recurring_item_id = $1 and user_id = $2;
+
+-- A generated task counted as another period's or number (an edited item's schedule).
+-- name: SetTaskSlot :exec
+update tasks set period_start = $3, number = $4
+where id = $1 and user_id = $2;

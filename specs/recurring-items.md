@@ -28,7 +28,7 @@ References: [`data-model.md`](../../docs/data-model.md#recurring_items), [`produ
 **Out (later):**
 
 - Creating the tasks (`week-turnover`).
-- What changing a schedule does to tasks already made for this week (decided there).
+- What changing a schedule does to tasks already made for this week (built in [`recurring-edit`](recurring-edit.md), #49).
 - Which days and periods are due, from the schedule and `startsOn` (`week-turnover`, the first thing that needs it).
 - The ending a late uncheck gives a recurring task (`week-turnover`, with the closing rules it reuses).
 - Yearly repeats, "every N weeks", a time of day on an item.

@@ -10,7 +10,8 @@ from app.db import aspirations, goals, models, recurring_items, task_weeks, task
 from app.errors import NotAllowed, NotFound
 from app.recurring_items.models import NewRecurringItem, RecurringItemEdit, StoredSchedule
 from app.tasks import rules as task_rules
-from app.turnover.rules import fill_item
+from app.turnover.endings import schedule_of
+from app.turnover.rules import fill_item, rework_item
 from app.users import lock_user
 from app.weeks import open_weeks
 
@@ -54,11 +55,13 @@ def create(
 
 
 def update(
-    connection: Connection, user_id: UUID, item_id: UUID, edit: RecurringItemEdit
+    connection: Connection, user_id: UUID, item_id: UUID, edit: RecurringItemEdit, today: date
 ) -> models.RecurringItem:
     """Changes the name, the aspiration, the schedule and the start. An item can stay under
-    its retired aspiration, but can't be moved under one."""
-    lock_user(connection, user_id)
+    its retired aspiration, but can't be moved under one. Its open tasks take the new name, and
+    when the schedule changed, an active item's work in the open weeks follows it (spec
+    `recurring-edit`). Sent again, it changes nothing more."""
+    owner = lock_user(connection, user_id)
     queries = recurring_items.Querier(connection)
     item = queries.get_recurring_item(id=item_id, user_id=user_id)
     if item is None:
@@ -81,6 +84,13 @@ def update(
         )
     )
     assert updated is not None
+    tasks.Querier(connection).rename_item_open_tasks(
+        recurring_item_id=item_id, user_id=user_id, title=updated.name
+    )
+    before = schedule_of(item)
+    if updated.active and schedule_of(updated) != before:
+        weeks = open_weeks(today, owner.planned_through_week, owner.closed_through_week)
+        rework_item(connection, user_id, updated, before, weeks, today, make=True)
     return updated
 
 
@@ -113,6 +123,8 @@ def turn(
     if on:
         task_rules.bring_back(connection, user_id, rows, current)
         weeks = open_weeks(today, owner.planned_through_week, owner.closed_through_week)
+        # The schedule may have changed while it was off (spec `recurring-edit`, decision 4).
+        rework_item(connection, user_id, updated, schedule_of(updated), weeks, today, make=False)
         fill_item(connection, user_id, item_id, weeks, today)
     else:
         task_rules.set_aside(connection, user_id, rows, current)

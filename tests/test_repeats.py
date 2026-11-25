@@ -235,7 +235,9 @@ def create_recurring_item(given: Given) -> Request:
 
 
 def update_recurring_item(given: Given) -> Request:
-    return "PATCH", f"/api/recurring-items/{recurring_item(given.client)}", item(name="Recycling")
+    # A new schedule too, so the week's tasks are reworked: sent again, nothing more changes.
+    body = item(name="Recycling", schedule={"kind": "flexible", "times": 3, "period": "week"})
+    return "PATCH", f"/api/recurring-items/{recurring_item(given.client)}", body
 
 
 def turn_off_recurring_item(given: Given) -> Request:

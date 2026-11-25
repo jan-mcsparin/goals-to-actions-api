@@ -35,6 +35,14 @@ What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product
 
 Build order: 13 → 14 → 15, each followed by its front-end pieces (#79 after 13; #80, #82, #81 after 14; #83 after 15).
 
+**Editing a recurring item** (added 2026-11-25). An addition to slices 6, 7 and 8; no new tables.
+
+| # | Module id | Issue | Covers | Depends on |
+| --- | --- | --- | --- | --- |
+| 16 | [`recurring-edit`](recurring-edit.md) | #49 | An edit to a recurring item renames its open tasks and moves this week's work to the new schedule | 6, 7, 8 |
+
+Built before 13; the front end's #76 follows it.
+
 **Where the front end joins in** (shared decision 12):
 
 | After slice | In the front end |

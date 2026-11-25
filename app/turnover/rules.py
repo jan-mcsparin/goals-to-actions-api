@@ -13,8 +13,9 @@ from app.db.users import GetUserRow
 from app.errors import NotAllowed
 from app.planner import place_new_work
 from app.tasks.rules import add_row, hide, set_outcome
-from app.turnover.due import Slot, fixed_day, goal_slots, item_slots
+from app.turnover.due import ItemSchedule, Slot, fixed_day, goal_slots, item_slots, period_start
 from app.turnover.endings import ending_of, schedule_of
+from app.turnover.rework import WeekTask, rework
 from app.users import lock_user
 from app.weeks import OpenWeeks, current_week, open_weeks
 
@@ -180,24 +181,124 @@ def make_item_tasks(
 def fill_item(
     connection: Connection, user_id: UUID, item_id: UUID, weeks: OpenWeeks, today: date
 ) -> None:
-    """An item created or turned on: each open week gets the tasks it's missing. An edit
-    makes nothing; it takes effect from the item's next period."""
+    """An item created or turned on: each open week gets the tasks it's missing."""
     item = recurring_items.Querier(connection).get_recurring_item(id=item_id, user_id=user_id)
     if item is None or not item.active:
         return
     made: list[UUID] = []
-    for week in (weeks.current, weeks.next) if weeks.next_open else (weeks.current,):
+    for week in weeks_in_play(weeks):
         existing = existing_slots(connection, user_id, week)
         new = make_item_tasks(connection, user_id, item, week, today, existing)
-        if fixed_day(item.schedule_kind, item.weekday, item.day_of_month, week) == today:
-            # Due today: the person just asked for it, so it goes on today. Not a planner write.
-            for task_id in new:
-                put_on_day(connection, user_id, task_id, week, today)
-        else:
-            made += new
+        made += place_today_or_later(connection, user_id, item, week, today, new)
     # A change places only on later days: today only changes because of something the person did.
     if made:
         place_new_work(connection, user_id, made, today + timedelta(days=1))
+
+
+def rework_item(
+    connection: Connection,
+    user_id: UUID,
+    item: models.RecurringItem,
+    before: ItemSchedule,
+    weeks: OpenWeeks,
+    today: date,
+    *,
+    make: bool,
+) -> None:
+    """An item whose schedule changed (spec `recurring-edit`): in each open week its own tasks
+    take the new schedule's slots, a fixed-day task moves to its new day from today on, extra
+    open ones the app placed are removed, and, with `make`, missing ones are made and placed.
+    `before` is the schedule the week's tasks were made under; it tells a carry-over from a
+    flexible task carrying inside its period."""
+    schedule = schedule_of(item)
+    made: list[UUID] = []
+    for week in weeks_in_play(weeks):
+        result = rework(
+            week_tasks_of(connection, user_id, item.id, week, before),
+            item_slots(schedule, week, max(item.starts_on, week)),
+            fixed_day(item.schedule_kind, item.weekday, item.day_of_month, week),
+            today,
+            item_slots_taken(connection, user_id, item.id),
+        )
+        rekey(connection, user_id, result.keys, item_slots_taken(connection, user_id, item.id))
+        for task_id in result.remove:
+            hide(connection, user_id, task_id)
+        for task_id, day in result.moves.items():
+            planner.Querier(connection).move_item_task(
+                day=day, task_id=task_id, user_id=user_id, week=week
+            )
+        if make:
+            new = [
+                add_generated(connection, user_id, week, item.name, None, item.id, slot)
+                for slot in result.make
+            ]
+            made += place_today_or_later(connection, user_id, item, week, today, new)
+    if made:
+        place_new_work(connection, user_id, made, today + timedelta(days=1))
+
+
+def weeks_in_play(weeks: OpenWeeks) -> tuple[date, ...]:
+    return (weeks.current, weeks.next) if weeks.next_open else (weeks.current,)
+
+
+def place_today_or_later(
+    connection: Connection,
+    user_id: UUID,
+    item: models.RecurringItem,
+    week: date,
+    today: date,
+    new: list[UUID],
+) -> list[UUID]:
+    """New tasks of an item due today go on today, since the person just asked for them (not
+    a planner write). Returns the rest, for the planner to place on later days."""
+    if fixed_day(item.schedule_kind, item.weekday, item.day_of_month, week) != today:
+        return new
+    for task_id in new:
+        put_on_day(connection, user_id, task_id, week, today)
+    return []
+
+
+def week_tasks_of(
+    connection: Connection, user_id: UUID, item_id: UUID, week: date, before: ItemSchedule
+) -> list[WeekTask]:
+    carrying_in_period = period_start(before, week) if before.kind == "flexible" else week
+    return [
+        WeekTask(
+            task_id=row.task_id,
+            slot=(row.period_start, row.number),
+            day=row.planned_day,
+            done=row.state == "done",
+            by_hand=row.placed_by_hand,
+            own=row.carried_over == 0 or row.period_start == carrying_in_period,
+        )
+        for row in turnover.Querier(connection).list_item_tasks_in_week(
+            recurring_item_id=item_id, user_id=user_id, week=week
+        )
+        if row.period_start is not None and row.number is not None
+    ]
+
+
+def item_slots_taken(connection: Connection, user_id: UUID, item_id: UUID) -> set[Slot]:
+    return {
+        (row.period_start, row.number)
+        for row in tasks.Querier(connection).list_item_slots(
+            recurring_item_id=item_id, user_id=user_id
+        )
+        if row.period_start is not None and row.number is not None
+    }
+
+
+def rekey(connection: Connection, user_id: UUID, keys: dict[UUID, Slot], taken: set[Slot]) -> None:
+    """Gives tasks their new keys in two steps, first past every number in use and then into
+    place, so two tasks trading keys never meet the unique index."""
+    queries = tasks.Querier(connection)
+    out_of_the_way = max((number for _, number in taken | set(keys.values())), default=0)
+    for offset, (task_id, (start, _)) in enumerate(keys.items(), start=1):
+        queries.set_task_slot(
+            id=task_id, user_id=user_id, period_start=start, number=out_of_the_way + offset
+        )
+    for task_id, (start, number) in keys.items():
+        queries.set_task_slot(id=task_id, user_id=user_id, period_start=start, number=number)
 
 
 def put_on_day(connection: Connection, user_id: UUID, task_id: UUID, week: date, day: date) -> None:

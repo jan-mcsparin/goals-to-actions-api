@@ -11,9 +11,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `app/turnover/rework.py`: from one week's tasks of the item, the new slots, the new fixed day and today, what to re-key, move, remove and make.
 
 **Acceptance criteria:**
-- [ ] Moves: a fixed-day task the app placed, or in the bank, goes to its new day when that day is today or later; otherwise stays. Done and hand-placed never move. A carry-over is never touched.
-- [ ] Counts: survivors in order (done, by hand, on a day, bank) take the slots; extras removed bank first, then latest day; done and hand-placed never removed; missing slots made.
-- [ ] Keys: no two tasks end on one key; removed and surplus tasks get numbers past any in use.
+- [x] Moves: a fixed-day task the app placed, or in the bank, goes to its new day when that day is today or later; otherwise stays. Done and hand-placed never move. A carry-over is never touched.
+- [x] Counts: survivors in order (done, by hand, on a day, bank) take the slots; extras removed bank first, then latest day; done and hand-placed never removed; missing slots made.
+- [x] Keys: no two tasks end on one key; removed and surplus tasks get numbers past any in use.
 
 **Verify:** `uv run pytest tests/test_rework.py`, then the four checks.
 

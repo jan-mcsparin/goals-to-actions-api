@@ -65,6 +65,14 @@ class ListWeekPlacesRow(pydantic.BaseModel):
     planned_day: Optional[datetime.date]
 
 
+MOVE_ITEM_TASK = """-- name: move_item_task \\:execrows
+update task_weeks set planned_day = :p1\\:\\:date
+where task_id = :p2 and user_id = :p3
+  and week = :p4\\:\\:date and deleted_at is null
+  and not placed_by_hand and outcome is null
+"""
+
+
 PLACE_GENERATED_TASK = """-- name: place_generated_task \\:execrows
 update task_weeks set planned_day = :p1\\:\\:date
 where task_id = :p2 and user_id = :p3
@@ -112,6 +120,15 @@ class Querier:
                 recurring_item_id=row[2],
                 planned_day=row[3],
             )
+
+    def move_item_task(self, *, day: datetime.date, task_id: uuid.UUID, user_id: uuid.UUID, week: datetime.date) -> int:
+        result = self._conn.execute(sqlalchemy.text(MOVE_ITEM_TASK), {
+            "p1": day,
+            "p2": task_id,
+            "p3": user_id,
+            "p4": week,
+        })
+        return result.rowcount
 
     def place_generated_task(self, arg: PlaceGeneratedTaskParams) -> int:
         result = self._conn.execute(sqlalchemy.text(PLACE_GENERATED_TASK), {

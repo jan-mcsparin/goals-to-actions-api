@@ -4618,6 +4618,7 @@
         ]
       },
       "patch": {
+        "description": "Changes the item, sent whole. Its open tasks are renamed. When the schedule changes,\nthis week's tasks, and next week's once it's open, follow it: a fixed-day task moves to\nits new day from today on, missing ones are added on later days, and extra open ones are\nremoved. A task placed by hand or done stays.",
         "operationId": "updateRecurringItem",
         "parameters": [
           {
@@ -4627,6 +4628,15 @@
             "schema": {
               "format": "uuid",
               "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
               "type": "string"
             }
           }

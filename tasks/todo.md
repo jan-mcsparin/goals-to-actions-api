@@ -24,9 +24,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** The queries and `sqlc generate`; `rules.update(…, today)` renames open tasks and, when the schedule changed, reworks each open week; the route asks for `Today`; `openapi.json`.
 
 **Acceptance criteria:**
-- [ ] Open tasks (carry-overs and set-aside ones too) take the new name; done, dropped and lapsed keep the old.
-- [ ] The spec's weekly day cases on the week read, including the carry-over and the hand-placed task.
-- [ ] A rename or an aspiration change alone moves nothing.
+- [x] Open tasks (carry-overs and set-aside ones too) take the new name; done, dropped and lapsed keep the old.
+- [x] The spec's weekly day cases on the week read, including the carry-over and the hand-placed task.
+- [x] A rename or an aspiration change alone moves nothing.
 
 **Verify:** `uv run pytest tests/test_item_tasks.py tests/test_recurring_items.py`, then the four checks.
 

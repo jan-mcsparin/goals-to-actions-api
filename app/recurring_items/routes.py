@@ -40,10 +40,18 @@ def create_recurring_item(
 
 @router.patch("/{item_id}", responses=NOT_FOUND | NOT_ALLOWED)
 def update_recurring_item(
-    item_id: UUID, body: RecurringItemEdit, database: CurrentDatabase, user_id: CurrentUserId
+    item_id: UUID,
+    body: RecurringItemEdit,
+    database: CurrentDatabase,
+    user_id: CurrentUserId,
+    today: Today,
 ) -> RecurringItem:
+    """Changes the item, sent whole. Its open tasks are renamed. When the schedule changes,
+    this week's tasks, and next week's once it's open, follow it: a fixed-day task moves to
+    its new day from today on, missing ones are added on later days, and extra open ones are
+    removed. A task placed by hand or done stays."""
     with database.transaction(user_id, "update recurring item") as connection:
-        return RecurringItem.from_row(rules.update(connection, user_id, item_id, body))
+        return RecurringItem.from_row(rules.update(connection, user_id, item_id, body, today))
 
 
 @router.post("/{item_id}/turn-off", responses=NOT_FOUND)

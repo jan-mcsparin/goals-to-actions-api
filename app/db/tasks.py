@@ -149,6 +149,17 @@ class GoalWeekDoneRow(pydantic.BaseModel):
     logged: decimal.Decimal
 
 
+LIST_ITEM_SLOTS = """-- name: list_item_slots \\:many
+select period_start, number from tasks
+where recurring_item_id = :p1 and user_id = :p2
+"""
+
+
+class ListItemSlotsRow(pydantic.BaseModel):
+    period_start: Optional[datetime.date]
+    number: Optional[int]
+
+
 LIST_STEPS = """-- name: list_steps \\:many
 select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, shown.week, shown.planned_day, shown.placed_by_hand,
   goals.label as goal_label,
@@ -328,6 +339,12 @@ class ListWeekTasksRow(pydantic.BaseModel):
     carried_over: int
 
 
+RENAME_ITEM_OPEN_TASKS = """-- name: rename_item_open_tasks \\:exec
+update tasks set title = :p3
+where recurring_item_id = :p1 and user_id = :p2 and state = 'open' and deleted_at is null
+"""
+
+
 SET_STILL_MATTERS_ANSWERED = """-- name: set_still_matters_answered \\:exec
 update tasks set still_matters_answered_on = :p3
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -359,6 +376,12 @@ SET_TASK_OPEN = """-- name: set_task_open \\:exec
 update tasks
 set state = 'open', completed_at = null, completed_on = null, value_logged = null
 where id = :p1 and user_id = :p2 and deleted_at is null
+"""
+
+
+SET_TASK_SLOT = """-- name: set_task_slot \\:exec
+update tasks set period_start = :p3, number = :p4
+where id = :p1 and user_id = :p2
 """
 
 
@@ -535,6 +558,14 @@ class Querier:
             logged=row[1],
         )
 
+    def list_item_slots(self, *, recurring_item_id: Optional[uuid.UUID], user_id: uuid.UUID) -> Iterator[ListItemSlotsRow]:
+        result = self._conn.execute(sqlalchemy.text(LIST_ITEM_SLOTS), {"p1": recurring_item_id, "p2": user_id})
+        for row in result:
+            yield ListItemSlotsRow(
+                period_start=row[0],
+                number=row[1],
+            )
+
     def list_steps(self, *, goal_id: Optional[uuid.UUID], user_id: uuid.UUID) -> Iterator[ListStepsRow]:
         result = self._conn.execute(sqlalchemy.text(LIST_STEPS), {"p1": goal_id, "p2": user_id})
         for row in result:
@@ -643,6 +674,9 @@ class Querier:
                 carried_over=row[29],
             )
 
+    def rename_item_open_tasks(self, *, recurring_item_id: Optional[uuid.UUID], user_id: uuid.UUID, title: str) -> None:
+        self._conn.execute(sqlalchemy.text(RENAME_ITEM_OPEN_TASKS), {"p1": recurring_item_id, "p2": user_id, "p3": title})
+
     def set_still_matters_answered(self, *, id: uuid.UUID, user_id: uuid.UUID, still_matters_answered_on: Optional[datetime.date]) -> None:
         self._conn.execute(sqlalchemy.text(SET_STILL_MATTERS_ANSWERED), {"p1": id, "p2": user_id, "p3": still_matters_answered_on})
 
@@ -660,6 +694,14 @@ class Querier:
 
     def set_task_open(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
         self._conn.execute(sqlalchemy.text(SET_TASK_OPEN), {"p1": id, "p2": user_id})
+
+    def set_task_slot(self, *, id: uuid.UUID, user_id: uuid.UUID, period_start: Optional[datetime.date], number: Optional[int]) -> None:
+        self._conn.execute(sqlalchemy.text(SET_TASK_SLOT), {
+            "p1": id,
+            "p2": user_id,
+            "p3": period_start,
+            "p4": number,
+        })
 
     def task_deleted(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Task]:
         row = self._conn.execute(sqlalchemy.text(TASK_DELETED), {"p1": id, "p2": user_id}).first()

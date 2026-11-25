@@ -52,3 +52,18 @@ join task_weeks on task_weeks.task_id = tasks.id and task_weeks.week = $3
   and task_weeks.deleted_at is null
 where tasks.goal_id = $1 and tasks.user_id = $2 and tasks.origin = 'weekly_target'
   and tasks.period_start = $3 and tasks.deleted_at is null;
+
+-- An item's tasks with a row in the week, open or done, and whether each rolled over into it.
+-- name: ListItemTasksInWeek :many
+select tasks.id as task_id, tasks.period_start, tasks.number, tasks.state,
+  task_weeks.planned_day, task_weeks.placed_by_hand,
+  (select count(*) from task_weeks carried
+    where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.week < task_weeks.week and carried.deleted_at is null)::integer as carried_over
+from tasks
+join task_weeks on task_weeks.task_id = tasks.id and task_weeks.week = $3
+  and task_weeks.deleted_at is null
+  and (task_weeks.outcome is null or task_weeks.outcome = 'done')
+where tasks.recurring_item_id = $1 and tasks.user_id = $2 and tasks.deleted_at is null
+  and tasks.state in ('open', 'done')
+order by tasks.period_start, tasks.number;

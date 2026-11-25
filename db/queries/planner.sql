@@ -43,3 +43,11 @@ where task_id = sqlc.arg(task_id) and user_id = sqlc.arg(user_id)
   and week = sqlc.arg(week)::date and deleted_at is null
   and planned_day is null and not placed_by_hand and outcome is null
   and sqlc.arg(day)::date >= sqlc.arg(first_day)::date;
+
+-- An edited item's task the app placed, or in the bank, moved to its new day. Not a planner
+-- write: the person asked for the change.
+-- name: MoveItemTask :execrows
+update task_weeks set planned_day = sqlc.arg(day)::date
+where task_id = sqlc.arg(task_id) and user_id = sqlc.arg(user_id)
+  and week = sqlc.arg(week)::date and deleted_at is null
+  and not placed_by_hand and outcome is null;

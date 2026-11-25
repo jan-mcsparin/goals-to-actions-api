@@ -123,6 +123,7 @@ WRITES: dict[str, Callable[[Connection], object]] = {
         FIXED_USER_ID,
         uuid4(),
         RecurringItemEdit(name="Trash", schedule=NEW_ITEM.schedule, starts_on=date(2026, 11, 17)),
+        date(2026, 11, 16),
     ),
 }
 

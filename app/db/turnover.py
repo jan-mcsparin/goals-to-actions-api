@@ -75,6 +75,32 @@ class ListGoalSessionsInWeekRow(pydantic.BaseModel):
     outcome: Optional[str]
 
 
+LIST_ITEM_TASKS_IN_WEEK = """-- name: list_item_tasks_in_week \\:many
+select tasks.id as task_id, tasks.period_start, tasks.number, tasks.state,
+  task_weeks.planned_day, task_weeks.placed_by_hand,
+  (select count(*) from task_weeks carried
+    where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.week < task_weeks.week and carried.deleted_at is null)\\:\\:integer as carried_over
+from tasks
+join task_weeks on task_weeks.task_id = tasks.id and task_weeks.week = :p3
+  and task_weeks.deleted_at is null
+  and (task_weeks.outcome is null or task_weeks.outcome = 'done')
+where tasks.recurring_item_id = :p1 and tasks.user_id = :p2 and tasks.deleted_at is null
+  and tasks.state in ('open', 'done')
+order by tasks.period_start, tasks.number
+"""
+
+
+class ListItemTasksInWeekRow(pydantic.BaseModel):
+    task_id: uuid.UUID
+    period_start: Optional[datetime.date]
+    number: Optional[int]
+    state: str
+    planned_day: Optional[datetime.date]
+    placed_by_hand: bool
+    carried_over: int
+
+
 LIST_ROWS_TO_CLOSE = """-- name: list_rows_to_close \\:many
 select task_weeks.id, task_weeks.user_id, task_weeks.task_id, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand, task_weeks.outcome, task_weeks.created_at, task_weeks.updated_at, task_weeks.deleted_at, tasks.origin, tasks.period_start,
   items.schedule_kind as item_kind, items.period as item_period
@@ -175,6 +201,19 @@ class Querier:
                 state=row[2],
                 planned_day=row[3],
                 outcome=row[4],
+            )
+
+    def list_item_tasks_in_week(self, *, recurring_item_id: Optional[uuid.UUID], user_id: uuid.UUID, week: datetime.date) -> Iterator[ListItemTasksInWeekRow]:
+        result = self._conn.execute(sqlalchemy.text(LIST_ITEM_TASKS_IN_WEEK), {"p1": recurring_item_id, "p2": user_id, "p3": week})
+        for row in result:
+            yield ListItemTasksInWeekRow(
+                task_id=row[0],
+                period_start=row[1],
+                number=row[2],
+                state=row[3],
+                planned_day=row[4],
+                placed_by_hand=row[5],
+                carried_over=row[6],
             )
 
     def list_rows_to_close(self, *, user_id: uuid.UUID, through: datetime.date, after: datetime.date) -> Iterator[ListRowsToCloseRow]:

@@ -1,6 +1,6 @@
 # Spec: On a day
 
-Status: draft 2026-11-23; decisions settled with Jan the same day. Issue: [#50](https://github.com/jan-mcsparin/goals-to-actions-api/issues/50). Module `on-a-day` in the [map](README.md), the first of three from the scheduling brief. Depends on `tasks-week`, `week-turnover` and `planner`. The front end's [#79](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/79) (the Add sheet) builds on it; its #82 (Move and Remove on a future day) uses it once API #51 can read the weeks it shows.
+Status: built 2026-11-25; decisions settled with Jan on 2026-11-23. The plan is in git history (`tasks/plan.md`). Issue: [#50](https://github.com/jan-mcsparin/goals-to-actions-api/issues/50). Module `on-a-day` in the [map](README.md), the first of three from the scheduling brief. Depends on `tasks-week`, `week-turnover` and `planner`. The front end's [#79](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/79) (the Add sheet) builds on it; its #82 (Move and Remove on a future day) uses it once API #51 can read the weeks it shows.
 
 ## Objective
 
@@ -95,3 +95,10 @@ Through the `client` fixture, against real Postgres, with the clock pinned (Wed 
 ## Open questions
 
 None.
+
+## As built
+
+- **A move sent again is a repeat, not a 409.** After a move across weeks the row has left the week the request names, so the stale-week check would refuse the second send. `placeTask` first checks whether the row in play is already on that day, placed by hand, and then changes nothing. A stale move to another day is still refused. The queued-write test for a stale week now starts from tomorrow, so its edit would change something.
+- **409 messages:** "A goal session or a recurring task stays in its own week." and "A task goes on a day from today on." for the move; "The task already has a row in that week." for decision 4.
+- **Items 5, 6, 7 and 9 needed no code,** only tests: the queries already skipped or counted a pinned row as the spec expected.
+- **`bring_back` takes `planned_through_week`:** a set-aside row in a week past it goes back in play on its day.

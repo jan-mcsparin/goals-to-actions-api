@@ -1,6 +1,6 @@
 # Spec: Editing a recurring item moves this week's work
 
-Status: draft 2026-11-25. Issue: [#49](https://github.com/jan-mcsparin/goals-to-actions-api/issues/49); its acceptance criteria were settled with Jan on 2026-11-20, and this spec adds recommendations for the three questions it left open (decisions 1 to 3) and one more found while writing it (decision 4). Module `recurring-edit` in the [map](README.md), an addition to `recurring-items`, `week-turnover` and `planner`. The front end's [#76](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/76) (spec [076](../../web-frontend/specs/076-edit-recurring-item.md)) waits on it.
+Status: settled with Jan 2026-11-25, as recommended; plan in [`../tasks/plan.md`](../tasks/plan.md). Issue: [#49](https://github.com/jan-mcsparin/goals-to-actions-api/issues/49); its acceptance criteria were settled with Jan on 2026-11-20, and this spec adds recommendations for the three questions it left open (decisions 1 to 3) and one more found while writing it (decision 4). Module `recurring-edit` in the [map](README.md), an addition to `recurring-items`, `week-turnover` and `planner`. The front end's [#76](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/76) (spec [076](../../web-frontend/specs/076-edit-recurring-item.md)) waits on it.
 
 ## Objective
 
@@ -13,7 +13,7 @@ References: [`recurring-items`](recurring-items.md), [`week-turnover`](week-turn
 `updateRecurringItem` on an active item acts on the item's tasks in every open week, in the same transaction as the edit:
 
 1. **A rename** renames the item's open tasks, in any week, carry-overs and set-aside ones included. Done, dropped and lapsed tasks keep their old title.
-2. **The week's tasks are worked out again from the new schedule,** as opening the week would (`item_slots`, with today as the first day). Each open week's own tasks of the item, done ones included, count towards what the new schedule is due there, and become its tasks (decision 2). Then, like a weekly target change (`week-turnover` settled 1):
+2. **The week's tasks are worked out again from the new schedule,** counted from the week's Monday (or `startsOn` if later), so an edit late in the week doesn't make anything done look extra. Each open week's own tasks of the item, done ones included, count towards what the new schedule is due there, and become its tasks (decision 2). Then, like a weekly target change (`week-turnover` settled 1):
    - **too few:** the missing ones are made and placed by the planner on days after today, as new recurring work is now (`fill_item`). With no day after today left, they wait in the bank.
    - **too many:** the extra open ones are removed, last first: the bank before any day, then the latest day. Only ones the app placed or that are in the bank; a task placed by hand or done is never removed. Removed means soft-deleted, so it isn't made again.
 3. **A fixed-day task moves to its new day when that day is today or later** (decision 1), if it isn't done and the app placed it or it's in the bank. Otherwise it stays where it is. That one rule covers all four day cases in the issue.
@@ -39,7 +39,7 @@ The phone reads the week again after the edit (spec 076); this write isn't queue
 
 ## Decisions
 
-Recommended; to settle with Jan.
+Settled with Jan, 2026-11-25, as recommended.
 
 1. **An old day still ahead with a new day already past** (on a Wednesday, Thursday → Monday). **Recommended: it stays on Thursday.** The alternatives are the bank, where a fixed-day task can only be placed on its day (#47), which is past, so it would be stuck there until it carries over; or today, which is a guess. Staying keeps one rule for every case: a task moves only when its new day is today or later. It still carries over at the close if it isn't done, as a fixed-day task does.
 2. **A change of kind or period** (fixed → flexible, weekly → every two weeks, weekly → monthly). **Recommended: count, don't replace.** The new schedule says how many of the item's tasks each open week holds; the tasks already there count first (done before open), the rest are added or removed as in "What changes" 2. The tasks that stay are renamed in the database to the new schedule's period and number, so opening a later week in the same period doesn't make them again. Weekly Tuesday → 3 times a week, done Tuesday: two more, on later days. Weekly → monthly on the 1st, not due this week: the open task is removed, a done one stays. Only this week's and next week's tasks are counted, never earlier weeks': a monthly flexible task done in the first week of the month, then changed to once every two weeks, gets a fresh one now.
@@ -94,4 +94,4 @@ Through the `client` fixture against real Postgres, the clock pinned to Wed 18 N
 
 ## Open questions
 
-Decisions 1 to 4, above.
+None.

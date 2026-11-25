@@ -1,157 +1,71 @@
-# Tasks: Sign-in (#14)
+# Tasks: Editing a recurring item moves this week's work (#49)
 
-Plan: [`plan.md`](plan.md). Spec: [`../specs/sign-in.md`](../specs/sign-in.md).
+Plan: [`plan.md`](plan.md). Spec: [`../specs/recurring-edit.md`](../specs/recurring-edit.md).
 
-Every task: write the tests first, run the four checks (`uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`), then one commit. A task that adds a route also runs `uv run python -m app.openapi`.
+Every task: write the tests first, run the four checks (`uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`), then one commit. A task that changes a route also runs `uv run python -m app.openapi`.
 
-# PR: `sign-in` (closes #14)
+# PR: `recurring-edit` (closes #49)
 
-### Task 1: Add the WebAuthn library
+### Task 1: The pure rule
 
-**Description:** `uv add "webauthn>=3.0.1"` (asked for and agreed in the plan's approval).
+**Description:** `app/turnover/rework.py`: from one week's tasks of the item, the new slots, the new fixed day and today, what to re-key, move, remove and make.
 
 **Acceptance criteria:**
-- [x] It and `cryptography` install on Python 3.15 and import; `uv.lock` is committed.
+- [ ] Moves: a fixed-day task the app placed, or in the bank, goes to its new day when that day is today or later; otherwise stays. Done and hand-placed never move. A carry-over is never touched.
+- [ ] Counts: survivors in order (done, by hand, on a day, bank) take the slots; extras removed bank first, then latest day; done and hand-placed never removed; missing slots made.
+- [ ] Keys: no two tasks end on one key; removed and surplus tasks get numbers past any in use.
 
-**Verify:** `uv run python -c "import webauthn"`, then the four checks.
+**Verify:** `uv run pytest tests/test_rework.py`, then the four checks.
 
 **Dependencies:** none.
 
-### Task 2: A session, and 401 without one
+### Task 2: Rename, and fixed-day tasks move
 
-**Description:** The `sessions` table (unaudited) and its queries; `current_user_id` reads the `__Host-session` cookie; every protected router lists it as a dependency. Last use recorded at most once a day, with the cookie sent again. The `client` fixture signs in as the fixed user by making a session row, uses `https://testserver` and sends `Origin`.
-
-**Acceptance criteria:**
-- [x] Every route in the schema but `health` and `/api/sign-in/*` is a 401 with no session; the test reads the schema, so a new route is covered (`tests/test_signed_out.py`). An unknown token, an ended session and one unused for 90 days are a 401 (`tests/test_sessions.py`).
-- [x] A session is used; last use is written once in a day of many requests, and again the next day with a fresh cookie.
-- [x] The database holds only the token's hash (SHA-256 in hex: the generated models can't hold `bytea`); the existing suite passes, with one test that jumps the clock past 90 days kept signed in.
-
-**Verify:** `uv run pytest tests/test_signed_out.py tests/test_sessions.py`, then the four checks.
-
-**Dependencies:** none.
-
-### Task 3: Refuse a write from another origin
-
-**Description:** A write (`POST`, `PUT`, `PATCH`, `DELETE`) whose `Origin` isn't `APP_ORIGIN`, or that has none, is a 403. Reads aren't checked.
+**Description:** The queries and `sqlc generate`; `rules.update(…, today)` renames open tasks and, when the schedule changed, reworks each open week; the route asks for `Today`; `openapi.json`.
 
 **Acceptance criteria:**
-- [x] A write from a sibling subdomain, and one with no `Origin`, is a 403 and changes nothing; the same write from the app's origin lands.
-- [x] A read from another origin is answered.
+- [ ] Open tasks (carry-overs and set-aside ones too) take the new name; done, dropped and lapsed keep the old.
+- [ ] The spec's weekly day cases on the week read, including the carry-over and the hand-placed task.
+- [ ] A rename or an aspiration change alone moves nothing.
 
-**Verify:** `uv run pytest tests/test_origin.py`, then the four checks.
+**Verify:** `uv run pytest tests/test_item_tasks.py tests/test_recurring_items.py`, then the four checks.
+
+**Dependencies:** 1.
+
+### Task 3: Counts, and a change of kind or period
+
+**Description:** Removing and making through the API, placed by the planner from tomorrow.
+
+**Acceptance criteria:**
+- [ ] Flexible 2 → 3, 3 → 1 with one done, 3 → 1 with two by hand; monthly day 20 → 25 and → 1.
+- [ ] Weekly → 3 a week (done): two more. Weekly → once a month: the open task counts as the month's; opening next week in the same month makes nothing.
+- [ ] Editing back and forth never hits the unique index.
+
+**Verify:** `uv run pytest tests/test_item_tasks.py`, then the four checks.
 
 **Dependencies:** 2.
 
-### Task 4: Sign out
-
-**Description:** `signOut`, `POST /api/sign-in/sign-out`: ends the session on the server and clears the cookie. Signing out with no session is a 204 too. A case in `test_repeats.py`.
+### Task 4: Off and on; two open weeks; repeats
 
 **Acceptance criteria:**
-- [x] After signing out, the same cookie gets a 401.
-- [x] Sent twice, the same answer.
+- [ ] Off, edited (renamed only), turned on: the week matches the new schedule, nothing doubled.
+- [ ] Sunday evening: both weeks follow the edit; today and earlier days unchanged.
+- [ ] `test_repeats.py`: the same edit twice changes nothing more; audit action `update recurring item`; the lock test still covers `update`.
 
-**Verify:** `uv run pytest tests/test_sessions.py tests/test_repeats.py`, then the four checks.
+**Verify:** the four checks.
 
-**Dependencies:** 2, 3.
+**Dependencies:** 3.
 
 ## Checkpoint: after tasks 1–4
-- [x] The four checks pass; every route is closed without a session.
+- [ ] The four checks pass; every "What changes" item in the spec has a test.
 
-### Task 5: One-time codes and the command
+### Task 5: Docs and a check
 
-**Description:** The `sign_in_codes` table (audited) and its queries; `app/sign_in/codes.py` makes a code and keeps its hash; `python -m app.sign_in.command add-user` and `code <user-id>`.
-
-**Acceptance criteria:**
-- [x] `add-user` makes a user at Normal intensity with no weeks opened, and prints their id and a code; `code` prints a code for an existing user and refuses an unknown one.
-- [x] A code is 20 Crockford base-32 characters in groups of four; the table holds its hash and an expiry ten minutes on.
-
-**Verify:** `uv run pytest tests/test_sign_in_codes.py`, then the four checks.
-
-**Dependencies:** none.
-
-### Task 6: Add a passkey with a code
-
-**Description:** The `sign_in_challenges` and `passkeys` tables; `redeemCode` and `addPasskey`. Redeeming spends the code and returns registration options and a challenge; adding verifies the credential with the library, keeps the passkey and starts a session.
+**Description:** Spec status and As built; `recurring-items.md`, `week-turnover.md`, `planner.md`, the map; `../docs/flows.md` flow 4 on a parent-repo branch. A Sonnet agent runs the four checks and the spec's cases against the running API (items named "Verification: …").
 
 **Acceptance criteria:**
-- [x] A code works once, not twice, and not after ten minutes; a wrong one is a 401. Case, dashes and spaces don't matter.
-- [x] A credential the library rejects, or an expired or used challenge, is a 401 and keeps nothing; one it accepts keeps the passkey and sets the cookie, which then reads the user's rows.
-- [x] The options ask for a discoverable passkey and user verification, for the configured relying party.
-
-**Verify:** `uv run pytest tests/test_add_passkey.py`, then the four checks.
-
-**Dependencies:** 2, 5.
-
-### Task 7: Sign in with a passkey
-
-**Description:** `startSignIn` and `finishSignIn`. Start makes a challenge with no user; finish finds the passkey by its credential id, verifies with the library, records the new sign count and starts a session.
-
-**Acceptance criteria:**
-- [x] An unknown credential, a rejected one, a deleted passkey and an expired or used challenge are a 401.
-- [x] An accepted one sets the cookie for the passkey's owner and updates the sign count.
-
-**Verify:** `uv run pytest tests/test_sign_in.py`, then the four checks.
-
-**Dependencies:** 6.
-
-### Task 8: A second user can't reach the first's rows
-
-**Description:** `tests/test_other_user.py`: for every operation in the schema, arrange the first user's rows (reusing `test_repeats.py`'s cases), send the request as a second user, and check the first user's rows are unchanged and no id of theirs comes back. Fix what it finds. Also sends each device-made create again as the second user with the first's id. It found nothing to fix.
-
-**Acceptance criteria:**
-- [x] Every operation has a case; the test fails for one without.
-- [x] No answer is a 500.
-
-**Verify:** `uv run pytest tests/test_other_user.py`, then the four checks.
-
-**Dependencies:** 2.
-
-### Task 9: An invited tester, end to end
-
-**Description:** One test: `add-user`, redeem its code, add a passkey (library stood in), then a request that needs the day opens the new user's first week, and they see only their own rows.
-
-**Acceptance criteria:**
-- [x] The new user's week opens on their first request, at Normal intensity.
-
-**Verify:** `uv run pytest tests/test_invited_tester.py`, then the four checks.
-
-**Dependencies:** 5, 6.
-
-## Checkpoint: after tasks 5–9
-- [x] The four checks pass; the spec's success criteria that tests can show are met.
-
-### Task 10: Docs
-
-**Description:** `data-model.md` gains the four tables; `specs/sign-in.md` finalised (open questions settled); ADR-012's "to confirm" notes the `Origin` header; `specs/README.md` decision 2 updated; the README says how to add a user and make a code, and that sign-in routes are one-shot; `CLAUDE.md`'s structure lists `app/sign_in/`.
-
-**Acceptance criteria:**
-- [x] Every doc describes what was built. `data-model.md` and ADR-012 are in the parent repo, on its `sign-in` branch.
+- [ ] Every doc describes what was built; the agent's findings are in the PR.
 
 **Verify:** read through; the four checks.
 
-**Dependencies:** 1–9.
-
-### Task 11: Security review before merge
-
-**Description:** A security review of the `sign-in` branch against `main`, by the security-auditor agent, before the PR merges and before the API is first hosted (#8). It reviews how the pieces fit, not the algorithms (the library checks the signatures): the cookie's flags and expiry, the `Origin` check, a code and a challenge working once with no race between two requests, every route answering 401 without a session, and no user reaching another's rows. Each finding is fixed with a test, or recorded in the PR with why it can wait for open sign-up.
-
-**Acceptance criteria:**
-- [x] The review has been run, and its findings are listed in the PR.
-- [x] Every finding to be fixed before hosting is fixed, with a test; the rest are noted as left for open sign-up. Fixed: expired challenges cleared as new ones are made; any failure in the library's parsing is a 401, not a 500; a credential already kept is refused instead of reported as added. For hosting (ADR-011): `Origin` forwarded, a rate limit on `/api/sign-in/*`. Then, agreed with Jan: `end-sessions` and `remove-passkeys` commands, and signing in again ends the device's old session. The code review's fix: the signed-out test names its open routes by operation id.
-
-**Verify:** the four checks after the fixes.
-
-**Dependencies:** 1–10.
-
-# PR in the front end: regenerated types
-
-### Task 12: Regenerate the front end's types
-
-**Description:** On a branch in `web-frontend/`, regenerate the API types from `openapi.json`; the mock client compiles. No screens change.
-
-**Acceptance criteria:**
-- [x] Types regenerated; the front end's typecheck, lint and tests pass (front-end PR #64).
-
-**Verify:** the front end's own checks (`nvm use` first).
-
-**Dependencies:** 11.
+**Dependencies:** 1–4.

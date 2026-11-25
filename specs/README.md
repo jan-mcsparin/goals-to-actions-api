@@ -25,6 +25,16 @@ What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product
 
 **Build order:** 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12.
 
+**Scheduling and other weeks** ([brief](../../docs/briefs/scheduling-and-other-weeks.md), added 2026-11-23). Additions to slices 5, 7 and 8; no new tables.
+
+| # | Module id | Issue | Covers | Depends on |
+| --- | --- | --- | --- | --- |
+| 13 | [`on-a-day`](on-a-day.md) | #50 | A task on any day from today on, in a week that hasn't opened too; moved across weeks or dropped | 5, 7, 8 |
+| 14 | `any-week` (spec to come) | #51 | Reading any week, past or later, with counts by origin; late check-offs from a past day | 13 |
+| 15 | `coming-up` (spec to come) | #52 | The next 12 weeks in one read | 14 |
+
+Build order: 13 → 14 → 15, each followed by its front-end pieces (#79 after 13; #80, #82, #81 after 14; #83 after 15).
+
 **Where the front end joins in** (shared decision 12):
 
 | After slice | In the front end |

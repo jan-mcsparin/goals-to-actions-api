@@ -1,5 +1,6 @@
-"""A fixed-day item's task stays on its day in the week it was due (API #47): moving it to the
-bank, swapping it out or placing it on another day is refused. Once it has carried over it's
+"""A fixed-day item's task stays in the week it was due (API #47): moving it to the bank or
+swapping it out is refused, and so is a move to another week. It can move to another day of its
+week from today on (web-frontend #82): a holiday moves trash day. Once it has carried over it's
 placed like any task."""
 
 from collections.abc import Iterator
@@ -14,6 +15,7 @@ from sqlalchemy import Connection, text
 from app.weeks import week_of
 from tests.test_check_off import check_off
 from tests.test_goals import ZONE, today
+from tests.test_item_edits import edit
 from tests.test_recurring_items import create as create_item
 from tests.test_recurring_items import item
 from tests.test_task_moves import place, swap, to_bank
@@ -76,11 +78,62 @@ def test_swapping_it_out_is_refused_and_the_bank_task_stays_put(tasks_client: Te
     assert bank["plannedDay"] is None
 
 
-def test_placing_it_on_another_day_is_refused(tasks_client: TestClient) -> None:
+def test_it_moves_to_another_day_of_its_week_placed_by_hand_and_back(
+    tasks_client: TestClient,
+) -> None:
+    plants = todays_item(tasks_client)
+    tomorrow = today() + timedelta(days=1)
+
+    moved = place(tasks_client, plants["id"], tomorrow)
+
+    assert moved.status_code == 200, moved.text
+    assert (moved.json()["plannedDay"], moved.json()["placedByHand"]) == (
+        tomorrow.isoformat(),
+        True,
+    )
+    assert moved.json()["fixedDay"] is True
+    assert plants_day(tasks_client) == tomorrow.isoformat()
+    assert place(tasks_client, plants["id"], today()).status_code == 200
+    assert plants_day(tasks_client) == today().isoformat()
+
+
+def test_a_move_sent_twice_is_one_move(tasks_client: TestClient) -> None:
+    plants = todays_item(tasks_client)
+    tomorrow = today() + timedelta(days=1)
+
+    assert place(tasks_client, plants["id"], tomorrow).status_code == 200
+    assert place(tasks_client, plants["id"], tomorrow).status_code == 200
+    assert plants_day(tasks_client) == tomorrow.isoformat()
+
+
+def test_a_move_to_a_day_before_today_is_refused(tasks_client: TestClient) -> None:
     plants = todays_item(tasks_client)
 
-    assert refused(place(tasks_client, plants["id"], today() + timedelta(days=1)))
+    response = place(tasks_client, plants["id"], today() - timedelta(days=1))
+
+    assert response.status_code == 409
     assert plants_day(tasks_client) == today().isoformat()
+
+
+def test_once_moved_an_edit_to_its_item_leaves_it_where_it_was_put(
+    tasks_client: TestClient,
+) -> None:
+    plants = todays_item(tasks_client)
+    tomorrow = today() + timedelta(days=1)
+    [created] = tasks_client.get("/api/recurring-items").json()["recurringItems"]
+    assert place(tasks_client, plants["id"], tomorrow).status_code == 200
+
+    renamed = edit(tasks_client, created, name="Water the ferns")
+    assert plants_day_named(tasks_client, "Water the ferns") == tomorrow.isoformat()
+    edit(tasks_client, renamed, schedule={"kind": "weekly", "weekday": "saturday"})
+
+    assert plants_day_named(tasks_client, "Water the ferns") == tomorrow.isoformat()
+
+
+def plants_day_named(client: TestClient, title: str) -> str | None:
+    [task] = [task for task in week_tasks(client) if task["title"] == title]
+    day: str | None = task["plannedDay"]
+    return day
 
 
 def test_placing_it_in_a_later_week_is_refused(tasks_client: TestClient) -> None:
@@ -89,6 +142,7 @@ def test_placing_it_in_a_later_week_is_refused(tasks_client: TestClient) -> None
     response = place(tasks_client, plants["id"], today() + timedelta(weeks=3), week_of(today()))
 
     assert response.status_code == 409
+    assert response.json()["detail"] == "A goal session or a recurring task stays in its own week."
     assert plants_day(tasks_client) == today().isoformat()
 
 

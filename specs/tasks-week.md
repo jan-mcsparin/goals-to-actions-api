@@ -30,7 +30,7 @@ References: [`data-model.md`](../../docs/data-model.md#tasks) (tasks, task_weeks
     - Checking off a task with no row (a one-off goal's waiting step, from the goal's page) makes a done row on the day the phone sent, in that day's week. Unchecking removes the row.
     - A check-off dated inside a week that has closed still counts. A lapsed task and its row turn to done; a task that rolled over is checked off on its row in the new week. The phone's stated day wins.
     - An uncheck of a task whose week has closed gives it the ending that week would have given it: rolled over into the current week's bank, or lapsed.
-  - `moveTaskToBank`, `placeTask` (onto a day, marked placed by hand; pulling a bank task to today is this), `swapTasks`. None of them places on a day before today, or moves a fixed-day recurring task off its day (409); one that carried over is placed like any task.
+  - `moveTaskToBank`, `placeTask` (onto a day, marked placed by hand; pulling a bank task to today is this), `swapTasks`. None of them places on a day before today (409). A fixed-day recurring task never goes to the bank and is never swapped out (409); `placeTask` moves it to another day of its own week (web-frontend #82). One that carried over is placed like any task.
   - `dropTask`.
 - Finishing what `goals-targets` left:
   - pausing, ending or reaching a goal sets its unfinished tasks aside in every open week;

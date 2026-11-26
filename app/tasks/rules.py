@@ -290,12 +290,12 @@ def place(
 ) -> None:
     """Puts the task on a day, placed by hand: pulling it from the bank, or moving it to
     another day. A task added by hand can go to a day in another week; a generated one stays
-    in its own."""
+    in its own. A fixed-day task can move too, within its week: placed by hand, it stays where
+    it was put when its item changes (web-frontend #82)."""
     owner = lock_user(connection, user_id)
     if already_there(connection, user_id, task_id, placing.day):
         return
     row = row_in_week(connection, user_id, task_id, placing.week)
-    keep_on_its_day(connection, user_id, task_id, row, placing.day)
     weeks = open_weeks(today, owner.planned_through_week, owner.closed_through_week)
     if week_of(placing.day) == row.week:
         check_day(placing.day, row.week, today, weeks)
@@ -363,8 +363,8 @@ def row_in_week(connection: Connection, user_id: UUID, task_id: UUID, week: date
 def keep_on_its_day(
     connection: Connection, user_id: UUID, task_id: UUID, row: TaskWeek, day: date | None
 ) -> None:
-    """A fixed-day task stays on its day in the week it was due. One with no day yet can be
-    placed."""
+    """A fixed-day task never goes to the bank in the week it was due, so it can't be moved there
+    or swapped out. One with no day yet can be placed."""
     if row.planned_day is None or day == row.planned_day:
         return
     view = tasks.Querier(connection).get_task_view(id=task_id, user_id=user_id)

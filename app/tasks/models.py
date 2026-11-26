@@ -88,8 +88,9 @@ class Task(ApiModel):
     )
     recurring_item_id: UUID | None
     fixed_day: bool = Field(
-        description="From a weekly or monthly recurring item, in the week it was due: it stays "
-        "on its day. One that carried over is placed like any task."
+        description="From a weekly or monthly recurring item, in the week it was due: it doesn't "
+        "go to the bank, and moves only within its week. One that carried over is placed like "
+        "any task."
     )
     due_date: date | None
     time_of_day: TimeOfDay | None
@@ -164,7 +165,8 @@ def at_close(
 
 
 def is_fixed_day(item_kind: str | None, carried_over: int) -> bool:
-    """From a weekly or monthly item, in the week it was due: it stays on its day."""
+    """From a weekly or monthly item, in the week it was due: it doesn't go to the bank, and
+    moves only within its week."""
     return item_kind in FIXED_KINDS and carried_over == 0
 
 

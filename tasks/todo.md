@@ -85,7 +85,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 **Acceptance criteria:**
 - [x] Another user's rows, milestones and goals never appear in a past or a later week.
-- [ ] Every doc describes what was built; the agent's findings are in the PR.
+- [x] Every doc describes what was built; the agent's findings are in the PR.
 
 **Verify:** read through; the four checks.
 

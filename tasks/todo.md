@@ -1,92 +1,55 @@
-# Tasks: Any week (#51)
+# Tasks: Coming up (#52)
 
-Plan: [`plan.md`](plan.md). Spec: [`../specs/any-week.md`](../specs/any-week.md).
+Plan: [`plan.md`](plan.md). Spec: [`../specs/coming-up.md`](../specs/coming-up.md).
 
 Every task: write the tests first, run the four checks (`uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`, `uv run pytest`), then one commit. A task that changes a model or a description runs `uv run python -m app.openapi`; one that changes a query runs `sqlc generate`.
 
-# PR: `any-week` (closes #51)
+# PR: `coming-up` (closes #52)
 
-### Task 1: Week status, past rows, `firstWeek`
+### Task 1: `ListDatedTasks` and `nextUp`
 
-**Description:** `ListWeekTasks` also returns rolled-over and lapsed rows, with the row's outcome; the other `Task` reads select a null one. `Task.weekOutcome`; `Week.status` from `week_status` in `app/weeks.py`; `FirstWeek` and `Week.firstWeek`. A closed week's Progress: goals with a target and a session row that week, whatever their status now (decision 2). A `notOpen` week has no goals.
+**Description:** `ListDatedTasks(user_id, from_day, through_day)` in `db/queries/tasks.sql`; `Week.next_up`, filled in `week_read` for the current week only.
 
 **Acceptance criteria:**
-- [x] A closed week with a done task, a rolled-over hand task and a lapsed session lists all three, `weekOutcome` on two; set-aside and dropped rows stay out.
-- [x] Its Progress shows the goal, also after the goal is ended; a goal paused before the week opened isn't shown.
-- [x] `status` for a past, the current, next (open and not) and a later week; a skipped past week is `closed` and empty.
-- [x] `firstWeek`: empty for a new user, the first row's week (a set-aside row counts), unchanged by a later row.
+- [ ] `nextUp` is tomorrow's pinned task over next week's due one; a task later today is never it.
+- [ ] A task due after Coming up's 12th week isn't it; next week's read and a read with nothing coming have `null`.
+- [ ] A done, dropped or recurring task, or one under a paused goal, isn't it.
+- [ ] A task set to a day and due earlier is it on its planned day.
 
-**Verify:** `uv run pytest tests/test_week_read.py tests/test_any_week.py`, then the four checks.
+**Verify:** `uv run pytest tests/test_week_read.py`, then the four checks.
 
 **Dependencies:** none.
 
-### Task 2: Late check-offs
+## Checkpoint: after task 1
 
-**Description:** Tests for a check-off and an uncheck sent weeks after the day (spec, "Late check-offs"). No code expected.
+- [ ] The four checks pass; `openapi.json` changes only by addition.
+
+### Task 2: `getComingUp`
+
+**Description:** `ComingUp` and `ComingUpWeek`; `get_coming_up` (`GET /coming-up`, asks for `Today`); `app/tasks/coming_up.py`; `dated.check_ins`/`deadlines` over a range; `fullness.expected_counts`, pure.
 
 **Acceptance criteria:**
-- [x] A hand task rolled over twice, checked off from its first week's day: done on its current-week row, `completedOn` that day, the rolled-over rows unchanged; unchecked: back in play.
-- [x] A session lapsed two weeks ago, checked off: row and task done, counted in that week's Progress; unchecked: lapsed again.
-- [x] A check-off from a closed week's day while next week is open.
-- [x] The past week's read after each shows `weekOutcome` and the current `state`.
+- [ ] Twelve weeks from next week, Mondays in order; on Sunday after 6 p.m. the first is `open`; after a wrap-up they start a week later.
+- [ ] Each week's `counts` equals `getWeek`'s, with a target changed for next week and a goal starting in week 3.
+- [ ] Listed: a task set to a day five weeks out; one due in week 3 with no row; one in this week's bank due in week 2 (in week 2 only); a one-off goal's step due in week 4; a milestone date and a deadline.
+- [ ] Not listed: recurring work, a done or dropped task, a task under a paused goal, a task due this week, a task 13 weeks out.
+- [ ] A task set to a day and due in a later week is listed once, on its day.
+- [ ] Another user's tasks, milestones and goals never appear (`tests/test_other_user.py`).
 
-**Verify:** `uv run pytest tests/test_check_off.py`, then the four checks.
+**Verify:** `uv run pytest tests/test_coming_up.py tests/test_other_user.py tests/test_any_week.py tests/test_fullness.py`, then the four checks.
 
 **Dependencies:** 1.
 
-### Task 3: Actual counts
+## Checkpoint: after task 2
 
-**Description:** `app/tasks/fullness.py`; `WeekCounts` and `DayCounts`; `counts` and `days[].counts` for closed and open weeks, from the tasks the read returns; `null` day counts for a `notOpen` week.
+- [ ] Every listed and not-listed case and each `nextUp` case has a test that fails without its rule.
 
-**Acceptance criteria:**
-- [x] Goal sessions (and how many goals), upkeep (with or without an aspiration), added (a one-off goal's steps included), by origin.
-- [x] Rolled-over and lapsed tasks count; a rolled-over task counts in both weeks; bank tasks count in the week only; an amount target counts its sessions.
-- [x] A skipped past week: counts of zero.
+### Task 3: Docs and a check
 
-**Verify:** `uv run pytest tests/test_any_week.py`, then the four checks.
-
-**Dependencies:** 1.
-
-## Checkpoint: after tasks 1–3
-- [x] The four checks pass; `openapi.json` changes only by addition.
-
-### Task 4: Expected counts
-
-**Description:** Pure rules in `app/turnover/due.py` for a goal's and an item's expected tasks (decision 1); `ListPinnedOrDue(from, through)` in `db/queries/tasks.sql`; `fullness.expected` for a `notOpen` week.
+**Description:** The spec's status and an As built section, the map's row; on a parent-repo branch, `flows.md` flow 9 and the brief's status line. A Sonnet agent runs the four checks and the spec's cases against the running API (port 8000), naming what it creates "Verification: …".
 
 **Acceptance criteria:**
-- [x] Pure tests (`tests/test_fullness.py`): a goal starting midweek, a weekly and a monthly item, a two-week and a monthly flexible item counted in their first week only, an item starting later.
-- [x] Three weeks out: a pinned task, a task due that week with no row, a task in this week's bank due that week (not counted), a paused goal (nothing of it).
-- [x] The same setup opened (clock to its Sunday 6 p.m.): actual counts equal the expected ones.
+- [ ] The docs say what was built.
+- [ ] The agent's checks pass, or what failed is fixed or reported.
 
-**Verify:** `uv run pytest tests/test_fullness.py tests/test_any_week.py`, then the four checks.
-
-**Dependencies:** 3.
-
-### Task 5: Occurrences, check-ins, deadlines
-
-**Description:** `app/tasks/dated.py`; `ListMilestoneDates(from, through)` and `ListDeadlines(from, through)`; `Occurrence`, `CheckInDate`, `GoalDeadline` and the three `Week` fields.
-
-**Acceptance criteria:**
-- [x] A `notOpen` week lists each fixed-day item due in it, on its day; other weeks list none; nothing is stored.
-- [x] Check-ins on every week: upcoming and not-yet milestones dated in it, under active goals; a hit one isn't listed; a moved not-yet one is on its new date; `of` matches the goal page.
-- [x] Deadlines of active goals in the week; a paused goal's aren't listed.
-
-**Verify:** `uv run pytest tests/test_any_week.py`, then the four checks.
-
-**Dependencies:** 1.
-
-## Checkpoint: after tasks 4–5
-- [x] Every row of the status table, each count rule and each decision has a test.
-
-### Task 6: Docs and a check
-
-**Description:** `tests/test_other_user.py` reads a past and a later week. Spec status and As built; `tasks-week.md`, the map; `../docs/product-rules.md` rules 11 and 12, `flows.md` flow 9, `data-model.md` (late check-offs), the brief's status line on a parent-repo branch. A Sonnet agent runs the four checks and the spec's cases against the running API.
-
-**Acceptance criteria:**
-- [x] Another user's rows, milestones and goals never appear in a past or a later week.
-- [x] Every doc describes what was built; the agent's findings are in the PR.
-
-**Verify:** read through; the four checks.
-
-**Dependencies:** 1–5.
+**Dependencies:** 2.

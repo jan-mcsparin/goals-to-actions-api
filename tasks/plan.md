@@ -1,37 +1,40 @@
-# Implementation Plan: On a day (#50)
+# Implementation Plan: Any week (#51)
 
-Spec: [`../specs/on-a-day.md`](../specs/on-a-day.md). Tasks: [`todo.md`](todo.md). (The plan for #49 is in git history.)
+Spec: [`../specs/any-week.md`](../specs/any-week.md). Tasks: [`todo.md`](todo.md). (The plan for #50 is in git history.)
 
 ## Overview
 
-A task added by hand can go on any day from today on, in any week from the current one on, opened or not, and move between weeks. Mostly a widened rule in `app/tasks/rules.py`, one new query, a change to `bring_back`, and tests proving that opening, closing, the planner and the upcoming list already treat a pinned row right. One PR in the API, `on-a-day`, closing #50; a small docs PR in the parent repo. No schema change, no new route.
+`getWeek` reads any week by its status (`closed`, `open`, `notOpen`) and every read says how full the week is. The `Week` and `Task` models grow by addition; a handful of new read queries, each over a range of days so `coming-up` (#52) can reuse them; the expected counts' pure rules beside `app/turnover/due.py`'s. One PR in the API, `any-week`, closing #51; a small docs PR in the parent repo. No schema change, no new route.
 
 ## Architecture decisions
 
-- **Two checks, not one.** `day_allowed` becomes "from today on, in the current week or later" (no open-weeks limit). Keeping a task in its own week becomes a separate check, used by `swap` and by `place` for a generated task.
-- **A move across weeks is one update of the row in play** (spec decision 3): a new query `MoveTaskWeek` sets `week`, `planned_day` and `placed_by_hand`. Same-week moves keep using `SetTaskWeek`.
-- **Another row in the target week is a 409** (decision 4), checked from the task's rows before the update, so the unique constraint never turns it into a 500.
-- **`bring_back` needs to know which weeks have opened.** A set-aside row in a week past `planned_through_week` goes back in play on its day; in an open week it goes to the bank, as now. Its two callers (goals, recurring items) pass the owner's marker.
-- **Opening, closing, the planner and the upcoming list need no code change** (spec items 5–7, 9): their queries already skip or count a pinned row correctly. Tests prove each; if one fails, the fix goes in that task.
+- **One week query for every status.** `ListWeekTasks` also returns rolled-over and lapsed rows, with `task_weeks.outcome` as `week_outcome`; the other `Task` reads select a null one. An open week has no such rows, so open weeks read as now.
+- **Status from the markers, in `app/weeks.py`.** `week_status(week, weeks)` beside `open_weeks`: before the current week is `closed`, in `OpenWeeks` is `open`, else `notOpen`.
+- **Progress by status.** Open: as now. Closed: goals with a target that week and a session row in it, whatever their status (decision 2), from a new query. Not open: none.
+- **Counts in a new `app/tasks/fullness.py`.** Actual counts from the tasks the read returns (week and per day). Expected counts call pure rules added to `app/turnover/due.py` (`expected_sessions`, `expected_item_tasks` with decision 1), the same `goal_slots` and `item_slots` opening calls, so the two can't drift.
+- **Dated items in a new `app/tasks/dated.py`.** Occurrences (fixed-day items worked out with `fixed_day`, `notOpen` only), check-ins and deadlines (every week, active goals only).
+- **Range queries** (`from`, `through`): `ListPinnedOrDue`, `ListMilestoneDates`, `ListDeadlines`, `GoalsWithSessions`, plus `FirstWeek`.
 
 ## Tasks
 
-1. **Add on any later day.** `day_allowed`, `landing`; the `addTask` description; `openapi.json`. Tests: three weeks out, yesterday and a wrapped-up week fall back, week read and upcoming leave it out, check-off refused, the add twice. (S)
-2. **Move across weeks.** `MoveTaskWeek`, `sqlc generate`; `place` and `check_day`; the `placeTask` description; `openapi.json`. Tests: there and back, later week to later week, each 409, `answerStillMatters` with `schedule`, repeats, a queued move. (M)
-3. **Opening and skipping a pinned week.** Tests: opening keeps the row, places recurring work around it and counts it as load; a skipped week carries it over once; dropping a pinned task. (S)
-4. **A goal paused and resumed.** `bring_back` and its callers. Tests: back on its day in an unopened week, to the bank in an open one. (S)
-5. **Docs and a check.** Spec status and As built; `tasks-week.md`, `week-turnover.md`, `planner.md`, the map; `../docs/` (data model, rule 10, flow 3) on a parent-repo branch. A Sonnet agent runs the four checks and the spec's cases against the running API. (S)
+1. **Week status, past rows, `firstWeek`.** `ListWeekTasks` with outcomes; `weekOutcome`; `status`; `firstWeek`; closed-week Progress (decision 2); a `notOpen` week has no goals. (M)
+2. **Late check-offs.** Tests only, unless one fails. (S)
+3. **Actual counts.** `counts` and `days[].counts` for closed and open weeks; `null` day counts for `notOpen`. (S)
+4. **Expected counts.** Pure rules and their tests; `ListPinnedOrDue`; the read for `notOpen`; the "then opened" test. (M)
+5. **Occurrences, check-ins, deadlines.** `dated.py`, two queries, three models. (M)
+6. **Docs and a check.** Spec status and As built, the map, `tasks-week.md`; parent-repo docs on a branch; another user's rows in a past and a later week; a Sonnet agent runs the checks and the spec's cases against the running API. (S)
 
 ## Checkpoints
 
-- After 1–2: the four checks pass; `openapi.json` differs only in the two descriptions.
-- After 3–4: every "What changes" item has a test.
-- After 5: the agent's run in the PR; PR "Closes #50"; docs PR open.
+- After 1–3: the four checks pass; `openapi.json` changes only by addition.
+- After 4–5: every row of the status table, each count rule and each decision has a test.
+- After 6: the agent's run in the PR; PR "Closes #51"; docs PR open.
 
 ## Risks
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| A query assumed rows only exist in open weeks (a read, a close, a count) | A pinned task shows or closes wrongly | Tasks 1 and 3 test each read and close named in the spec; any fix goes in that task |
-| Existing tests assume a task can't leave its week | Failures in `test_task_moves.py` | The "a day in another week" case is replaced by the goal session case in task 2 |
-| `close_weeks` across several skipped weeks rolls a pinned row more than once | Two carry-overs, "Still matter?" too early | Task 3's skipped-week test counts the `rolled_over` rows |
+| Returning rolled-over rows from `ListWeekTasks` changes something that reads it for an open week (the full-day mark, the planner's load) | A wrong cap or placement | Only `week_read` calls it (checked in task 1); open weeks never hold those rows |
+| A late check-off on a twice-rolled task picks the wrong row | Done in the wrong week, or a 409 | Task 2 runs first after the read; a fix goes in that task with an "As built" note |
+| Expected and actual counts drift | Coming up and Week disagree with what opening makes | Shared pure rules, and task 4's test opens the same setup and compares |
+| A set-aside or dropped row changes `firstWeek` or the list | A week reads wrong | `firstWeek` counts every row (decision 5); the list still leaves set-aside and dropped out; both tested |

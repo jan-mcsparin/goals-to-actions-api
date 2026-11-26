@@ -13,7 +13,7 @@ from app.goals.models import WeeklyTarget
 from app.quitting.record import week_quit_goals
 from app.tasks import dated, fullness, progress
 from app.tasks.models import DayCounts, DayMark, PlanAspiration, Task, Week, WeekGoal
-from app.weeks import WeekStatus, open_weeks, week_status
+from app.weeks import OpenWeeks, WeekStatus, open_weeks, week_status
 
 # Tasks a day holds at each intensity: Easing off, Normal, Going hard.
 CAPS = {"easing_off": 3, "normal": 4, "going_hard": 6}
@@ -46,10 +46,22 @@ def week_read(connection: Connection, user_id: UUID, week: date, today: date) ->
         if status == "notOpen"
         else fullness.actual(rows),
         occurrences=dated.occurrences(connection, user_id, week) if status == "notOpen" else [],
-        check_ins=dated.check_ins(connection, user_id, week),
-        deadlines=dated.deadlines(connection, user_id, week),
+        check_ins=dated.check_ins(connection, user_id, week, week),
+        deadlines=dated.deadlines(connection, user_id, week, week),
         goals=week_goals(connection, user_id, week, status, all_goals),
+        next_up=next_up(connection, user_id, today, weeks) if week == weeks.current else None,
     )
+
+
+def next_up(connection: Connection, user_id: UUID, today: date, weeks: OpenWeeks) -> Task | None:
+    """Today's last line: the first dated task from tomorrow through Coming up's last week."""
+    dated_tasks = tasks.Querier(connection).list_dated_tasks(
+        user_id=user_id,
+        from_day=today + timedelta(days=1),
+        through_day=weeks.coming_up[-1] + timedelta(days=6),
+    )
+    first = next(dated_tasks, None)
+    return Task.from_row(first) if first else None
 
 
 def first_week(connection: Connection, user_id: UUID) -> date | None:

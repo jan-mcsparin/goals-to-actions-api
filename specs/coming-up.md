@@ -1,6 +1,6 @@
 # Spec: Coming up
 
-Status: draft, 2026-11-25, written with [`any-week`](any-week.md); decision 1 settled with Jan the same day. Finalised when its plan is written, after `any-week` is built. Issue: [#52](https://github.com/jan-mcsparin/goals-to-actions-api/issues/52). Module `coming-up` in the [map](README.md), the last of three from the scheduling brief. Depends on `any-week`. The front end's [#83](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/83) (the Coming up page and Today's line) builds on it.
+Status: built 2026-11-25; decision 1 settled with Jan the same day, 2 to 5 as assumed. Written with [`any-week`](any-week.md). The plan is in `tasks/plan.md`. Issue: [#52](https://github.com/jan-mcsparin/goals-to-actions-api/issues/52). Module `coming-up` in the [map](README.md), the last of three from the scheduling brief. Depends on `any-week`. The front end's [#83](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/83) (the Coming up page and Today's line) builds on it.
 
 ## Objective
 
@@ -109,3 +109,11 @@ Through the `client` fixture, against real Postgres, with the clock pinned (Wed 
 ## Open questions
 
 None.
+
+## As built
+
+- **One query for both reads,** `ListDatedTasks(from_day, through_day)`: open tasks added by hand, under no goal or an active one, each on its day (the planned day in play, or else the due date), in the task view's shape. `ListPinnedOrDue` is unchanged: it returns ids and weeks, and counts where the work sits (decision 5).
+- **Counts read once for the range.** `fullness.expecting` reads the goals, items and `ListPinnedOrDue` once; the pure `fullness.expected_counts` works out each week. Goals and targets are read as of Coming up's first week: a target change takes effect this week or next at the latest (`target_week`), so every later week has the same targets. An open first week counts with `fullness.actual`, as the week read does.
+- **`dated.check_ins` and `dated.deadlines` take a range;** the week read passes its week twice.
+- **Coming up's weeks** are `OpenWeeks.coming_up` in `app/weeks.py`; `nextUp` looks through the Sunday of the last.
+- **Code:** `app/tasks/coming_up.py`, `get_coming_up` in `app/tasks/routes.py`, `next_up` in `app/tasks/week.py`. Tests: `tests/test_coming_up.py`, `tests/test_week_read.py` (`nextUp`), `tests/test_other_user.py`.

@@ -6,7 +6,13 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, Field, StringConstraints
 
-from app.db.tasks import GetTaskViewRow, ListStepsRow, ListUpcomingRow, ListWeekTasksRow
+from app.db.tasks import (
+    GetTaskViewRow,
+    ListDatedTasksRow,
+    ListStepsRow,
+    ListUpcomingRow,
+    ListWeekTasksRow,
+)
 from app.goals.models import Label, WeeklyTarget, WeekProgress
 from app.quitting.models import WeekQuitGoal
 from app.schemas import ApiModel
@@ -36,6 +42,8 @@ OUTCOME_IN_JSON: dict[str, WeekOutcome] = {"rolled_over": "rolledOver", "lapsed"
 FIXED_KINDS = ("weekly", "monthly")
 # How many rollovers since the last answer make a task worth asking about.
 ASK_AFTER_ROLLOVERS = 2
+
+TaskRow = GetTaskViewRow | ListWeekTasksRow | ListStepsRow | ListUpcomingRow | ListDatedTasksRow
 
 Clock = Annotated[str, StringConstraints(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
 
@@ -120,9 +128,7 @@ class Task(ApiModel):
     )
 
     @classmethod
-    def from_row(
-        cls, row: GetTaskViewRow | ListWeekTasksRow | ListStepsRow | ListUpcomingRow
-    ) -> Task:
+    def from_row(cls, row: TaskRow) -> Task:
         return cls(
             id=row.id,
             title=row.title,
@@ -151,7 +157,7 @@ class Task(ApiModel):
 
 
 def at_close(
-    row: GetTaskViewRow | ListWeekTasksRow | ListStepsRow | ListUpcomingRow,
+    row: TaskRow,
 ) -> AtClose | None:
     """The same rule closing uses (`app.turnover.endings.ending_of`), so the sheet and the close
     can't disagree."""
@@ -171,7 +177,7 @@ def is_fixed_day(item_kind: str | None, carried_over: int) -> bool:
 
 
 def still_matters(
-    row: GetTaskViewRow | ListWeekTasksRow | ListStepsRow | ListUpcomingRow,
+    row: TaskRow,
 ) -> bool:
     asked_about = row.origin == "by_hand" or row.item_kind in FIXED_KINDS
     return row.state == "open" and asked_about and row.rolled_since_answer >= ASK_AFTER_ROLLOVERS
@@ -311,6 +317,33 @@ class Week(ApiModel):
     )
     quitting_goals: list[WeekQuitGoal] = Field(
         description="Every active quitting goal started by the week's end, with its days."
+    )
+    next_up: Task | None = Field(
+        description="The current week's read only: the next open task added by hand set to a "
+        "day, or else due, after today and through Coming up's last week. Earliest by its day, "
+        "then time. Empty in every other week's read, and when there's none."
+    )
+
+
+class ComingUpWeek(ApiModel):
+    """A week on Coming up (spec `coming-up`)."""
+
+    week: date
+    status: Literal["open", "notOpen"] = Field(
+        description="The first week is `open` from Sunday evening; the rest are `notOpen`."
+    )
+    counts: WeekCounts = Field(description="The same numbers `getWeek` gives for the week.")
+    tasks: list[Task] = Field(
+        description="Open tasks added by hand, under no goal or an active one, set to a day in "
+        "the week or else due in it; by day, then time."
+    )
+    check_ins: list[CheckInDate] = Field(description="As `getWeek`'s.")
+    deadlines: list[GoalDeadline] = Field(description="As `getWeek`'s.")
+
+
+class ComingUp(ApiModel):
+    weeks: list[ComingUpWeek] = Field(
+        description="The 12 weeks after the current one, oldest first."
     )
 
 

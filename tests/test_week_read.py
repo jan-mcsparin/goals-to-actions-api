@@ -378,3 +378,73 @@ def test_a_recurring_items_task_with_no_goal_names_the_items_aspiration(
         "Stretch": {"id": aspiration["id"], "name": "Be fit", "position": 1},
         "Laundry": None,
     }
+
+
+# nextUp: the one thing Today's last line names (spec `coming-up`)
+
+
+def next_up(client: TestClient, week: str | None = None) -> Any:
+    return get_week(client, week or this_week())["nextUp"]
+
+
+def test_next_up_is_the_earliest_task_set_to_a_day_or_due_after_today(
+    tasks_client: TestClient,
+) -> None:
+    add_task(tasks_client, title="Due next week", dueDate="2026-11-24")
+    add_task(tasks_client, title="Tomorrow", day="2026-11-19")
+
+    assert next_up(tasks_client)["title"] == "Tomorrow"
+
+
+def test_a_task_later_today_is_never_next_up(tasks_client: TestClient) -> None:
+    add_task(tasks_client, title="Later today", day="2026-11-18", dueDate="2026-11-19")
+    add_task(tasks_client, title="Due next week", dueDate="2026-11-24")
+
+    assert next_up(tasks_client)["title"] == "Due next week"
+
+
+def test_next_up_looks_no_further_than_coming_ups_last_week(tasks_client: TestClient) -> None:
+    add_task(tasks_client, title="Week 13", dueDate="2027-02-15")
+
+    assert next_up(tasks_client) is None
+
+    add_task(tasks_client, title="Week 12", dueDate="2027-02-14")
+
+    assert next_up(tasks_client)["title"] == "Week 12"
+
+
+def test_next_up_is_empty_in_another_weeks_read_and_with_nothing_coming(
+    tasks_client: TestClient,
+) -> None:
+    assert next_up(tasks_client) is None
+
+    add_task(tasks_client, title="Next week", day="2026-11-24")
+
+    assert next_up(tasks_client, "2026-11-23") is None
+    assert next_up(tasks_client)["title"] == "Next week"
+
+
+def test_done_dropped_recurring_and_paused_goals_tasks_are_never_next_up(
+    tasks_client: TestClient,
+) -> None:
+    done = add_task(tasks_client, title="Done", day="2026-11-19")
+    check_off(tasks_client, done["id"])
+    dropped = add_task(tasks_client, title="Dropped", day="2026-11-19")
+    assert tasks_client.post(f"/api/tasks/{dropped['id']}/drop").status_code == 200
+    create_item(tasks_client, item(schedule={"kind": "weekly", "weekday": "thursday"}))
+    goal = create_goal(tasks_client, lifting())
+    add_task(tasks_client, title="Paused goal's", goalId=goal["id"], dueDate="2026-11-25")
+    assert tasks_client.post(f"/api/goals/{goal['id']}/pause").status_code == 200
+
+    assert next_up(tasks_client) is None
+
+
+def test_a_task_set_to_a_day_is_next_up_on_that_day_not_its_due_date(
+    tasks_client: TestClient,
+) -> None:
+    add_task(
+        tasks_client, title="Set to Thursday next week", day="2026-11-26", dueDate="2026-11-19"
+    )
+    add_task(tasks_client, title="Friday", day="2026-11-20")
+
+    assert next_up(tasks_client)["title"] == "Friday"

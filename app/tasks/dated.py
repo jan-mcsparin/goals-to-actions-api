@@ -24,9 +24,11 @@ def occurrences(connection: Connection, user_id: UUID, week: date) -> list[Occur
     return sorted(found, key=lambda occurrence: occurrence.day)
 
 
-def check_ins(connection: Connection, user_id: UUID, week: date) -> list[CheckInDate]:
+def check_ins(
+    connection: Connection, user_id: UUID, from_week: date, through_week: date
+) -> list[CheckInDate]:
     rows = milestones.Querier(connection).list_milestone_dates(
-        user_id=user_id, from_week=week, through_week=week
+        user_id=user_id, from_week=from_week, through_week=through_week
     )
     return [
         CheckInDate(
@@ -41,8 +43,10 @@ def check_ins(connection: Connection, user_id: UUID, week: date) -> list[CheckIn
     ]
 
 
-def deadlines(connection: Connection, user_id: UUID, week: date) -> list[GoalDeadline]:
+def deadlines(
+    connection: Connection, user_id: UUID, from_week: date, through_week: date
+) -> list[GoalDeadline]:
     rows = goals.Querier(connection).list_deadlines(
-        user_id=user_id, from_week=week, through_week=week
+        user_id=user_id, from_week=from_week, through_week=through_week
     )
     return [GoalDeadline(goal_id=row.id, goal_label=row.label, day=row.day) for row in rows]

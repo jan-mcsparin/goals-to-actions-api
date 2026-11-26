@@ -9,8 +9,10 @@ from app.db import tasks as task_queries
 from app.dependencies import CurrentDatabase, CurrentUserId
 from app.schemas import NOT_ALLOWED, NOT_FOUND
 from app.tasks import rules
+from app.tasks.coming_up import coming_up
 from app.tasks.models import (
     CheckOff,
+    ComingUp,
     NewTask,
     Placing,
     StillMattersAnswer,
@@ -51,6 +53,13 @@ Monday = Annotated[date, Depends(monday)]
 def get_week(week: Monday, database: CurrentDatabase, user_id: CurrentUserId, today: Today) -> Week:
     with database.read() as connection:
         return week_read(connection, user_id, week, today)
+
+
+@router.get("/coming-up")
+def get_coming_up(database: CurrentDatabase, user_id: CurrentUserId, today: Today) -> ComingUp:
+    """The 12 weeks after the current one: each week's counts and what's dated in it."""
+    with database.read() as connection:
+        return coming_up(connection, user_id, today)
 
 
 @router.get("/tasks/upcoming")

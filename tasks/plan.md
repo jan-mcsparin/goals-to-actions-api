@@ -1,40 +1,30 @@
-# Implementation Plan: Any week (#51)
+# Implementation Plan: Coming up (#52)
 
-Spec: [`../specs/any-week.md`](../specs/any-week.md). Tasks: [`todo.md`](todo.md). (The plan for #50 is in git history.)
+Spec: [`../specs/coming-up.md`](../specs/coming-up.md). Tasks: [`todo.md`](todo.md). (Plans for earlier specs are in git history.)
 
 ## Overview
 
-`getWeek` reads any week by its status (`closed`, `open`, `notOpen`) and every read says how full the week is. The `Week` and `Task` models grow by addition; a handful of new read queries, each over a range of days so `coming-up` (#52) can reuse them; the expected counts' pure rules beside `app/turnover/due.py`'s. One PR in the API, `any-week`, closing #51; a small docs PR in the parent repo. No schema change, no new route.
+`getComingUp` reads the 12 weeks after the current one: each week's counts (the same as `getWeek`'s), its dated tasks, check-ins and deadlines. The current week's read gains `nextUp`, the one task Today's last line names. One PR in the API, `coming-up`, closing #52; a small docs PR in the parent repo. No schema change. The front end's type regeneration goes in #83's PR.
 
 ## Architecture decisions
 
-- **One week query for every status.** `ListWeekTasks` also returns rolled-over and lapsed rows, with `task_weeks.outcome` as `week_outcome`; the other `Task` reads select a null one. An open week has no such rows, so open weeks read as now.
-- **Status from the markers, in `app/weeks.py`.** `week_status(week, weeks)` beside `open_weeks`: before the current week is `closed`, in `OpenWeeks` is `open`, else `notOpen`.
-- **Progress by status.** Open: as now. Closed: goals with a target that week and a session row in it, whatever their status (decision 2), from a new query. Not open: none.
-- **Counts in a new `app/tasks/fullness.py`.** Actual counts from the tasks the read returns (week and per day). Expected counts call pure rules added to `app/turnover/due.py` (`expected_sessions`, `expected_item_tasks` with decision 1), the same `goal_slots` and `item_slots` opening calls, so the two can't drift.
-- **Dated items in a new `app/tasks/dated.py`.** Occurrences (fixed-day items worked out with `fixed_day`, `notOpen` only), check-ins and deadlines (every week, active goals only).
-- **Range queries** (`from`, `through`): `ListPinnedOrDue`, `ListMilestoneDates`, `ListDeadlines`, `GoalsWithSessions`, plus `FirstWeek`.
+- **One new query, `ListDatedTasks(from_day, through_day)`,** for both reads. Open tasks added by hand, under no goal or an active one, with their day: the in-play row's planned day, or else (no row, or a row in a bank) the due date, in the range. It returns the task view's columns (the shape of `GetTaskView`, its row the one in play), ordered by day, then time, then created and id, as the week read orders. `ListPinnedOrDue` stays as it is: it returns only ids and weeks, and counts where the work sits, not where it's listed (decision 5).
+- **Coming up groups one read per range.** `app/tasks/coming_up.py` reads `ListDatedTasks`, `ListMilestoneDates` and `ListDeadlines` once over the 12 weeks and groups by `week_of(day)`. `dated.check_ins` and `dated.deadlines` take a `from_week` and `through_week`; the week read passes its week twice.
+- **Counts through `fullness`, split pure from read.** `fullness.expected` becomes a read of goals, items and `ListPinnedOrDue` plus a pure `expected_counts(week, goals, items, hand_rows)`; Coming up reads each once for the range and calls the pure part per week. The goals and their targets are read once, as of the first week: a target change takes effect this week or next at the latest (`target_week`), so every later week has the same targets, and `expected_sessions` already starts a goal at its start date. The first week, when open, counts with `fullness.actual` from its `ListWeekTasks` rows, as `getWeek` does.
+- **`nextUp` from the same query.** In `week_read`, for the current week only: `ListDatedTasks` from tomorrow through the Sunday of Coming up's last week, first row or `null`.
 
 ## Tasks
 
-1. **Week status, past rows, `firstWeek`.** `ListWeekTasks` with outcomes; `weekOutcome`; `status`; `firstWeek`; closed-week Progress (decision 2); a `notOpen` week has no goals. (M)
-2. **Late check-offs.** Tests only, unless one fails. (S)
-3. **Actual counts.** `counts` and `days[].counts` for closed and open weeks; `null` day counts for `notOpen`. (S)
-4. **Expected counts.** Pure rules and their tests; `ListPinnedOrDue`; the read for `notOpen`; the "then opened" test. (M)
-5. **Occurrences, check-ins, deadlines.** `dated.py`, two queries, three models. (M)
-6. **Docs and a check.** Spec status and As built, the map, `tasks-week.md`; parent-repo docs on a branch; another user's rows in a past and a later week; a Sonnet agent runs the checks and the spec's cases against the running API. (S)
+1. **`ListDatedTasks` and `nextUp`.** The query, `sqlc generate`, `Week.next_up`, the week read's tests. (M)
+2. **`getComingUp`.** Models, route, `coming_up.py`, the `dated` and `fullness` refactors, `tests/test_coming_up.py`, `tests/test_other_user.py`. (M)
+3. **Docs and a check.** Spec status and As built, the map; parent-repo docs (flows.md flow 9, the brief's status line) on a branch; a Sonnet agent runs the checks and the spec's cases against the running API. (S)
 
 ## Checkpoints
 
-- After 1–3: the four checks pass; `openapi.json` changes only by addition.
-- After 4–5: every row of the status table, each count rule and each decision has a test.
-- After 6: the agent's run in the PR; PR "Closes #51"; docs PR open.
+- After 1: the four checks pass; `openapi.json` changes only by addition.
+- After 2: every listed and not-listed case and each `nextUp` case has a test; counts agree with `getWeek` for all 12 weeks.
 
 ## Risks
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Returning rolled-over rows from `ListWeekTasks` changes something that reads it for an open week (the full-day mark, the planner's load) | A wrong cap or placement | Only `week_read` calls it (checked in task 1); open weeks never hold those rows |
-| A late check-off on a twice-rolled task picks the wrong row | Done in the wrong week, or a 409 | Task 2 runs first after the read; a fix goes in that task with an "As built" note |
-| Expected and actual counts drift | Coming up and Week disagree with what opening makes | Shared pure rules, and task 4's test opens the same setup and compares |
-| A set-aside or dropped row changes `firstWeek` or the list | A week reads wrong | `firstWeek` counts every row (decision 5); the list still leaves set-aside and dropped out; both tested |
+- **Targets read once.** If a later change lets a target take effect beyond next week, Coming up's expected sessions would drift from `getWeek`'s. The "counts agree" test, with a target change for next week, guards it.
+- **Front-end mock.** Regenerated types will need `nextUp` in the front end's mock week; that's #83's PR, as the spec says.

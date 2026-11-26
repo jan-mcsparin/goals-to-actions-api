@@ -39,3 +39,11 @@ limit 1;
 -- name: DeleteGoalWeeklyTargets :exec
 update weekly_targets set deleted_at = now()
 where goal_id = $1 and user_id = $2 and deleted_at is null;
+
+-- The goals with a session row in a week, whatever the row's outcome or the goal's status
+-- now: a closed week's Progress (spec `any-week`, decision 2).
+-- name: GoalsWithSessions :many
+select distinct tasks.goal_id::uuid as goal_id from task_weeks
+join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
+where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.deleted_at is null
+  and tasks.origin = 'weekly_target';

@@ -70,6 +70,32 @@ where id = :p1 and user_id = :p2 and deleted_at is null
 """
 
 
+LIST_MILESTONE_DATES = """-- name: list_milestone_dates \\:many
+select milestones.id, milestones.goal_id, goals.label as goal_label, milestones.position,
+  milestones.target_date\\:\\:date as day,
+  (select count(*) from milestones counted
+    where counted.goal_id = milestones.goal_id and counted.deleted_at is null)\\:\\:integer
+    as milestones
+from milestones
+join goals on goals.id = milestones.goal_id and goals.status = 'active'
+  and goals.deleted_at is null
+where milestones.user_id = :p1 and milestones.deleted_at is null
+  and milestones.status <> 'hit'
+  and milestones.target_date between :p2\\:\\:date
+    and :p3\\:\\:date + 6
+order by milestones.target_date, goals.label, milestones.position
+"""
+
+
+class ListMilestoneDatesRow(pydantic.BaseModel):
+    id: uuid.UUID
+    goal_id: uuid.UUID
+    goal_label: str
+    position: int
+    day: datetime.date
+    milestones: int
+
+
 LIST_MILESTONES = """-- name: list_milestones \\:many
 select id, user_id, goal_id, goal_type, position, measurable_line, target_date, status, created_at, updated_at, deleted_at from milestones
 where goal_id = :p1 and user_id = :p2 and deleted_at is null
@@ -180,6 +206,18 @@ class Querier:
             updated_at=row[9],
             deleted_at=row[10],
         )
+
+    def list_milestone_dates(self, *, user_id: uuid.UUID, from_week: datetime.date, through_week: datetime.date) -> Iterator[ListMilestoneDatesRow]:
+        result = self._conn.execute(sqlalchemy.text(LIST_MILESTONE_DATES), {"p1": user_id, "p2": from_week, "p3": through_week})
+        for row in result:
+            yield ListMilestoneDatesRow(
+                id=row[0],
+                goal_id=row[1],
+                goal_label=row[2],
+                position=row[3],
+                day=row[4],
+                milestones=row[5],
+            )
 
     def list_milestones(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> Iterator[models.Milestone]:
         result = self._conn.execute(sqlalchemy.text(LIST_MILESTONES), {"p1": goal_id, "p2": user_id})

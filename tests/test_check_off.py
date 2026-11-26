@@ -1,13 +1,15 @@
 from collections.abc import Iterator
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Connection, text
 
 from app.weeks import week_of
+from tests.conftest import FixedClock
 from tests.test_aspirations import add_other_user, audit_rows
 from tests.test_goals import ZONE, create_goal, lifting, today
 from tests.test_tasks import add_task, add_task_for, one_off, open_next_week, rows
@@ -374,3 +376,96 @@ def test_an_uncheck_under_a_paused_goal_stays_set_aside_on_its_day(
     assert rows(connection, task["id"]) == [(week_of(today()), today(), True, "set_aside")]
     tasks_client.post(f"/api/goals/{goal_id}/resume")
     assert rows(connection, task["id"]) == [(week_of(today()), None, False, None)]
+
+
+# Late check-offs from a past day, weeks after it (spec `any-week`). Here the weeks close for
+# real: the clock moves on and each request catches up.
+
+W16, W23, W30 = date(2026, 11, 16), date(2026, 11, 23), date(2026, 11, 30)
+
+
+def move_to(client: TestClient, clock: FixedClock, day: date, hour: int = 12) -> None:
+    """The clock moves on and a request sees it, so the weeks due close and open."""
+    clock.instant = datetime(day.year, day.month, day.day, hour, tzinfo=ZoneInfo(ZONE))
+    assert client.get(f"/api/weeks/{week_of(day).isoformat()}").status_code == 200
+
+
+def read_task(client: TestClient, week: date, task_id: str) -> Any:
+    [task] = [t for t in client.get(f"/api/weeks/{week}").json()["tasks"] if t["id"] == task_id]
+    return task
+
+
+def test_a_task_rolled_over_twice_is_checked_off_from_its_first_weeks_day(
+    tasks_client: TestClient, connection: Connection, fixed_clock: FixedClock
+) -> None:
+    task = add_task(tasks_client, day="2026-11-19")
+    move_to(tasks_client, fixed_clock, date(2026, 11, 25))
+    move_to(tasks_client, fixed_clock, date(2026, 12, 2))
+
+    done = check_off(tasks_client, task["id"], **done_on("2026-11-19"))
+
+    assert (done["state"], done["completedOn"], done["week"]) == (
+        "done",
+        "2026-11-19",
+        W30.isoformat(),
+    )
+    assert rows(connection, task["id"]) == [
+        (W16, date(2026, 11, 19), True, "rolled_over"),
+        (W23, None, False, "rolled_over"),
+        (W30, None, False, "done"),
+    ]
+    past = read_task(tasks_client, W16, task["id"])
+    assert (past["state"], past["weekOutcome"]) == ("done", "rolledOver")
+
+    unchecked = uncheck(tasks_client, task["id"])
+
+    assert (unchecked["state"], unchecked["week"]) == ("open", W30.isoformat())
+    assert rows(connection, task["id"])[-1] == (W30, None, False, None)
+    past = read_task(tasks_client, W16, task["id"])
+    assert (past["state"], past["weekOutcome"]) == ("open", "rolledOver")
+
+
+def test_a_session_that_lapsed_two_weeks_ago_is_checked_off_late(
+    tasks_client: TestClient, connection: Connection, fixed_clock: FixedClock
+) -> None:
+    goal = create_goal(tasks_client, lifting())
+    session = next(
+        t
+        for t in tasks_client.get(f"/api/weeks/{W16}").json()["tasks"]
+        if t["origin"] == "weeklyTarget"
+    )
+    move_to(tasks_client, fixed_clock, date(2026, 11, 25))
+    move_to(tasks_client, fixed_clock, date(2026, 12, 2))
+    assert read_task(tasks_client, W16, session["id"])["weekOutcome"] == "lapsed"
+
+    done = check_off(tasks_client, session["id"], **done_on("2026-11-20"))
+
+    assert (done["state"], done["week"]) == ("done", W16.isoformat())
+    assert rows(connection, session["id"])[0][3] == "done"
+    past = tasks_client.get(f"/api/weeks/{W16}").json()
+    assert [g["progress"] for g in past["goals"] if g["id"] == goal["id"]] == [{"done": 1, "of": 3}]
+    assert read_task(tasks_client, W16, session["id"])["weekOutcome"] is None
+
+    unchecked = uncheck(tasks_client, session["id"])
+
+    assert unchecked["state"] == "lapsed"
+    past_task = read_task(tasks_client, W16, session["id"])
+    assert (past_task["state"], past_task["weekOutcome"]) == ("lapsed", "lapsed")
+
+
+def test_a_late_check_off_from_a_closed_week_while_next_week_is_open(
+    tasks_client: TestClient, connection: Connection, fixed_clock: FixedClock
+) -> None:
+    task = add_task(tasks_client, day="2026-11-19")
+    move_to(tasks_client, fixed_clock, date(2026, 11, 25))
+    move_to(tasks_client, fixed_clock, date(2026, 11, 29), 19)  # Sunday evening: W30 opens
+
+    done = check_off(tasks_client, task["id"], **done_on("2026-11-19"))
+
+    assert (done["completedOn"], done["week"]) == ("2026-11-19", W23.isoformat())
+    assert rows(connection, task["id"]) == [
+        (W16, date(2026, 11, 19), True, "rolled_over"),
+        (W23, None, False, "done"),
+    ]
+    past = read_task(tasks_client, W16, task["id"])
+    assert (past["state"], past["weekOutcome"]) == ("done", "rolledOver")

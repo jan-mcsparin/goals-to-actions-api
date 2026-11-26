@@ -57,6 +57,21 @@ def item_slots(item: ItemSchedule, week: date, first_day: date) -> list[Slot]:
     return [(start, number) for number in range(1, count + 1)]
 
 
+def expected_sessions(sessions: int, week: date, start_date: date) -> int:
+    """The sessions opening a later week would make for a goal: the rule opening uses, from
+    the later of its start date and the week's Monday (spec `any-week`)."""
+    return len(goal_slots(sessions, week, max(start_date, week)))
+
+
+def expected_item_tasks(item: ItemSchedule, week: date) -> int:
+    """The tasks opening a later week would make for an item. A flexible item's period tasks
+    count in the first week of the period it exists in, where opening makes them; inside the
+    period they roll over (spec `any-week`, decision 1)."""
+    slots = item_slots(item, week, max(item.starts_on, week))
+    first_week = {max(start, week_of(item.starts_on)) for start, _ in slots}
+    return len(slots) if first_week == {week} else 0
+
+
 def fixed_day(
     kind: str | None, weekday: int | None, day_of_month: int | None, week: date
 ) -> date | None:

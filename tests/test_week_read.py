@@ -92,7 +92,8 @@ def test_the_week_shows_how_often_a_task_carried_over(
     edited = tasks_client.patch(f"/api/tasks/{task['id']}", json={"title": task["title"]})
     assert edited.json()["carriedOver"] == 2  # a write's task counts as the week read does
     last_week = (week_of(today()) - timedelta(weeks=1)).isoformat()
-    assert get_week(tasks_client, last_week)["tasks"] == []
+    [past] = get_week(tasks_client, last_week)["tasks"]  # the row it rolled over from
+    assert (past["weekOutcome"], past["carriedOver"]) == ("rolledOver", 1)
 
 
 def test_set_aside_rows_and_other_users_tasks_are_not_shown(

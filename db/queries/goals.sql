@@ -49,3 +49,10 @@ where id = $1 and user_id = $2 and deleted_at is null;
 -- name: ClearAspirationGoals :exec
 update goals set aspiration_id = null
 where aspiration_id = $1 and user_id = $2 and deleted_at is null;
+
+-- Active goals whose deadline falls in a range of weeks (spec `any-week`, decision 3).
+-- name: ListDeadlines :many
+select id, label, deadline::date as day from goals
+where user_id = sqlc.arg(user_id) and status = 'active' and deleted_at is null
+  and deadline between sqlc.arg(from_week)::date and sqlc.arg(through_week)::date + 6
+order by deadline, label, id;

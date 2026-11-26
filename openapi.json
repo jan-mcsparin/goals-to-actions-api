@@ -155,6 +155,49 @@
         "title": "AspirationRef",
         "type": "object"
       },
+      "CheckInDate": {
+        "description": "A milestone dated in the week that isn't hit yet, under an active goal.",
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "goalId": {
+            "format": "uuid",
+            "title": "Goalid",
+            "type": "string"
+          },
+          "goalLabel": {
+            "title": "Goallabel",
+            "type": "string"
+          },
+          "milestoneId": {
+            "format": "uuid",
+            "title": "Milestoneid",
+            "type": "string"
+          },
+          "of": {
+            "description": "Out of the goal's milestones and the goal, as its page counts them: \"Milestone 3 of 4\".",
+            "title": "Of",
+            "type": "integer"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "goalId",
+          "goalLabel",
+          "milestoneId",
+          "position",
+          "of",
+          "day"
+        ],
+        "title": "CheckInDate",
+        "type": "object"
+      },
       "CheckOff": {
         "description": "What the phone saw when the task was checked off. Its day wins, even for a week that\nhas since closed.",
         "properties": {
@@ -192,6 +235,30 @@
         "title": "CheckOff",
         "type": "object"
       },
+      "DayCounts": {
+        "description": "A day's tasks by origin, as `WeekCounts` counts them.",
+        "properties": {
+          "added": {
+            "title": "Added",
+            "type": "integer"
+          },
+          "goalSessions": {
+            "title": "Goalsessions",
+            "type": "integer"
+          },
+          "upkeep": {
+            "title": "Upkeep",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "goalSessions",
+          "upkeep",
+          "added"
+        ],
+        "title": "DayCounts",
+        "type": "object"
+      },
       "DayMark": {
         "description": "A day's cap and whether it's reached: a guide shown on Week, never enforced (ADR-013).",
         "properties": {
@@ -200,13 +267,24 @@
             "title": "Cap",
             "type": "integer"
           },
+          "counts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The day's tasks by origin. Empty for a week that hasn't opened."
+          },
           "day": {
             "format": "date",
             "title": "Day",
             "type": "string"
           },
           "full": {
-            "description": "The day holds at least `cap` tasks, open or done.",
+            "description": "The day holds at least `cap` of the tasks the week read returns: open or done, and in a closed week also rolled over or lapsed.",
             "title": "Full",
             "type": "boolean"
           }
@@ -214,7 +292,8 @@
         "required": [
           "day",
           "cap",
-          "full"
+          "full",
+          "counts"
         ],
         "title": "DayMark",
         "type": "object"
@@ -403,6 +482,32 @@
           "createdAt"
         ],
         "title": "Goal",
+        "type": "object"
+      },
+      "GoalDeadline": {
+        "description": "An active goal's deadline in the week.",
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "goalId": {
+            "format": "uuid",
+            "title": "Goalid",
+            "type": "string"
+          },
+          "goalLabel": {
+            "title": "Goallabel",
+            "type": "string"
+          }
+        },
+        "required": [
+          "goalId",
+          "goalLabel",
+          "day"
+        ],
+        "title": "GoalDeadline",
         "type": "object"
       },
       "GoalEdit": {
@@ -1219,6 +1324,32 @@
         "title": "NewTask",
         "type": "object"
       },
+      "Occurrence": {
+        "description": "A fixed-day recurring item due in a week that hasn't opened: worked out from its\nschedule, not stored.",
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "recurringItemId": {
+            "format": "uuid",
+            "title": "Recurringitemid",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recurringItemId",
+          "title",
+          "day"
+        ],
+        "title": "Occurrence",
+        "type": "object"
+      },
       "PasskeyOptions": {
         "description": "What the browser's passkey functions take, as JSON, and the challenge to send back.",
         "properties": {
@@ -1908,6 +2039,22 @@
             ],
             "description": "The week of its row in play, or of its done row. Empty while it waits (the upcoming list, a one-off goal's waiting steps) or is set aside.",
             "title": "Week"
+          },
+          "weekOutcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "rolledOver",
+                  "lapsed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the week read's row ended for this task: it rolled over, or lapsed. Empty for a row in play or done, and in every other read and write. A task that rolled over and was checked off late reads `rolledOver` here and `done` in `state`.",
+            "title": "Weekoutcome"
           }
         },
         "required": [
@@ -1930,7 +2077,8 @@
           "placedByHand",
           "carriedOver",
           "atClose",
-          "stillMatters"
+          "stillMatters",
+          "weekOutcome"
         ],
         "title": "Task",
         "type": "object"
@@ -2091,6 +2239,17 @@
       "Week": {
         "description": "The plan read (ADR-010). The phone keeps it and draws Today, any day and the bank\nfrom it.",
         "properties": {
+          "checkIns": {
+            "description": "Milestones dated in the week that aren't hit yet, under active goals, by day. Never counted.",
+            "items": {
+              "$ref": "#/components/schemas/CheckInDate"
+            },
+            "title": "Checkins",
+            "type": "array"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/WeekCounts"
+          },
           "days": {
             "description": "Monday to Sunday, each with the full-day mark.",
             "items": {
@@ -2099,8 +2258,29 @@
             "title": "Days",
             "type": "array"
           },
+          "deadlines": {
+            "description": "Active goals whose deadline falls in the week, by day. Never counted.",
+            "items": {
+              "$ref": "#/components/schemas/GoalDeadline"
+            },
+            "title": "Deadlines",
+            "type": "array"
+          },
+          "firstWeek": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Monday of the earliest week with any row, whatever its outcome: how far back Week can go. Empty when there are none.",
+            "title": "Firstweek"
+          },
           "goals": {
-            "description": "Every active building goal with a target that week, and its progress.",
+            "description": "An open week: every active building goal with a target that week. A closed week: every goal with a target and a session row that week, whatever its status now. A week that hasn't opened: none.",
             "items": {
               "$ref": "#/components/schemas/WeekGoal"
             },
@@ -2116,6 +2296,14 @@
             "title": "Nextweekopen",
             "type": "boolean"
           },
+          "occurrences": {
+            "description": "A week that hasn't opened: each fixed-day recurring item due in it. Empty for every other week.",
+            "items": {
+              "$ref": "#/components/schemas/Occurrence"
+            },
+            "title": "Occurrences",
+            "type": "array"
+          },
           "quittingGoals": {
             "description": "Every active quitting goal started by the week's end, with its days.",
             "items": {
@@ -2124,8 +2312,18 @@
             "title": "Quittinggoals",
             "type": "array"
           },
+          "status": {
+            "description": "`closed` before the current week, `open` for the current week and next week once open, `notOpen` for every later week.",
+            "enum": [
+              "closed",
+              "open",
+              "notOpen"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
           "tasks": {
-            "description": "On a day, then in the bank; with no outcome or done. Set-aside rows aren't shown.",
+            "description": "On a day, then in the bank: in play or done, and in a closed week also rolled over or lapsed (`weekOutcome`). A week that hasn't opened has only the tasks placed on it by hand. Set-aside and dropped rows aren't shown.",
             "items": {
               "$ref": "#/components/schemas/Task"
             },
@@ -2140,14 +2338,53 @@
         },
         "required": [
           "week",
+          "status",
           "isCurrent",
           "nextWeekOpen",
+          "firstWeek",
           "tasks",
           "goals",
           "days",
+          "counts",
+          "occurrences",
+          "checkIns",
+          "deadlines",
           "quittingGoals"
         ],
         "title": "Week",
+        "type": "object"
+      },
+      "WeekCounts": {
+        "description": "How full a week is (product rule 11): its tasks by origin. Actual for a week that has\nopened (every task the read returns); expected for one that hasn't (what opening it would\nbring). Check-ins, deadlines and quit days are never counted.",
+        "properties": {
+          "added": {
+            "description": "Tasks added by hand, a one-off goal's steps included.",
+            "title": "Added",
+            "type": "integer"
+          },
+          "goalSessions": {
+            "description": "Tasks a goal's weekly target made.",
+            "title": "Goalsessions",
+            "type": "integer"
+          },
+          "goals": {
+            "description": "How many goals the goal sessions are for.",
+            "title": "Goals",
+            "type": "integer"
+          },
+          "upkeep": {
+            "description": "Tasks a recurring item made.",
+            "title": "Upkeep",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "goalSessions",
+          "goals",
+          "upkeep",
+          "added"
+        ],
+        "title": "WeekCounts",
         "type": "object"
       },
       "WeekGoal": {

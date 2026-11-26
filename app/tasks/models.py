@@ -11,6 +11,7 @@ from app.goals.models import Label, WeeklyTarget, WeekProgress
 from app.quitting.models import WeekQuitGoal
 from app.schemas import ApiModel
 from app.turnover.endings import ending_of
+from app.weeks import WeekStatus
 
 TaskOrigin = Literal["byHand", "weeklyTarget", "recurringItem"]
 TaskState = Literal["open", "done", "dropped", "lapsed"]
@@ -29,6 +30,8 @@ STATE_IN_JSON: dict[str, TaskState] = {
 }
 
 AtClose = Literal["carriesOver", "ends"]
+WeekOutcome = Literal["rolledOver", "lapsed"]
+OUTCOME_IN_JSON: dict[str, WeekOutcome] = {"rolled_over": "rolledOver", "lapsed": "lapsed"}
 # Recurring items whose tasks are due on a set day.
 FIXED_KINDS = ("weekly", "monthly")
 # How many rollovers since the last answer make a task worth asking about.
@@ -109,6 +112,11 @@ class Task(ApiModel):
         description='Ask "Still matter?": added by hand or a fixed-day recurring task, open, '
         "and rolled over twice since it was last answered."
     )
+    week_outcome: WeekOutcome | None = Field(
+        description="How the week read's row ended for this task: it rolled over, or lapsed. "
+        "Empty for a row in play or done, and in every other read and write. A task that "
+        "rolled over and was checked off late reads `rolledOver` here and `done` in `state`.",
+    )
 
     @classmethod
     def from_row(
@@ -135,8 +143,9 @@ class Task(ApiModel):
             planned_day=row.planned_day,
             placed_by_hand=bool(row.placed_by_hand),
             carried_over=row.carried_over,
-            at_close=at_close(row),
+            at_close=None if row.week_outcome in OUTCOME_IN_JSON else at_close(row),
             still_matters=still_matters(row),
+            week_outcome=OUTCOME_IN_JSON.get(row.week_outcome or ""),
         )
 
 
@@ -196,12 +205,68 @@ class WeekGoal(ApiModel):
     progress: WeekProgress
 
 
+class WeekCounts(ApiModel):
+    """How full a week is (product rule 11): its tasks by origin. Actual for a week that has
+    opened (every task the read returns); expected for one that hasn't (what opening it would
+    bring). Check-ins, deadlines and quit days are never counted."""
+
+    goal_sessions: int = Field(description="Tasks a goal's weekly target made.")
+    goals: int = Field(description="How many goals the goal sessions are for.")
+    upkeep: int = Field(description="Tasks a recurring item made.")
+    added: int = Field(description="Tasks added by hand, a one-off goal's steps included.")
+
+
+class DayCounts(ApiModel):
+    """A day's tasks by origin, as `WeekCounts` counts them."""
+
+    goal_sessions: int
+    upkeep: int
+    added: int
+
+
 class DayMark(ApiModel):
     """A day's cap and whether it's reached: a guide shown on Week, never enforced (ADR-013)."""
 
     day: date
     cap: int = Field(description="Tasks a day holds at the person's intensity: 3, 4 or 6.")
-    full: bool = Field(description="The day holds at least `cap` tasks, open or done.")
+    full: bool = Field(
+        description="The day holds at least `cap` of the tasks the week read returns: open or "
+        "done, and in a closed week also rolled over or lapsed."
+    )
+    counts: DayCounts | None = Field(
+        description="The day's tasks by origin. Empty for a week that hasn't opened."
+    )
+
+
+class Occurrence(ApiModel):
+    """A fixed-day recurring item due in a week that hasn't opened: worked out from its
+    schedule, not stored."""
+
+    recurring_item_id: UUID
+    title: str
+    day: date
+
+
+class CheckInDate(ApiModel):
+    """A milestone dated in the week that isn't hit yet, under an active goal."""
+
+    goal_id: UUID
+    goal_label: str
+    milestone_id: UUID
+    position: int
+    of: int = Field(
+        description="Out of the goal's milestones and the goal, as its page counts them: "
+        '"Milestone 3 of 4".'
+    )
+    day: date
+
+
+class GoalDeadline(ApiModel):
+    """An active goal's deadline in the week."""
+
+    goal_id: UUID
+    goal_label: str
+    day: date
 
 
 class Week(ApiModel):
@@ -209,16 +274,39 @@ class Week(ApiModel):
     from it."""
 
     week: date
+    status: WeekStatus = Field(
+        description="`closed` before the current week, `open` for the current week and next "
+        "week once open, `notOpen` for every later week."
+    )
     is_current: bool
     next_week_open: bool = Field(description="Next week has been opened (from Sunday evening).")
+    first_week: date | None = Field(
+        description="The Monday of the earliest week with any row, whatever its outcome: how "
+        "far back Week can go. Empty when there are none."
+    )
     tasks: list[Task] = Field(
-        description="On a day, then in the bank; with no outcome or done. Set-aside rows "
-        "aren't shown."
+        description="On a day, then in the bank: in play or done, and in a closed week also "
+        "rolled over or lapsed (`weekOutcome`). A week that hasn't opened has only the tasks "
+        "placed on it by hand. Set-aside and dropped rows aren't shown."
     )
     goals: list[WeekGoal] = Field(
-        description="Every active building goal with a target that week, and its progress."
+        description="An open week: every active building goal with a target that week. A "
+        "closed week: every goal with a target and a session row that week, whatever its "
+        "status now. A week that hasn't opened: none."
     )
     days: list[DayMark] = Field(description="Monday to Sunday, each with the full-day mark.")
+    counts: WeekCounts
+    occurrences: list[Occurrence] = Field(
+        description="A week that hasn't opened: each fixed-day recurring item due in it. "
+        "Empty for every other week."
+    )
+    check_ins: list[CheckInDate] = Field(
+        description="Milestones dated in the week that aren't hit yet, under active goals, by "
+        "day. Never counted."
+    )
+    deadlines: list[GoalDeadline] = Field(
+        description="Active goals whose deadline falls in the week, by day. Never counted."
+    )
     quitting_goals: list[WeekQuitGoal] = Field(
         description="Every active quitting goal started by the week's end, with its days."
     )

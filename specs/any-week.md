@@ -1,6 +1,6 @@
 # Spec: Any week
 
-Status: draft, 2026-11-25, written with [`coming-up`](coming-up.md); decisions 1 to 3 settled with Jan the same day. Finalised when its plan is written. Issue: [#51](https://github.com/jan-mcsparin/goals-to-actions-api/issues/51). Module `any-week` in the [map](README.md), the second of three from the scheduling brief. Depends on `on-a-day`. The front end's [#80](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/80) (any week), [#82](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/82) (move and remove) and [#81](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/81) (past days) build on it; `coming-up` reuses its counts and its dated reads.
+Status: built 2026-11-25; decisions 1 to 3 settled with Jan the same day, 4 to 6 as assumed. Written with [`coming-up`](coming-up.md). The plan is in `tasks/plan.md`. Issue: [#51](https://github.com/jan-mcsparin/goals-to-actions-api/issues/51). Module `any-week` in the [map](README.md), the second of three from the scheduling brief. Depends on `on-a-day`. The front end's [#80](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/80) (any week), [#82](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/82) (move and remove) and [#81](https://github.com/jan-mcsparin/goals-to-actions-web-frontend/issues/81) (past days) build on it; `coming-up` reuses its counts and its dated reads.
 
 ## Objective
 
@@ -154,3 +154,12 @@ Through the `client` fixture, against real Postgres, with the clock pinned (Wed 
 ## Open questions
 
 None.
+
+## As built
+
+- **Late check-offs needed no code,** only tests (`tests/test_check_off.py`): the rules already found the right row.
+- **`firstWeek` reads the earliest row** (`FirstRow`) rather than `min(week)`: sqlc's single-value result didn't pass mypy.
+- **A row that rolled over or lapsed has no `atClose`:** it isn't in play. `stillMatters` is the task's, as on every read.
+- **Expected counts read one week.** The queries take a range (`from_week`, `through_week`), but `fullness.expected` and the `dated` reads pass the one week; `coming-up` widens them to its 12.
+- **A flexible item's first week** is the later of its period's first week and the week it starts, since opening makes a missing period task in the first week the item exists (decision 1).
+- **Code:** `app/tasks/fullness.py` (actual and expected counts), `app/tasks/dated.py` (occurrences, check-ins, deadlines), `expected_sessions` and `expected_item_tasks` in `app/turnover/due.py`, `week_status` in `app/weeks.py`. Queries: `ListWeekTasks` (with `week_outcome`), `FirstRow`, `ListPinnedOrDue`, `GoalsWithSessions`, `ListMilestoneDates`, `ListDeadlines`.

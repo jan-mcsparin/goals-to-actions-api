@@ -46,8 +46,8 @@ def week_read(connection: Connection, user_id: UUID, week: date, today: date) ->
         if status == "notOpen"
         else fullness.actual(rows),
         occurrences=dated.occurrences(connection, user_id, week) if status == "notOpen" else [],
-        check_ins=dated.check_ins(connection, user_id, week),
-        deadlines=dated.deadlines(connection, user_id, week),
+        check_ins=dated.check_ins(connection, user_id, week, week),
+        deadlines=dated.deadlines(connection, user_id, week, week),
         goals=week_goals(connection, user_id, week, status, all_goals),
         next_up=next_up(connection, user_id, today, weeks) if week == weeks.current else None,
     )

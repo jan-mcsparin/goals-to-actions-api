@@ -235,6 +235,80 @@
         "title": "CheckOff",
         "type": "object"
       },
+      "ComingUp": {
+        "properties": {
+          "weeks": {
+            "description": "The 12 weeks after the current one, oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/ComingUpWeek"
+            },
+            "title": "Weeks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "weeks"
+        ],
+        "title": "ComingUp",
+        "type": "object"
+      },
+      "ComingUpWeek": {
+        "description": "A week on Coming up (spec `coming-up`).",
+        "properties": {
+          "checkIns": {
+            "description": "As `getWeek`'s.",
+            "items": {
+              "$ref": "#/components/schemas/CheckInDate"
+            },
+            "title": "Checkins",
+            "type": "array"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/WeekCounts",
+            "description": "The same numbers `getWeek` gives for the week."
+          },
+          "deadlines": {
+            "description": "As `getWeek`'s.",
+            "items": {
+              "$ref": "#/components/schemas/GoalDeadline"
+            },
+            "title": "Deadlines",
+            "type": "array"
+          },
+          "status": {
+            "description": "The first week is `open` from Sunday evening; the rest are `notOpen`.",
+            "enum": [
+              "open",
+              "notOpen"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tasks": {
+            "description": "Open tasks added by hand, under no goal or an active one, set to a day in the week or else due in it; by day, then time.",
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "week": {
+            "format": "date",
+            "title": "Week",
+            "type": "string"
+          }
+        },
+        "required": [
+          "week",
+          "status",
+          "counts",
+          "tasks",
+          "checkIns",
+          "deadlines"
+        ],
+        "title": "ComingUpWeek",
+        "type": "object"
+      },
       "DayCounts": {
         "description": "A day's tasks by origin, as `WeekCounts` counts them.",
         "properties": {
@@ -3106,6 +3180,54 @@
         "summary": "Check In",
         "tags": [
           "milestones"
+        ]
+      }
+    },
+    "/api/coming-up": {
+      "get": {
+        "description": "The 12 weeks after the current one: each week's counts and what's dated in it.",
+        "operationId": "getComingUp",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-time-zone",
+            "required": true,
+            "schema": {
+              "title": "X-Time-Zone",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComingUp"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get Coming Up",
+        "tags": [
+          "tasks"
         ]
       }
     },

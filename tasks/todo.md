@@ -29,12 +29,12 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `ComingUp` and `ComingUpWeek`; `get_coming_up` (`GET /coming-up`, asks for `Today`); `app/tasks/coming_up.py`; `dated.check_ins`/`deadlines` over a range; `fullness.expected_counts`, pure.
 
 **Acceptance criteria:**
-- [ ] Twelve weeks from next week, Mondays in order; on Sunday after 6 p.m. the first is `open`; after a wrap-up they start a week later.
-- [ ] Each week's `counts` equals `getWeek`'s, with a target changed for next week and a goal starting in week 3.
-- [ ] Listed: a task set to a day five weeks out; one due in week 3 with no row; one in this week's bank due in week 2 (in week 2 only); a one-off goal's step due in week 4; a milestone date and a deadline.
-- [ ] Not listed: recurring work, a done or dropped task, a task under a paused goal, a task due this week, a task 13 weeks out.
-- [ ] A task set to a day and due in a later week is listed once, on its day.
-- [ ] Another user's tasks, milestones and goals never appear (`tests/test_other_user.py`).
+- [x] Twelve weeks from next week, Mondays in order; on Sunday after 6 p.m. the first is `open`; after a wrap-up they start a week later.
+- [x] Each week's `counts` equals `getWeek`'s, with a target changed for next week and a goal starting in week 3.
+- [x] Listed: a task set to a day five weeks out; one due in week 3 with no row; one in this week's bank due in week 2 (in week 2 only); a one-off goal's step due in week 4; a milestone date and a deadline.
+- [x] Not listed: recurring work, a done or dropped task, a task under a paused goal, a task due this week, a task 13 weeks out.
+- [x] A task set to a day and due in a later week is listed once, on its day.
+- [x] Another user's tasks, milestones and goals never appear (`tests/test_other_user.py`).
 
 **Verify:** `uv run pytest tests/test_coming_up.py tests/test_other_user.py tests/test_any_week.py tests/test_fullness.py`, then the four checks.
 
@@ -42,7 +42,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ## Checkpoint: after task 2
 
-- [ ] Every listed and not-listed case and each `nextUp` case has a test that fails without its rule.
+- [x] Every listed and not-listed case and each `nextUp` case has a test that fails without its rule.
 
 ### Task 3: Docs and a check
 

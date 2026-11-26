@@ -397,7 +397,7 @@ def test_next_up_is_the_earliest_task_set_to_a_day_or_due_after_today(
 
 
 def test_a_task_later_today_is_never_next_up(tasks_client: TestClient) -> None:
-    add_task(tasks_client, title="Later today", day="2026-11-18")
+    add_task(tasks_client, title="Later today", day="2026-11-18", dueDate="2026-11-19")
     add_task(tasks_client, title="Due next week", dueDate="2026-11-24")
 
     assert next_up(tasks_client)["title"] == "Due next week"

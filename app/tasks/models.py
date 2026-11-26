@@ -325,6 +325,28 @@ class Week(ApiModel):
     )
 
 
+class ComingUpWeek(ApiModel):
+    """A week on Coming up (spec `coming-up`)."""
+
+    week: date
+    status: Literal["open", "notOpen"] = Field(
+        description="The first week is `open` from Sunday evening; the rest are `notOpen`."
+    )
+    counts: WeekCounts = Field(description="The same numbers `getWeek` gives for the week.")
+    tasks: list[Task] = Field(
+        description="Open tasks added by hand, under no goal or an active one, set to a day in "
+        "the week or else due in it; by day, then time."
+    )
+    check_ins: list[CheckInDate] = Field(description="As `getWeek`'s.")
+    deadlines: list[GoalDeadline] = Field(description="As `getWeek`'s.")
+
+
+class ComingUp(ApiModel):
+    weeks: list[ComingUpWeek] = Field(
+        description="The 12 weeks after the current one, oldest first."
+    )
+
+
 class TaskEdit(ApiModel):
     """Sent whole on every edit. Where the task is doesn't change."""
 

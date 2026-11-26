@@ -3,13 +3,14 @@ has opened, from the tasks the week read returns; expected for one that hasn't, 
 rules opening uses, with nothing guessed about placement (spec `any-week`)."""
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import date
 from uuid import UUID
 
 from sqlalchemy import Connection
 
-from app.db import recurring_items, tasks
-from app.db.tasks import ListWeekTasksRow
+from app.db import models, recurring_items, tasks
+from app.db.tasks import ListPinnedOrDueRow, ListWeekTasksRow
 from app.tasks.models import DayCounts, WeekCounts
 from app.turnover.due import expected_item_tasks, expected_sessions
 from app.turnover.endings import schedule_of
@@ -44,20 +45,47 @@ def by_day(rows: Iterable[ListWeekTasksRow]) -> dict[date, DayCounts]:
     return days
 
 
+@dataclass(frozen=True)
+class Expecting:
+    """What expected counts are worked out from, read once for a range of weeks."""
+
+    goals: list[tuple[models.Goal, int]]
+    items: list[models.RecurringItem]
+    hand: list[ListPinnedOrDueRow]
+
+
+def expecting(
+    connection: Connection, user_id: UUID, from_week: date, through_week: date
+) -> Expecting:
+    """The goals and their targets are read as of `from_week`, a week that hasn't opened: a
+    target change takes effect this week or next at the latest (`target_week`), so every later
+    week has the same targets."""
+    return Expecting(
+        goals=active_goals(connection, user_id, from_week),
+        items=list(recurring_items.Querier(connection).list_recurring_items(user_id=user_id)),
+        hand=list(
+            tasks.Querier(connection).list_pinned_or_due(
+                user_id=user_id, from_week=from_week, through_week=through_week
+            )
+        ),
+    )
+
+
 def expected(connection: Connection, user_id: UUID, week: date) -> WeekCounts:
+    return expected_counts(week, expecting(connection, user_id, week, week))
+
+
+def expected_counts(week: date, read: Expecting) -> WeekCounts:
     """What opening the week would bring: each active building goal's sessions, each item's
     tasks that are on, and the open tasks added by hand pinned in it or due in it with no row."""
     sessions = {
-        goal.id: expected_sessions(count, week, goal.start_date)
-        for goal, count in active_goals(connection, user_id, week)
+        goal.id: expected_sessions(count, week, goal.start_date) for goal, count in read.goals
     }
-    items = recurring_items.Querier(connection).list_recurring_items(user_id=user_id)
-    hand = tasks.Querier(connection).list_pinned_or_due(
-        user_id=user_id, from_week=week, through_week=week
-    )
     return WeekCounts(
         goal_sessions=sum(sessions.values()),
         goals=sum(count > 0 for count in sessions.values()),
-        upkeep=sum(expected_item_tasks(schedule_of(item), week) for item in items if item.active),
-        added=sum(row.week == week for row in hand),
+        upkeep=sum(
+            expected_item_tasks(schedule_of(item), week) for item in read.items if item.active
+        ),
+        added=sum(row.week == week for row in read.hand),
     )

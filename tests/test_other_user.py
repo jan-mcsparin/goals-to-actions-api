@@ -84,6 +84,11 @@ def get_upcoming(given: Given) -> str:
     return "/api/tasks/upcoming"
 
 
+def get_coming_up(given: Given) -> str:
+    ok(given.client.put(f"/api/tasks/{uuid4()}", json={"title": "Pinned", "day": "2026-12-09"}))
+    return "/api/coming-up"
+
+
 READS: dict[str, ReadArrange] = {
     "listAspirations": list_aspirations,
     "listGoals": list_goals,
@@ -92,6 +97,7 @@ READS: dict[str, ReadArrange] = {
     "getSettings": get_settings,
     "getWeek": get_week,
     "getUpcoming": get_upcoming,
+    "getComingUp": get_coming_up,
 }
 
 

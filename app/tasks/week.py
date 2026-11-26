@@ -42,7 +42,9 @@ def week_read(connection: Connection, user_id: UUID, week: date, today: date) ->
         tasks=[Task.from_row(row) for row in rows],
         quitting_goals=week_quit_goals(connection, user_id, week, all_goals),
         days=day_marks(week, CAPS[owner.intensity], rows, counted=status != "notOpen"),
-        counts=fullness.actual(rows),
+        counts=fullness.expected(connection, user_id, week)
+        if status == "notOpen"
+        else fullness.actual(rows),
         goals=week_goals(connection, user_id, week, status, all_goals),
     )
 

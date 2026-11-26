@@ -223,3 +223,28 @@ select * from task_weeks
 where user_id = $1 and deleted_at is null
 order by week
 limit 1;
+
+-- Open tasks added by hand that a range of later weeks would hold (spec `any-week`): each
+-- with the week of its row in play (placed there by hand), or, with no row at all, the week
+-- it's due in, when it's under no goal or an active one (the rule opening uses,
+-- `ListDueTasksWithoutRows`). A task already in a week's bank counts there.
+-- name: ListPinnedOrDue :many
+select tasks.id,
+  coalesce(in_play.week, date_trunc('week', tasks.due_date)::date)::date as week
+from tasks
+left join task_weeks in_play on in_play.task_id = tasks.id and in_play.outcome is null
+  and in_play.deleted_at is null
+left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
+where tasks.user_id = sqlc.arg(user_id) and tasks.origin = 'by_hand' and tasks.state = 'open'
+  and tasks.deleted_at is null
+  and (
+    in_play.week between sqlc.arg(from_week)::date and sqlc.arg(through_week)::date
+    or (
+      tasks.due_date between sqlc.arg(from_week)::date and sqlc.arg(through_week)::date + 6
+      and (tasks.goal_id is null or goals.status = 'active')
+      and not exists (
+        select 1 from task_weeks any_row
+        where any_row.task_id = tasks.id and any_row.deleted_at is null
+      )
+    )
+  );

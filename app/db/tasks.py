@@ -170,6 +170,34 @@ class ListItemSlotsRow(pydantic.BaseModel):
     number: Optional[int]
 
 
+LIST_PINNED_OR_DUE = """-- name: list_pinned_or_due \\:many
+select tasks.id,
+  coalesce(in_play.week, date_trunc('week', tasks.due_date)\\:\\:date)\\:\\:date as week
+from tasks
+left join task_weeks in_play on in_play.task_id = tasks.id and in_play.outcome is null
+  and in_play.deleted_at is null
+left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
+where tasks.user_id = :p1 and tasks.origin = 'by_hand' and tasks.state = 'open'
+  and tasks.deleted_at is null
+  and (
+    in_play.week between :p2\\:\\:date and :p3\\:\\:date
+    or (
+      tasks.due_date between :p2\\:\\:date and :p3\\:\\:date + 6
+      and (tasks.goal_id is null or goals.status = 'active')
+      and not exists (
+        select 1 from task_weeks any_row
+        where any_row.task_id = tasks.id and any_row.deleted_at is null
+      )
+    )
+  )
+"""
+
+
+class ListPinnedOrDueRow(pydantic.BaseModel):
+    id: uuid.UUID
+    week: datetime.date
+
+
 LIST_STEPS = """-- name: list_steps \\:many
 select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, shown.week, shown.planned_day, shown.placed_by_hand,
   null\\:\\:text as week_outcome,
@@ -598,6 +626,14 @@ class Querier:
             yield ListItemSlotsRow(
                 period_start=row[0],
                 number=row[1],
+            )
+
+    def list_pinned_or_due(self, *, user_id: uuid.UUID, from_week: datetime.date, through_week: datetime.date) -> Iterator[ListPinnedOrDueRow]:
+        result = self._conn.execute(sqlalchemy.text(LIST_PINNED_OR_DUE), {"p1": user_id, "p2": from_week, "p3": through_week})
+        for row in result:
+            yield ListPinnedOrDueRow(
+                id=row[0],
+                week=row[1],
             )
 
     def list_steps(self, *, goal_id: Optional[uuid.UUID], user_id: uuid.UUID) -> Iterator[ListStepsRow]:

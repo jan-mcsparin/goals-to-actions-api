@@ -12,7 +12,7 @@ from sqlalchemy import Connection, text
 from tests.conftest import FixedClock
 from tests.test_check_off import check_off
 from tests.test_goals import ZONE, create_goal, lifting
-from tests.test_recurring_items import LAUNDRY, item
+from tests.test_recurring_items import BATHROOM, LAUNDRY, item
 from tests.test_recurring_items import create as create_item
 from tests.test_tasks import add_task, one_off, open_next_week
 
@@ -245,3 +245,55 @@ def test_a_week_that_has_not_opened_has_no_day_counts(tasks_client: TestClient) 
     add_task(tasks_client, title="Pinned", day=(LATER + timedelta(days=2)).isoformat())
 
     assert all(counts is None for counts in day_counts(get_week(tasks_client, LATER)).values())
+
+
+# Expected counts: what opening a later week would bring
+
+
+def a_later_week(client: TestClient) -> None:
+    """Three weeks out (7 Dec): two goals with targets, one starting that Saturday; a paused
+    goal; a weekly, a monthly and a two-week item (in the second week of its period); a task
+    pinned there, a task due there with no row, and one in this week's bank due there."""
+    create_goal(client, lifting())
+    create_goal(client, lifting(label="Swim", startDate="2026-12-12"))
+    rest = create_goal(client, lifting(label="Rest"))
+    assert client.post(f"/api/goals/{rest['id']}/pause").status_code == 200
+    create_item(client, item())
+    create_item(client, item(name="Pay rent", schedule={"kind": "monthly", "dayOfMonth": 10}))
+    create_item(client, item(**BATHROOM))
+    add_task(client, title="Pinned", day="2026-12-09")
+    add_task(client, title="Due", dueDate="2026-12-10")
+    banked = add_task(client, title="Banked")
+    edited = client.patch(
+        f"/api/tasks/{banked['id']}", json={"title": "Banked", "dueDate": "2026-12-10"}
+    )
+    assert edited.status_code == 200, edited.text
+
+
+EXPECTED = {"goalSessions": 5, "goals": 2, "upkeep": 2, "added": 2}
+
+
+def test_a_week_that_has_not_opened_counts_what_opening_would_bring(
+    tasks_client: TestClient,
+) -> None:
+    a_later_week(tasks_client)
+
+    week = get_week(tasks_client, LATER)
+
+    assert week["status"] == "notOpen"
+    assert week["counts"] == EXPECTED
+    assert [task["title"] for task in week["tasks"]] == ["Pinned"]
+
+
+def test_once_opened_a_week_counts_what_was_expected(
+    tasks_client: TestClient, fixed_clock: FixedClock
+) -> None:
+    a_later_week(tasks_client)
+    for sunday in (date(2026, 11, 22), date(2026, 11, 29), date(2026, 12, 6)):
+        fixed_clock.instant = at(sunday, 19)
+        get_week(tasks_client, LATER)
+
+    week = get_week(tasks_client, LATER)
+
+    assert week["status"] == "open"
+    assert week["counts"] == EXPECTED

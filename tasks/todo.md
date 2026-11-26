@@ -55,9 +55,9 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** Pure rules in `app/turnover/due.py` for a goal's and an item's expected tasks (decision 1); `ListPinnedOrDue(from, through)` in `db/queries/tasks.sql`; `fullness.expected` for a `notOpen` week.
 
 **Acceptance criteria:**
-- [ ] Pure tests (`tests/test_fullness.py`): a goal starting midweek, a weekly and a monthly item, a two-week and a monthly flexible item counted in their first week only, an item starting later.
-- [ ] Three weeks out: a pinned task, a task due that week with no row, a task in this week's bank due that week (not counted), a paused goal (nothing of it).
-- [ ] The same setup opened (clock to its Sunday 6 p.m.): actual counts equal the expected ones.
+- [x] Pure tests (`tests/test_fullness.py`): a goal starting midweek, a weekly and a monthly item, a two-week and a monthly flexible item counted in their first week only, an item starting later.
+- [x] Three weeks out: a pinned task, a task due that week with no row, a task in this week's bank due that week (not counted), a paused goal (nothing of it).
+- [x] The same setup opened (clock to its Sunday 6 p.m.): actual counts equal the expected ones.
 
 **Verify:** `uv run pytest tests/test_fullness.py tests/test_any_week.py`, then the four checks.
 

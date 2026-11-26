@@ -13,7 +13,7 @@ References: [brief](../../docs/briefs/scheduling-and-other-weeks.md) ("On a day"
 ### What changes
 
 1. **`addTask` with a `day` from today on, in any week from the current one on,** makes a hand-placed row on that day in that day's week, whether the week has opened or not. A day before today, or in a week before the current one (after a wrap-up), falls back to the current week's bank as now: a create is never refused over where it goes (shared decision 15). The body doesn't change.
-2. **`placeTask` can move a task added by hand to a day in another week** (decision 1). The row in play moves: same row, new `week` and `plannedDay`, still placed by hand. `week` in the body stays "the week the change was made in", so a queued move whose task has since left that week is still a 409. The body doesn't change; the rule widens. A goal session or a recurring task still moves only within its own week, and a fixed-day task stays on its day (#47).
+2. **`placeTask` can move a task added by hand to a day in another week** (decision 1). The row in play moves: same row, new `week` and `plannedDay`, still placed by hand. `week` in the body stays "the week the change was made in", so a queued move whose task has since left that week is still a 409. The body doesn't change; the rule widens. A goal session or a recurring task still moves only within its own week. A fixed-day task stayed on its day (#47) until web-frontend #82: it now moves to any day of its own week from today on, placed by hand, and never to the bank.
 3. **`answerStillMatters` with `schedule`** takes the same days as `placeTask`, since it calls it.
 4. **`dropTask` on a pinned task** closes its row as dropped, as for any open task (Remove in the design). It already works; this slice tests it.
 5. **Opening a week keeps its pinned rows** on their days. `openWeek` adds generated rows only, `listDueTasksWithoutRows` skips a task that has a row, and the planner counts pinned rows as load (`ListWeekPlaces`) and never writes to them (`PlaceGeneratedTask` skips `placed_by_hand`). Tests prove each.
@@ -37,7 +37,7 @@ No new routes, models or fields. `openapi.json` changes only in descriptions:
 | `addTask` (`PUT /tasks/{id}`) | `day`: "A day from today on, in this week or a later one. The task is placed there by hand. A day before today goes to the current week's bank." |
 | `placeTask` (`POST /tasks/{id}/place`) | `day`: "A day from today on. A task added by hand can go to another week; a generated one stays in its own." |
 
-`placeTask` answers 409 for: a day before today or before the current week; a generated task's day outside its week; a fixed-day task moved off its day; a task no longer in `week`. The front end needs no type change; it regenerates to pick up the descriptions.
+`placeTask` answers 409 for: a day before today or before the current week; a generated task's day outside its week; a task no longer in `week`. The front end needs no type change; it regenerates to pick up the descriptions.
 
 ## Decisions
 
@@ -74,7 +74,7 @@ Through the `client` fixture, against real Postgres, with the clock pinned (Wed 
 
 - Add on a day three weeks out: a hand-placed row in that week; the week read for this week doesn't show it; the upcoming list doesn't either.
 - Add on yesterday, and on a day of a week a wrap-up closed: the current week's bank.
-- Move this week's task to a day in December, and back to tomorrow. Move a pinned task from one later week to another. Move a goal session to next week: 409. Move a fixed-day task: 409. Move with a stale `week`: 409.
+- Move this week's task to a day in December, and back to tomorrow. Move a pinned task from one later week to another. Move a goal session to next week: 409. Move a fixed-day task to another week: 409 (within its week it moves, since web-frontend #82). Move with a stale `week`: 409.
 - Open the pinned week (move the clock to its Sunday 6 p.m.): the row is where it was, recurring work is placed around it, and a day it fills counts it as load.
 - Skip the pinned week entirely (the clock jumps past it): one carry-over into the current week's bank, one `rolled_over` row.
 - Pause the task's goal and resume it: back on its day. Drop it: dropped, no row in play.

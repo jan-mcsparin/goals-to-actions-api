@@ -25,10 +25,10 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** Tests for a check-off and an uncheck sent weeks after the day (spec, "Late check-offs"). No code expected.
 
 **Acceptance criteria:**
-- [ ] A hand task rolled over twice, checked off from its first week's day: done on its current-week row, `completedOn` that day, the rolled-over rows unchanged; unchecked: back in play.
-- [ ] A session lapsed two weeks ago, checked off: row and task done, counted in that week's Progress; unchecked: lapsed again.
-- [ ] A check-off from a closed week's day while next week is open.
-- [ ] The past week's read after each shows `weekOutcome` and the current `state`.
+- [x] A hand task rolled over twice, checked off from its first week's day: done on its current-week row, `completedOn` that day, the rolled-over rows unchanged; unchecked: back in play.
+- [x] A session lapsed two weeks ago, checked off: row and task done, counted in that week's Progress; unchecked: lapsed again.
+- [x] A check-off from a closed week's day while next week is open.
+- [x] The past week's read after each shows `weekOutcome` and the current `state`.
 
 **Verify:** `uv run pytest tests/test_check_off.py`, then the four checks.
 

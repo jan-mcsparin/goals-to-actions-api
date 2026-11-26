@@ -30,8 +30,8 @@ What the API is built on: [`data-model.md`](../../docs/data-model.md), [`product
 | # | Module id | Issue | Covers | Depends on |
 | --- | --- | --- | --- | --- |
 | 13 | [`on-a-day`](on-a-day.md) | #50 | A task on any day from today on, in a week that hasn't opened too; moved across weeks or dropped | 5, 7, 8 |
-| 14 | `any-week` (spec to come) | #51 | Reading any week, past or later, with counts by origin; late check-offs from a past day | 13 |
-| 15 | `coming-up` (spec to come) | #52 | The next 12 weeks in one read | 14 |
+| 14 | [`any-week`](any-week.md) | #51 | Reading any week, past or later, with counts by origin; late check-offs from a past day | 13 |
+| 15 | [`coming-up`](coming-up.md) | #52 | The next 12 weeks in one read | 14 |
 
 Build order: 13 → 14 → 15, each followed by its front-end pieces (#79 after 13; #80, #82, #81 after 14; #83 after 15).
 

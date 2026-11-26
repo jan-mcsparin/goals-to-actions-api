@@ -229,7 +229,10 @@ class DayMark(ApiModel):
 
     day: date
     cap: int = Field(description="Tasks a day holds at the person's intensity: 3, 4 or 6.")
-    full: bool = Field(description="The day holds at least `cap` tasks, open or done.")
+    full: bool = Field(
+        description="The day holds at least `cap` of the tasks the week read returns: open or "
+        "done, and in a closed week also rolled over or lapsed."
+    )
     counts: DayCounts | None = Field(
         description="The day's tasks by origin. Empty for a week that hasn't opened."
     )

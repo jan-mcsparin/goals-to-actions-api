@@ -97,8 +97,8 @@ def week_goals(
 def day_marks(
     week: date, cap: int, rows: list[ListWeekTasksRow], *, counted: bool
 ) -> list[DayMark]:
-    """Every task the week read returns counts: open or done, on its day. A week that hasn't
-    opened has no day counts."""
+    """Every task the week read returns counts on its day: open or done, and in a closed week
+    also rolled over or lapsed. A week that hasn't opened has no day counts."""
     load = Counter(row.planned_day for row in rows if row.planned_day is not None)
     counts = fullness.by_day(rows)
     empty = DayCounts(goal_sessions=0, upkeep=0, added=0)

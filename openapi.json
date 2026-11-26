@@ -284,7 +284,7 @@
             "type": "string"
           },
           "full": {
-            "description": "The day holds at least `cap` tasks, open or done.",
+            "description": "The day holds at least `cap` of the tasks the week read returns: open or done, and in a closed week also rolled over or lapsed.",
             "title": "Full",
             "type": "boolean"
           }

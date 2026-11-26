@@ -253,11 +253,13 @@ def test_a_week_that_has_not_opened_has_no_day_counts(tasks_client: TestClient) 
 
 def a_later_week(client: TestClient) -> None:
     """Three weeks out (7 Dec): two goals with targets, one starting that Saturday; a paused
-    goal; a weekly, a monthly and a two-week item (in the second week of its period); a task
-    pinned there, a task due there with no row, and one in this week's bank due there."""
+    goal, with a task due there; a weekly, a monthly and a two-week item (in the second week of
+    its period); a task pinned there, a task due there with no row, and one in this week's bank
+    due there."""
     create_goal(client, lifting())
     create_goal(client, lifting(label="Swim", startDate="2026-12-12"))
     rest = create_goal(client, lifting(label="Rest"))
+    add_task(client, title="Resting", goalId=rest["id"], dueDate="2026-12-10")
     assert client.post(f"/api/goals/{rest['id']}/pause").status_code == 200
     create_item(client, item())
     create_item(client, item(name="Pay rent", schedule={"kind": "monthly", "dayOfMonth": 10}))

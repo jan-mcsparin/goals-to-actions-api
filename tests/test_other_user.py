@@ -6,6 +6,7 @@ The first user (the fixed user) arranges their rows; then the same request goes 
 second user's session. Their rows must be as they were, and no id of theirs may come back."""
 
 from collections.abc import Callable
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -16,7 +17,7 @@ from app.config import FIXED_USER_ID
 from app.database import Database
 from app.sign_in.session import SESSION_COOKIE, start_session
 from tests.conftest import PINNED, FixedClock
-from tests.test_goals import ZONE
+from tests.test_goals import ZONE, create_goal, lifting
 from tests.test_repeats import (
     CASES,
     Given,
@@ -203,3 +204,30 @@ def test_every_operation_has_a_case(client: TestClient) -> None:
     }
 
     assert operations - OPEN - CASES.keys() - READS.keys() == set()
+
+
+def test_a_second_user_sees_none_of_the_first_users_past_or_later_weeks(
+    zoned: TestClient, connection: Connection, fixed_clock: FixedClock, second_user: str
+) -> None:
+    """Spec `any-week`: a closed week's rows, a later week's pinned task, fixed-day items,
+    check-ins, deadlines and counts are the reader's own."""
+    goal_id = create_goal(zoned, lifting(deadline="2026-12-10"))["id"]
+    milestone = {"goalId": goal_id, "measurableLine": "Bench", "targetDate": "2026-12-09"}
+    ok(zoned.put(f"/api/milestones/{uuid4()}", json=milestone))
+    made(Given(zoned, connection, fixed_clock), "createRecurringItem")
+    on_today(zoned)
+    ok(zoned.put(f"/api/tasks/{uuid4()}", json={"title": "Pinned", "day": "2026-12-09"}))
+    fixed_clock.instant = PINNED + timedelta(weeks=1)  # the week of 16 Nov closes
+    past, later = "/api/weeks/2026-11-16", "/api/weeks/2026-12-07"
+    ids = first_users_ids(connection)
+    for path in (past, later):
+        assert leaked(ids, zoned.get(path).text), "the first user should see their own rows"
+
+    as_second_user(zoned, second_user)
+
+    for path in (past, later):
+        response = zoned.get(path)
+        assert response.status_code == 200, response.text
+        assert leaked(ids, response.text) == set(), response.text
+        week = response.json()
+        assert (week["firstWeek"], set(week["counts"].values())) == (None, {0})

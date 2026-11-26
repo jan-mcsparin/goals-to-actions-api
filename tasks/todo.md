@@ -84,7 +84,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `tests/test_other_user.py` reads a past and a later week. Spec status and As built; `tasks-week.md`, the map; `../docs/product-rules.md` rules 11 and 12, `flows.md` flow 9, `data-model.md` (late check-offs), the brief's status line on a parent-repo branch. A Sonnet agent runs the four checks and the spec's cases against the running API.
 
 **Acceptance criteria:**
-- [ ] Another user's rows, milestones and goals never appear in a past or a later week.
+- [x] Another user's rows, milestones and goals never appear in a past or a later week.
 - [ ] Every doc describes what was built; the agent's findings are in the PR.
 
 **Verify:** read through; the four checks.

@@ -159,6 +159,73 @@ class GoalWeekDoneRow(pydantic.BaseModel):
     logged: decimal.Decimal
 
 
+LIST_DATED_TASKS = """-- name: list_dated_tasks \\:many
+select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, in_play.week, in_play.planned_day, in_play.placed_by_hand,
+  null\\:\\:text as week_outcome,
+  goals.label as goal_label,
+  aspirations.id as aspiration_id, aspirations.name as aspiration_name,
+  aspirations.position as aspiration_position,
+  null\\:\\:text as item_kind, null\\:\\:text as item_period,
+  (select count(*) from task_weeks rolled
+    where rolled.task_id = tasks.id and rolled.outcome = 'rolled_over'
+      and rolled.deleted_at is null
+      and (tasks.still_matters_answered_on is null
+        or rolled.week + 6 >= tasks.still_matters_answered_on))\\:\\:integer as rolled_since_answer,
+  (select count(*) from task_weeks carried
+    where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.week < coalesce(in_play.week, 'infinity'\\:\\:date)
+      and carried.deleted_at is null)\\:\\:integer as carried_over,
+  coalesce(in_play.planned_day, tasks.due_date)\\:\\:date as day
+from tasks
+left join task_weeks in_play on in_play.task_id = tasks.id and in_play.outcome is null
+  and in_play.deleted_at is null
+left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
+left join aspirations on aspirations.id = goals.aspiration_id
+  and aspirations.deleted_at is null
+where tasks.user_id = :p1 and tasks.origin = 'by_hand' and tasks.state = 'open'
+  and tasks.deleted_at is null
+  and (tasks.goal_id is null or goals.status = 'active')
+  and coalesce(in_play.planned_day, tasks.due_date)
+    between :p2\\:\\:date and :p3\\:\\:date
+order by day, tasks.time_of_day nulls last, tasks.created_at, tasks.id
+"""
+
+
+class ListDatedTasksRow(pydantic.BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    title: str
+    origin: str
+    goal_id: Optional[uuid.UUID]
+    recurring_item_id: Optional[uuid.UUID]
+    state: str
+    due_date: Optional[datetime.date]
+    time_kind: Optional[str]
+    time_of_day: Optional[datetime.time]
+    value_logged: Optional[decimal.Decimal]
+    completed_at: Optional[datetime.datetime]
+    completed_on: Optional[datetime.date]
+    period_start: Optional[datetime.date]
+    number: Optional[int]
+    still_matters_answered_on: Optional[datetime.date]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime]
+    week: Optional[datetime.date]
+    planned_day: Optional[datetime.date]
+    placed_by_hand: Optional[bool]
+    week_outcome: Optional[str]
+    goal_label: Optional[str]
+    aspiration_id: Optional[uuid.UUID]
+    aspiration_name: Optional[str]
+    aspiration_position: Optional[int]
+    item_kind: Optional[str]
+    item_period: Optional[str]
+    rolled_since_answer: int
+    carried_over: int
+    day: datetime.date
+
+
 LIST_ITEM_SLOTS = """-- name: list_item_slots \\:many
 select period_start, number from tasks
 where recurring_item_id = :p1 and user_id = :p2
@@ -619,6 +686,44 @@ class Querier:
             done=row[0],
             logged=row[1],
         )
+
+    def list_dated_tasks(self, *, user_id: uuid.UUID, from_day: datetime.date, through_day: datetime.date) -> Iterator[ListDatedTasksRow]:
+        result = self._conn.execute(sqlalchemy.text(LIST_DATED_TASKS), {"p1": user_id, "p2": from_day, "p3": through_day})
+        for row in result:
+            yield ListDatedTasksRow(
+                id=row[0],
+                user_id=row[1],
+                title=row[2],
+                origin=row[3],
+                goal_id=row[4],
+                recurring_item_id=row[5],
+                state=row[6],
+                due_date=row[7],
+                time_kind=row[8],
+                time_of_day=row[9],
+                value_logged=row[10],
+                completed_at=row[11],
+                completed_on=row[12],
+                period_start=row[13],
+                number=row[14],
+                still_matters_answered_on=row[15],
+                created_at=row[16],
+                updated_at=row[17],
+                deleted_at=row[18],
+                week=row[19],
+                planned_day=row[20],
+                placed_by_hand=row[21],
+                week_outcome=row[22],
+                goal_label=row[23],
+                aspiration_id=row[24],
+                aspiration_name=row[25],
+                aspiration_position=row[26],
+                item_kind=row[27],
+                item_period=row[28],
+                rolled_since_answer=row[29],
+                carried_over=row[30],
+                day=row[31],
+            )
 
     def list_item_slots(self, *, recurring_item_id: Optional[uuid.UUID], user_id: uuid.UUID) -> Iterator[ListItemSlotsRow]:
         result = self._conn.execute(sqlalchemy.text(LIST_ITEM_SLOTS), {"p1": recurring_item_id, "p2": user_id})

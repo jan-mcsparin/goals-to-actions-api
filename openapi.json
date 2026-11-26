@@ -2291,6 +2291,17 @@
             "title": "Iscurrent",
             "type": "boolean"
           },
+          "nextUp": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Task"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The current week's read only: the next open task added by hand set to a day, or else due, after today and through Coming up's last week. Earliest by its day, then time. Empty in every other week's read, and when there's none."
+          },
           "nextWeekOpen": {
             "description": "Next week has been opened (from Sunday evening).",
             "title": "Nextweekopen",
@@ -2349,7 +2360,8 @@
           "occurrences",
           "checkIns",
           "deadlines",
-          "quittingGoals"
+          "quittingGoals",
+          "nextUp"
         ],
         "title": "Week",
         "type": "object"

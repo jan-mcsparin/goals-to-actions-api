@@ -248,3 +248,35 @@ where tasks.user_id = sqlc.arg(user_id) and tasks.origin = 'by_hand' and tasks.s
       )
     )
   );
+
+-- Open tasks added by hand, under no goal or an active one, each on its day: its planned day
+-- in play, or else its due date (spec `coming-up`). Ordered as the week read orders a day.
+-- name: ListDatedTasks :many
+select tasks.*, in_play.week, in_play.planned_day, in_play.placed_by_hand,
+  null::text as week_outcome,
+  goals.label as goal_label,
+  aspirations.id as aspiration_id, aspirations.name as aspiration_name,
+  aspirations.position as aspiration_position,
+  null::text as item_kind, null::text as item_period,
+  (select count(*) from task_weeks rolled
+    where rolled.task_id = tasks.id and rolled.outcome = 'rolled_over'
+      and rolled.deleted_at is null
+      and (tasks.still_matters_answered_on is null
+        or rolled.week + 6 >= tasks.still_matters_answered_on))::integer as rolled_since_answer,
+  (select count(*) from task_weeks carried
+    where carried.task_id = tasks.id and carried.outcome = 'rolled_over'
+      and carried.week < coalesce(in_play.week, 'infinity'::date)
+      and carried.deleted_at is null)::integer as carried_over,
+  coalesce(in_play.planned_day, tasks.due_date)::date as day
+from tasks
+left join task_weeks in_play on in_play.task_id = tasks.id and in_play.outcome is null
+  and in_play.deleted_at is null
+left join goals on goals.id = tasks.goal_id and goals.deleted_at is null
+left join aspirations on aspirations.id = goals.aspiration_id
+  and aspirations.deleted_at is null
+where tasks.user_id = sqlc.arg(user_id) and tasks.origin = 'by_hand' and tasks.state = 'open'
+  and tasks.deleted_at is null
+  and (tasks.goal_id is null or goals.status = 'active')
+  and coalesce(in_play.planned_day, tasks.due_date)
+    between sqlc.arg(from_day)::date and sqlc.arg(through_day)::date
+order by day, tasks.time_of_day nulls last, tasks.created_at, tasks.id;

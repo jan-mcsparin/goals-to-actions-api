@@ -30,6 +30,9 @@ def target_week(
     return current
 
 
+COMING_UP_WEEKS = 12
+
+
 @dataclass(frozen=True)
 class OpenWeeks:
     """The weeks a task can be in play: the current one and, from Sunday evening, the next."""
@@ -40,6 +43,11 @@ class OpenWeeks:
     @property
     def next(self) -> date:
         return self.current + timedelta(weeks=1)
+
+    @property
+    def coming_up(self) -> list[date]:
+        """The weeks Coming up shows: the 12 after the current one (spec `coming-up`)."""
+        return [self.next + timedelta(weeks=n) for n in range(COMING_UP_WEEKS)]
 
     def __contains__(self, week: object) -> bool:
         return week == self.current or (self.next_open and week == self.next)

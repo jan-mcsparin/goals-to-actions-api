@@ -11,10 +11,10 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `ListDatedTasks(user_id, from_day, through_day)` in `db/queries/tasks.sql`; `Week.next_up`, filled in `week_read` for the current week only.
 
 **Acceptance criteria:**
-- [ ] `nextUp` is tomorrow's pinned task over next week's due one; a task later today is never it.
-- [ ] A task due after Coming up's 12th week isn't it; next week's read and a read with nothing coming have `null`.
-- [ ] A done, dropped or recurring task, or one under a paused goal, isn't it.
-- [ ] A task set to a day and due earlier is it on its planned day.
+- [x] `nextUp` is tomorrow's pinned task over next week's due one; a task later today is never it.
+- [x] A task due after Coming up's 12th week isn't it; next week's read and a read with nothing coming have `null`.
+- [x] A done, dropped or recurring task, or one under a paused goal, isn't it.
+- [x] A task set to a day and due earlier is it on its planned day.
 
 **Verify:** `uv run pytest tests/test_week_read.py`, then the four checks.
 
@@ -22,7 +22,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 
 ## Checkpoint: after task 1
 
-- [ ] The four checks pass; `openapi.json` changes only by addition.
+- [x] The four checks pass; `openapi.json` changes only by addition.
 
 ### Task 2: `getComingUp`
 

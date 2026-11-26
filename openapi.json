@@ -192,6 +192,30 @@
         "title": "CheckOff",
         "type": "object"
       },
+      "DayCounts": {
+        "description": "A day's tasks by origin, as `WeekCounts` counts them.",
+        "properties": {
+          "added": {
+            "title": "Added",
+            "type": "integer"
+          },
+          "goalSessions": {
+            "title": "Goalsessions",
+            "type": "integer"
+          },
+          "upkeep": {
+            "title": "Upkeep",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "goalSessions",
+          "upkeep",
+          "added"
+        ],
+        "title": "DayCounts",
+        "type": "object"
+      },
       "DayMark": {
         "description": "A day's cap and whether it's reached: a guide shown on Week, never enforced (ADR-013).",
         "properties": {
@@ -199,6 +223,17 @@
             "description": "Tasks a day holds at the person's intensity: 3, 4 or 6.",
             "title": "Cap",
             "type": "integer"
+          },
+          "counts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The day's tasks by origin. Empty for a week that hasn't opened."
           },
           "day": {
             "format": "date",
@@ -214,7 +249,8 @@
         "required": [
           "day",
           "cap",
-          "full"
+          "full",
+          "counts"
         ],
         "title": "DayMark",
         "type": "object"
@@ -2108,6 +2144,9 @@
       "Week": {
         "description": "The plan read (ADR-010). The phone keeps it and draws Today, any day and the bank\nfrom it.",
         "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/WeekCounts"
+          },
           "days": {
             "description": "Monday to Sunday, each with the full-day mark.",
             "items": {
@@ -2187,9 +2226,43 @@
           "tasks",
           "goals",
           "days",
+          "counts",
           "quittingGoals"
         ],
         "title": "Week",
+        "type": "object"
+      },
+      "WeekCounts": {
+        "description": "How full a week is (product rule 11): its tasks by origin. Actual for a week that has\nopened (every task the read returns); expected for one that hasn't (what opening it would\nbring). Check-ins, deadlines and quit days are never counted.",
+        "properties": {
+          "added": {
+            "description": "Tasks added by hand, a one-off goal's steps included.",
+            "title": "Added",
+            "type": "integer"
+          },
+          "goalSessions": {
+            "description": "Tasks a goal's weekly target made.",
+            "title": "Goalsessions",
+            "type": "integer"
+          },
+          "goals": {
+            "description": "How many goals the goal sessions are for.",
+            "title": "Goals",
+            "type": "integer"
+          },
+          "upkeep": {
+            "description": "Tasks a recurring item made.",
+            "title": "Upkeep",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "goalSessions",
+          "goals",
+          "upkeep",
+          "added"
+        ],
+        "title": "WeekCounts",
         "type": "object"
       },
       "WeekGoal": {

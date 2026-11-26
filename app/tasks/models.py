@@ -205,12 +205,34 @@ class WeekGoal(ApiModel):
     progress: WeekProgress
 
 
+class WeekCounts(ApiModel):
+    """How full a week is (product rule 11): its tasks by origin. Actual for a week that has
+    opened (every task the read returns); expected for one that hasn't (what opening it would
+    bring). Check-ins, deadlines and quit days are never counted."""
+
+    goal_sessions: int = Field(description="Tasks a goal's weekly target made.")
+    goals: int = Field(description="How many goals the goal sessions are for.")
+    upkeep: int = Field(description="Tasks a recurring item made.")
+    added: int = Field(description="Tasks added by hand, a one-off goal's steps included.")
+
+
+class DayCounts(ApiModel):
+    """A day's tasks by origin, as `WeekCounts` counts them."""
+
+    goal_sessions: int
+    upkeep: int
+    added: int
+
+
 class DayMark(ApiModel):
     """A day's cap and whether it's reached: a guide shown on Week, never enforced (ADR-013)."""
 
     day: date
     cap: int = Field(description="Tasks a day holds at the person's intensity: 3, 4 or 6.")
     full: bool = Field(description="The day holds at least `cap` tasks, open or done.")
+    counts: DayCounts | None = Field(
+        description="The day's tasks by origin. Empty for a week that hasn't opened."
+    )
 
 
 class Week(ApiModel):
@@ -239,6 +261,7 @@ class Week(ApiModel):
         "status now. A week that hasn't opened: none."
     )
     days: list[DayMark] = Field(description="Monday to Sunday, each with the full-day mark.")
+    counts: WeekCounts
     quitting_goals: list[WeekQuitGoal] = Field(
         description="Every active quitting goal started by the week's end, with its days."
     )

@@ -39,16 +39,16 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `app/tasks/fullness.py`; `WeekCounts` and `DayCounts`; `counts` and `days[].counts` for closed and open weeks, from the tasks the read returns; `null` day counts for a `notOpen` week.
 
 **Acceptance criteria:**
-- [ ] Goal sessions (and how many goals), upkeep (with or without an aspiration), added (a one-off goal's steps included), by origin.
-- [ ] Rolled-over and lapsed tasks count; a rolled-over task counts in both weeks; bank tasks count in the week only; an amount target counts its sessions.
-- [ ] A skipped past week: counts of zero.
+- [x] Goal sessions (and how many goals), upkeep (with or without an aspiration), added (a one-off goal's steps included), by origin.
+- [x] Rolled-over and lapsed tasks count; a rolled-over task counts in both weeks; bank tasks count in the week only; an amount target counts its sessions.
+- [x] A skipped past week: counts of zero.
 
 **Verify:** `uv run pytest tests/test_any_week.py`, then the four checks.
 
 **Dependencies:** 1.
 
 ## Checkpoint: after tasks 1–3
-- [ ] The four checks pass; `openapi.json` changes only by addition.
+- [x] The four checks pass; `openapi.json` changes only by addition.
 
 ### Task 4: Expected counts
 

@@ -12,7 +12,9 @@ from sqlalchemy import Connection, text
 from tests.conftest import FixedClock
 from tests.test_check_off import check_off
 from tests.test_goals import ZONE, create_goal, lifting
-from tests.test_tasks import add_task, open_next_week
+from tests.test_recurring_items import LAUNDRY, item
+from tests.test_recurring_items import create as create_item
+from tests.test_tasks import add_task, one_off, open_next_week
 
 THIS_WEEK = date(2026, 11, 16)
 LAST_WEEK = THIS_WEEK - timedelta(weeks=1)
@@ -185,3 +187,61 @@ def test_first_week_is_the_earliest_row_of_any_outcome(
 
     assert get_week(tasks_client, LATER)["firstWeek"] == THIS_WEEK.isoformat()
     assert get_week(tasks_client, LAST_WEEK)["firstWeek"] == THIS_WEEK.isoformat()
+
+
+# Actual counts: every task the read returns, by origin
+
+
+def day_counts(week: Any) -> dict[str, Any]:
+    return {day["day"]: day["counts"] for day in week["days"]}
+
+
+def zero(**counts: int) -> dict[str, int]:
+    return {"goalSessions": 0, "upkeep": 0, "added": 0} | counts
+
+
+def test_an_open_week_counts_its_tasks_by_origin(tasks_client: TestClient) -> None:
+    create_goal(tasks_client, lifting())
+    run = {"kind": "amount", "sessions": 2, "amount": 10, "unit": "km"}
+    create_goal(tasks_client, lifting(label="Run", weeklyTarget=run))
+    create_item(tasks_client, item(**LAUNDRY))
+    step_goal = one_off(tasks_client)
+    add_task(tasks_client, title="Step", goalId=step_goal["id"], day="2026-11-20")
+    add_task(tasks_client, title="Today", day="2026-11-18")
+
+    week = get_week(tasks_client, THIS_WEEK)
+
+    assert week["counts"] == {"goalSessions": 5, "goals": 2, "upkeep": 1, "added": 2}
+    by_day = day_counts(week)
+    assert by_day["2026-11-18"]["added"] == 1
+    on_days = [task for task in week["tasks"] if task["plannedDay"]]
+    assert sum(sum(counts.values()) for counts in by_day.values()) == len(on_days)
+
+
+def test_a_closed_week_counts_what_rolled_over_and_lapsed(
+    tasks_client: TestClient, fixed_clock: FixedClock
+) -> None:
+    a_week_that_closed(tasks_client, fixed_clock)
+
+    week = get_week(tasks_client, THIS_WEEK)
+
+    assert week["counts"] == {"goalSessions": 3, "goals": 1, "upkeep": 0, "added": 2}
+    assert day_counts(week)["2026-11-19"]["added"] == 1
+    # The task that rolled over counts in its new week too.
+    assert get_week(tasks_client, NEXT_WEEK)["counts"]["added"] == 1
+
+
+def test_a_skipped_week_counts_nothing(tasks_client: TestClient, fixed_clock: FixedClock) -> None:
+    create_item(tasks_client, item(**LAUNDRY))
+    fixed_clock.instant = at(date(2026, 12, 9))
+
+    week = get_week(tasks_client, NEXT_WEEK)
+
+    assert week["counts"] == {"goalSessions": 0, "goals": 0, "upkeep": 0, "added": 0}
+    assert all(counts == zero() for counts in day_counts(week).values())
+
+
+def test_a_week_that_has_not_opened_has_no_day_counts(tasks_client: TestClient) -> None:
+    add_task(tasks_client, title="Pinned", day=(LATER + timedelta(days=2)).isoformat())
+
+    assert all(counts is None for counts in day_counts(get_week(tasks_client, LATER)).values())

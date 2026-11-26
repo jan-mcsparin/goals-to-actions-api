@@ -7,11 +7,12 @@ from uuid import UUID
 from sqlalchemy import Connection
 
 from app.db import aspirations, goals, models, tasks, users, weekly_targets
+from app.db.tasks import ListWeekTasksRow
 from app.errors import NotFound
 from app.goals.models import WeeklyTarget
 from app.quitting.record import week_quit_goals
-from app.tasks import progress
-from app.tasks.models import DayMark, PlanAspiration, Task, Week, WeekGoal
+from app.tasks import fullness, progress
+from app.tasks.models import DayCounts, DayMark, PlanAspiration, Task, Week, WeekGoal
 from app.weeks import WeekStatus, open_weeks, week_status
 
 # Tasks a day holds at each intensity: Easing off, Normal, Going hard.
@@ -40,7 +41,8 @@ def week_read(connection: Connection, user_id: UUID, week: date, today: date) ->
         first_week=first_week(connection, user_id),
         tasks=[Task.from_row(row) for row in rows],
         quitting_goals=week_quit_goals(connection, user_id, week, all_goals),
-        days=day_marks(week, CAPS[owner.intensity], [row.planned_day for row in rows]),
+        days=day_marks(week, CAPS[owner.intensity], rows, counted=status != "notOpen"),
+        counts=fullness.actual(rows),
         goals=week_goals(connection, user_id, week, status, all_goals),
     )
 
@@ -87,8 +89,21 @@ def week_goals(
     ]
 
 
-def day_marks(week: date, cap: int, planned_days: list[date | None]) -> list[DayMark]:
-    """Every task the week read returns counts: open or done, on its day."""
-    counts = Counter(day for day in planned_days if day is not None)
+def day_marks(
+    week: date, cap: int, rows: list[ListWeekTasksRow], *, counted: bool
+) -> list[DayMark]:
+    """Every task the week read returns counts: open or done, on its day. A week that hasn't
+    opened has no day counts."""
+    load = Counter(row.planned_day for row in rows if row.planned_day is not None)
+    counts = fullness.by_day(rows)
+    empty = DayCounts(goal_sessions=0, upkeep=0, added=0)
     days = [week + timedelta(days=n) for n in range(7)]
-    return [DayMark(day=day, cap=cap, full=counts[day] >= cap) for day in days]
+    return [
+        DayMark(
+            day=day,
+            cap=cap,
+            full=load[day] >= cap,
+            counts=counts.get(day, empty) if counted else None,
+        )
+        for day in days
+    ]

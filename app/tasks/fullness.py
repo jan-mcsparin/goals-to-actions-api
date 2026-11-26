@@ -57,9 +57,9 @@ class Expecting:
 def expecting(
     connection: Connection, user_id: UUID, from_week: date, through_week: date
 ) -> Expecting:
-    """The goals and their targets are read as of `from_week`, a week that hasn't opened: a
-    target change takes effect this week or next at the latest (`target_week`), so every later
-    week has the same targets."""
+    """The goals and their targets are read as of `from_week`, next week or later: a target
+    change takes effect this week or next at the latest (`target_week`), so every later week
+    has the same targets."""
     return Expecting(
         goals=active_goals(connection, user_id, from_week),
         items=list(recurring_items.Querier(connection).list_recurring_items(user_id=user_id)),
@@ -75,17 +75,17 @@ def expected(connection: Connection, user_id: UUID, week: date) -> WeekCounts:
     return expected_counts(week, expecting(connection, user_id, week, week))
 
 
-def expected_counts(week: date, read: Expecting) -> WeekCounts:
+def expected_counts(week: date, expecting: Expecting) -> WeekCounts:
     """What opening the week would bring: each active building goal's sessions, each item's
     tasks that are on, and the open tasks added by hand pinned in it or due in it with no row."""
     sessions = {
-        goal.id: expected_sessions(count, week, goal.start_date) for goal, count in read.goals
+        goal.id: expected_sessions(count, week, goal.start_date) for goal, count in expecting.goals
     }
     return WeekCounts(
         goal_sessions=sum(sessions.values()),
         goals=sum(count > 0 for count in sessions.values()),
         upkeep=sum(
-            expected_item_tasks(schedule_of(item), week) for item in read.items if item.active
+            expected_item_tasks(schedule_of(item), week) for item in expecting.items if item.active
         ),
-        added=sum(row.week == week for row in read.hand),
+        added=sum(row.week == week for row in expecting.hand),
     )

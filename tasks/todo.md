@@ -49,7 +49,7 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** The spec's status and an As built section, the map's row; on a parent-repo branch, `flows.md` flow 9 and the brief's status line. A Sonnet agent runs the four checks and the spec's cases against the running API (port 8000), naming what it creates "Verification: …".
 
 **Acceptance criteria:**
-- [ ] The docs say what was built.
-- [ ] The agent's checks pass, or what failed is fixed or reported.
+- [x] The docs say what was built.
+- [x] The agent's checks pass, or what failed is fixed or reported.
 
 **Dependencies:** 2.

@@ -57,6 +57,20 @@ where id = :p1 and user_id = :p2 and deleted_at is not null
 """
 
 
+LIST_DEADLINES = """-- name: list_deadlines \\:many
+select id, label, deadline\\:\\:date as day from goals
+where user_id = :p1 and status = 'active' and deleted_at is null
+  and deadline between :p2\\:\\:date and :p3\\:\\:date + 6
+order by deadline, label, id
+"""
+
+
+class ListDeadlinesRow(pydantic.BaseModel):
+    id: uuid.UUID
+    label: str
+    day: datetime.date
+
+
 LIST_GOALS = """-- name: list_goals \\:many
 select goals.id, goals.user_id, goals.aspiration_id, goals.type, goals.label, goals.measurable_line, goals.baseline, goals.status, goals.start_date, goals.deadline, goals.ended_on, goals.created_at, goals.updated_at, goals.deleted_at from goals
 left join aspirations on aspirations.id = goals.aspiration_id
@@ -180,6 +194,15 @@ class Querier:
             updated_at=row[12],
             deleted_at=row[13],
         )
+
+    def list_deadlines(self, *, user_id: uuid.UUID, from_week: datetime.date, through_week: datetime.date) -> Iterator[ListDeadlinesRow]:
+        result = self._conn.execute(sqlalchemy.text(LIST_DEADLINES), {"p1": user_id, "p2": from_week, "p3": through_week})
+        for row in result:
+            yield ListDeadlinesRow(
+                id=row[0],
+                label=row[1],
+                day=row[2],
+            )
 
     def list_goals(self, *, user_id: uuid.UUID) -> Iterator[models.Goal]:
         result = self._conn.execute(sqlalchemy.text(LIST_GOALS), {"p1": user_id})

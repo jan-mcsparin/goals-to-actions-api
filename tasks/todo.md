@@ -68,16 +68,16 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `app/tasks/dated.py`; `ListMilestoneDates(from, through)` and `ListDeadlines(from, through)`; `Occurrence`, `CheckInDate`, `GoalDeadline` and the three `Week` fields.
 
 **Acceptance criteria:**
-- [ ] A `notOpen` week lists each fixed-day item due in it, on its day; other weeks list none; nothing is stored.
-- [ ] Check-ins on every week: upcoming and not-yet milestones dated in it, under active goals; a hit one isn't listed; a moved not-yet one is on its new date; `of` matches the goal page.
-- [ ] Deadlines of active goals in the week; a paused goal's aren't listed.
+- [x] A `notOpen` week lists each fixed-day item due in it, on its day; other weeks list none; nothing is stored.
+- [x] Check-ins on every week: upcoming and not-yet milestones dated in it, under active goals; a hit one isn't listed; a moved not-yet one is on its new date; `of` matches the goal page.
+- [x] Deadlines of active goals in the week; a paused goal's aren't listed.
 
 **Verify:** `uv run pytest tests/test_any_week.py`, then the four checks.
 
 **Dependencies:** 1.
 
 ## Checkpoint: after tasks 4–5
-- [ ] Every row of the status table, each count rule and each decision has a test.
+- [x] Every row of the status table, each count rule and each decision has a test.
 
 ### Task 6: Docs and a check
 

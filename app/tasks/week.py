@@ -11,7 +11,7 @@ from app.db.tasks import ListWeekTasksRow
 from app.errors import NotFound
 from app.goals.models import WeeklyTarget
 from app.quitting.record import week_quit_goals
-from app.tasks import fullness, progress
+from app.tasks import dated, fullness, progress
 from app.tasks.models import DayCounts, DayMark, PlanAspiration, Task, Week, WeekGoal
 from app.weeks import WeekStatus, open_weeks, week_status
 
@@ -45,6 +45,9 @@ def week_read(connection: Connection, user_id: UUID, week: date, today: date) ->
         counts=fullness.expected(connection, user_id, week)
         if status == "notOpen"
         else fullness.actual(rows),
+        occurrences=dated.occurrences(connection, user_id, week) if status == "notOpen" else [],
+        check_ins=dated.check_ins(connection, user_id, week),
+        deadlines=dated.deadlines(connection, user_id, week),
         goals=week_goals(connection, user_id, week, status, all_goals),
     )
 

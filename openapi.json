@@ -155,6 +155,49 @@
         "title": "AspirationRef",
         "type": "object"
       },
+      "CheckInDate": {
+        "description": "A milestone dated in the week that isn't hit yet, under an active goal.",
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "goalId": {
+            "format": "uuid",
+            "title": "Goalid",
+            "type": "string"
+          },
+          "goalLabel": {
+            "title": "Goallabel",
+            "type": "string"
+          },
+          "milestoneId": {
+            "format": "uuid",
+            "title": "Milestoneid",
+            "type": "string"
+          },
+          "of": {
+            "description": "Out of the goal's milestones and the goal, as its page counts them: \"Milestone 3 of 4\".",
+            "title": "Of",
+            "type": "integer"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "goalId",
+          "goalLabel",
+          "milestoneId",
+          "position",
+          "of",
+          "day"
+        ],
+        "title": "CheckInDate",
+        "type": "object"
+      },
       "CheckOff": {
         "description": "What the phone saw when the task was checked off. Its day wins, even for a week that\nhas since closed.",
         "properties": {
@@ -439,6 +482,32 @@
           "createdAt"
         ],
         "title": "Goal",
+        "type": "object"
+      },
+      "GoalDeadline": {
+        "description": "An active goal's deadline in the week.",
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "goalId": {
+            "format": "uuid",
+            "title": "Goalid",
+            "type": "string"
+          },
+          "goalLabel": {
+            "title": "Goallabel",
+            "type": "string"
+          }
+        },
+        "required": [
+          "goalId",
+          "goalLabel",
+          "day"
+        ],
+        "title": "GoalDeadline",
         "type": "object"
       },
       "GoalEdit": {
@@ -1253,6 +1322,32 @@
           "title"
         ],
         "title": "NewTask",
+        "type": "object"
+      },
+      "Occurrence": {
+        "description": "A fixed-day recurring item due in a week that hasn't opened: worked out from its\nschedule, not stored.",
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "recurringItemId": {
+            "format": "uuid",
+            "title": "Recurringitemid",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recurringItemId",
+          "title",
+          "day"
+        ],
+        "title": "Occurrence",
         "type": "object"
       },
       "PasskeyOptions": {
@@ -2144,6 +2239,14 @@
       "Week": {
         "description": "The plan read (ADR-010). The phone keeps it and draws Today, any day and the bank\nfrom it.",
         "properties": {
+          "checkIns": {
+            "description": "Milestones dated in the week that aren't hit yet, under active goals, by day. Never counted.",
+            "items": {
+              "$ref": "#/components/schemas/CheckInDate"
+            },
+            "title": "Checkins",
+            "type": "array"
+          },
           "counts": {
             "$ref": "#/components/schemas/WeekCounts"
           },
@@ -2153,6 +2256,14 @@
               "$ref": "#/components/schemas/DayMark"
             },
             "title": "Days",
+            "type": "array"
+          },
+          "deadlines": {
+            "description": "Active goals whose deadline falls in the week, by day. Never counted.",
+            "items": {
+              "$ref": "#/components/schemas/GoalDeadline"
+            },
+            "title": "Deadlines",
             "type": "array"
           },
           "firstWeek": {
@@ -2184,6 +2295,14 @@
             "description": "Next week has been opened (from Sunday evening).",
             "title": "Nextweekopen",
             "type": "boolean"
+          },
+          "occurrences": {
+            "description": "A week that hasn't opened: each fixed-day recurring item due in it. Empty for every other week.",
+            "items": {
+              "$ref": "#/components/schemas/Occurrence"
+            },
+            "title": "Occurrences",
+            "type": "array"
           },
           "quittingGoals": {
             "description": "Every active quitting goal started by the week's end, with its days.",
@@ -2227,6 +2346,9 @@
           "goals",
           "days",
           "counts",
+          "occurrences",
+          "checkIns",
+          "deadlines",
           "quittingGoals"
         ],
         "title": "Week",

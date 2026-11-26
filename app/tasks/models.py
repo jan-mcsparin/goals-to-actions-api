@@ -235,6 +235,37 @@ class DayMark(ApiModel):
     )
 
 
+class Occurrence(ApiModel):
+    """A fixed-day recurring item due in a week that hasn't opened: worked out from its
+    schedule, not stored."""
+
+    recurring_item_id: UUID
+    title: str
+    day: date
+
+
+class CheckInDate(ApiModel):
+    """A milestone dated in the week that isn't hit yet, under an active goal."""
+
+    goal_id: UUID
+    goal_label: str
+    milestone_id: UUID
+    position: int
+    of: int = Field(
+        description="Out of the goal's milestones and the goal, as its page counts them: "
+        '"Milestone 3 of 4".'
+    )
+    day: date
+
+
+class GoalDeadline(ApiModel):
+    """An active goal's deadline in the week."""
+
+    goal_id: UUID
+    goal_label: str
+    day: date
+
+
 class Week(ApiModel):
     """The plan read (ADR-010). The phone keeps it and draws Today, any day and the bank
     from it."""
@@ -262,6 +293,17 @@ class Week(ApiModel):
     )
     days: list[DayMark] = Field(description="Monday to Sunday, each with the full-day mark.")
     counts: WeekCounts
+    occurrences: list[Occurrence] = Field(
+        description="A week that hasn't opened: each fixed-day recurring item due in it. "
+        "Empty for every other week."
+    )
+    check_ins: list[CheckInDate] = Field(
+        description="Milestones dated in the week that aren't hit yet, under active goals, by "
+        "day. Never counted."
+    )
+    deadlines: list[GoalDeadline] = Field(
+        description="Active goals whose deadline falls in the week, by day. Never counted."
+    )
     quitting_goals: list[WeekQuitGoal] = Field(
         description="Every active quitting goal started by the week's end, with its days."
     )

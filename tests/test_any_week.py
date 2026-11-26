@@ -3,6 +3,7 @@
 from collections.abc import Iterator
 from datetime import date, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -297,3 +298,77 @@ def test_once_opened_a_week_counts_what_was_expected(
 
     assert week["status"] == "open"
     assert week["counts"] == EXPECTED
+
+
+# Fixed-day occurrences, check-ins and deadlines
+
+
+def test_a_week_that_has_not_opened_works_out_its_fixed_day_items(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    trash = create_item(tasks_client, item())
+    rent = create_item(
+        tasks_client, item(name="Pay rent", schedule={"kind": "monthly", "dayOfMonth": 10})
+    )
+    create_item(tasks_client, item(**LAUNDRY))
+
+    week = get_week(tasks_client, LATER)
+
+    assert week["occurrences"] == [
+        {"recurringItemId": trash["id"], "title": "Take out the trash", "day": "2026-12-08"},
+        {"recurringItemId": rent["id"], "title": "Pay rent", "day": "2026-12-10"},
+    ]
+    assert get_week(tasks_client, THIS_WEEK)["occurrences"] == []
+    stored = connection.execute(
+        text("select count(*) from tasks where period_start = :w"), {"w": LATER}
+    )
+    assert stored.scalar() == 0
+
+
+def add_milestone(client: TestClient, goal_id: str, line: str, day: str) -> str:
+    response = client.put(
+        f"/api/milestones/{uuid4()}",
+        json={"goalId": goal_id, "measurableLine": line, "targetDate": day},
+    )
+    assert response.status_code == 200, response.text
+    [added] = [m for m in response.json()["milestones"] if m["measurableLine"] == line]
+    return str(added["id"])
+
+
+def set_milestone(connection: Connection, milestone_id: str, status: str, day: str) -> None:
+    connection.execute(
+        text("update milestones set status = :status, target_date = :day where id = :id"),
+        {"status": status, "day": day, "id": milestone_id},
+    )
+
+
+def test_every_week_lists_its_check_ins_and_deadlines_for_active_goals(
+    tasks_client: TestClient, connection: Connection
+) -> None:
+    strong = create_goal(tasks_client, lifting(deadline="2027-03-01"))
+    hit = add_milestone(tasks_client, strong["id"], "Bench 135", "2026-12-08")
+    set_milestone(connection, hit, "hit", "2026-12-08")
+    upcoming = add_milestone(tasks_client, strong["id"], "Bench 155", "2026-12-09")
+    moved = add_milestone(tasks_client, strong["id"], "Bench 165", "2026-11-25")
+    set_milestone(connection, moved, "not_yet", "2026-12-10")
+    add_milestone(tasks_client, strong["id"], "Bench 185", "2026-12-20")
+    soon = add_milestone(tasks_client, strong["id"], "Squat 200", "2026-11-20")
+    swim = create_goal(tasks_client, lifting(label="Swim", deadline="2026-12-10"))
+    rest = create_goal(tasks_client, lifting(label="Rest", deadline="2026-12-09"))
+    add_milestone(tasks_client, rest["id"], "Rest well", "2026-12-09")
+    assert tasks_client.post(f"/api/goals/{rest['id']}/pause").status_code == 200
+
+    week = get_week(tasks_client, LATER)
+
+    of = tasks_client.get(f"/api/goals/{strong['id']}").json()["progress"]["of"]
+    assert of == 6
+    check_in = {"goalId": strong["id"], "goalLabel": "Be strong", "of": of}
+    assert week["checkIns"] == [
+        check_in | {"milestoneId": upcoming, "position": 2, "day": "2026-12-09"},
+        check_in | {"milestoneId": moved, "position": 3, "day": "2026-12-10"},
+    ]
+    assert week["deadlines"] == [{"goalId": swim["id"], "goalLabel": "Swim", "day": "2026-12-10"}]
+    this_week = get_week(tasks_client, THIS_WEEK)
+    assert [c["milestoneId"] for c in this_week["checkIns"]] == [soon]
+    assert this_week["deadlines"] == []
+    assert week["counts"]["goalSessions"] == 6  # Be strong and Swim; check-ins aren't counted

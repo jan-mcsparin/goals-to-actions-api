@@ -68,3 +68,20 @@ where goal_id = $1 and user_id = $2 and deleted_at is null and position > $3;
 -- name: DeleteGoalMilestones :exec
 update milestones set deleted_at = now()
 where goal_id = $1 and user_id = $2 and deleted_at is null;
+
+-- Milestones dated in a range of weeks that aren't hit yet, under active goals, with the
+-- goal's label and how many milestones it has (spec `any-week`, decisions 3 and 6).
+-- name: ListMilestoneDates :many
+select milestones.id, milestones.goal_id, goals.label as goal_label, milestones.position,
+  milestones.target_date::date as day,
+  (select count(*) from milestones counted
+    where counted.goal_id = milestones.goal_id and counted.deleted_at is null)::integer
+    as milestones
+from milestones
+join goals on goals.id = milestones.goal_id and goals.status = 'active'
+  and goals.deleted_at is null
+where milestones.user_id = sqlc.arg(user_id) and milestones.deleted_at is null
+  and milestones.status <> 'hit'
+  and milestones.target_date between sqlc.arg(from_week)::date
+    and sqlc.arg(through_week)::date + 6
+order by milestones.target_date, goals.label, milestones.position;

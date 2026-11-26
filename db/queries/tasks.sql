@@ -24,6 +24,7 @@ returning *;
 -- its row in play, or its done row. A task that's waiting, or set aside, has no week.
 -- name: GetTaskView :one
 select tasks.*, shown.week, shown.planned_day, shown.placed_by_hand,
+  null::text as week_outcome,
   goals.label as goal_label,
   aspirations.id as aspiration_id, aspirations.name as aspiration_name,
   aspirations.position as aspiration_position,
@@ -51,10 +52,11 @@ left join aspirations on aspirations.id = coalesce(goals.aspiration_id, items.as
   and aspirations.deleted_at is null
 where tasks.id = $1 and tasks.user_id = $2 and tasks.deleted_at is null;
 
--- The week read: the week's rows in play or done, by day, then the bank; timed tasks first
--- within a day.
+-- The week read: the week's rows in play, done, rolled over or lapsed (spec `any-week`), by
+-- day, then the bank; timed tasks first within a day.
 -- name: ListWeekTasks :many
 select tasks.*, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand,
+  task_weeks.outcome as week_outcome,
   goals.label as goal_label,
   aspirations.id as aspiration_id, aspirations.name as aspiration_name,
   aspirations.position as aspiration_position,
@@ -74,7 +76,7 @@ left join recurring_items items on items.id = tasks.recurring_item_id
 left join aspirations on aspirations.id = coalesce(goals.aspiration_id, items.aspiration_id)
   and aspirations.deleted_at is null
 where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.deleted_at is null
-  and (task_weeks.outcome is null or task_weeks.outcome = 'done')
+  and (task_weeks.outcome is null or task_weeks.outcome in ('done', 'rolled_over', 'lapsed'))
 order by task_weeks.planned_day nulls last, tasks.time_of_day nulls last, tasks.created_at,
   tasks.id;
 
@@ -117,6 +119,7 @@ group by tasks.goal_id;
 -- A one-off goal's steps as its page lists them, in the order they were added.
 -- name: ListSteps :many
 select tasks.*, shown.week, shown.planned_day, shown.placed_by_hand,
+  null::text as week_outcome,
   goals.label as goal_label,
   aspirations.id as aspiration_id, aspirations.name as aspiration_name,
   aspirations.position as aspiration_position,
@@ -162,6 +165,7 @@ where task_weeks.user_id = $1 and task_weeks.week = $2 and task_weeks.outcome = 
 -- that week is opened.
 -- name: ListUpcoming :many
 select tasks.*, null::date as week, null::date as planned_day, false as placed_by_hand,
+  null::text as week_outcome,
   goals.label as goal_label,
   aspirations.id as aspiration_id, aspirations.name as aspiration_name,
   aspirations.position as aspiration_position,
@@ -212,3 +216,10 @@ where recurring_item_id = $1 and user_id = $2;
 -- name: SetTaskSlot :exec
 update tasks set period_start = $3, number = $4
 where id = $1 and user_id = $2;
+
+-- The owner's earliest row, whatever its outcome: its week is how far back Week can go.
+-- name: FirstRow :one
+select * from task_weeks
+where user_id = $1 and deleted_at is null
+order by week
+limit 1;

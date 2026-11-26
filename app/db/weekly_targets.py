@@ -27,6 +27,14 @@ limit 1
 """
 
 
+GOALS_WITH_SESSIONS = """-- name: goals_with_sessions \\:many
+select distinct tasks.goal_id\\:\\:uuid as goal_id from task_weeks
+join tasks on tasks.id = task_weeks.task_id and tasks.deleted_at is null
+where task_weeks.user_id = :p1 and task_weeks.week = :p2 and task_weeks.deleted_at is null
+  and tasks.origin = 'weekly_target'
+"""
+
+
 LATEST_WEEKLY_TARGET = """-- name: latest_weekly_target \\:one
 select id, user_id, goal_id, goal_type, kind, sessions, amount, unit, effective_from, created_at, updated_at, deleted_at from weekly_targets
 where goal_id = :p1 and user_id = :p2 and deleted_at is null
@@ -97,6 +105,11 @@ class Querier:
             updated_at=row[10],
             deleted_at=row[11],
         )
+
+    def goals_with_sessions(self, *, user_id: uuid.UUID, week: datetime.date) -> Iterator[uuid.UUID]:
+        result = self._conn.execute(sqlalchemy.text(GOALS_WITH_SESSIONS), {"p1": user_id, "p2": week})
+        for row in result:
+            yield row[0]
 
     def latest_weekly_target(self, *, goal_id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.WeeklyTarget]:
         row = self._conn.execute(sqlalchemy.text(LATEST_WEEKLY_TARGET), {"p1": goal_id, "p2": user_id}).first()

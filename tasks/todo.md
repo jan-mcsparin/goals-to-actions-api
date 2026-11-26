@@ -11,10 +11,10 @@ Every task: write the tests first, run the four checks (`uv run ruff check .`, `
 **Description:** `ListWeekTasks` also returns rolled-over and lapsed rows, with the row's outcome; the other `Task` reads select a null one. `Task.weekOutcome`; `Week.status` from `week_status` in `app/weeks.py`; `FirstWeek` and `Week.firstWeek`. A closed week's Progress: goals with a target and a session row that week, whatever their status now (decision 2). A `notOpen` week has no goals.
 
 **Acceptance criteria:**
-- [ ] A closed week with a done task, a rolled-over hand task and a lapsed session lists all three, `weekOutcome` on two; set-aside and dropped rows stay out.
-- [ ] Its Progress shows the goal, also after the goal is ended; a goal paused before the week opened isn't shown.
-- [ ] `status` for a past, the current, next (open and not) and a later week; a skipped past week is `closed` and empty.
-- [ ] `firstWeek`: empty for a new user, the first row's week (a set-aside row counts), unchanged by a later row.
+- [x] A closed week with a done task, a rolled-over hand task and a lapsed session lists all three, `weekOutcome` on two; set-aside and dropped rows stay out.
+- [x] Its Progress shows the goal, also after the goal is ended; a goal paused before the week opened isn't shown.
+- [x] `status` for a past, the current, next (open and not) and a later week; a skipped past week is `closed` and empty.
+- [x] `firstWeek`: empty for a new user, the first row's week (a set-aside row counts), unchanged by a later row.
 
 **Verify:** `uv run pytest tests/test_week_read.py tests/test_any_week.py`, then the four checks.
 

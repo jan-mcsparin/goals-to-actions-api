@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+from typing import Literal
 
 
 def week_of(day: date) -> date:
@@ -49,3 +50,14 @@ def open_weeks(
 ) -> OpenWeeks:
     current = current_week(today, closed_through_week)
     return OpenWeeks(current, planned_through_week is not None and planned_through_week > current)
+
+
+WeekStatus = Literal["closed", "open", "notOpen"]
+
+
+def week_status(week: date, weeks: OpenWeeks) -> WeekStatus:
+    """Before the current week, closed; the current week, and next week once open, open; every
+    later week hasn't opened (spec `any-week`)."""
+    if week < weeks.current:
+        return "closed"
+    return "open" if week in weeks else "notOpen"

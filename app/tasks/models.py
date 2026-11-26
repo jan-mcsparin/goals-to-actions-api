@@ -11,6 +11,7 @@ from app.goals.models import Label, WeeklyTarget, WeekProgress
 from app.quitting.models import WeekQuitGoal
 from app.schemas import ApiModel
 from app.turnover.endings import ending_of
+from app.weeks import WeekStatus
 
 TaskOrigin = Literal["byHand", "weeklyTarget", "recurringItem"]
 TaskState = Literal["open", "done", "dropped", "lapsed"]
@@ -29,6 +30,8 @@ STATE_IN_JSON: dict[str, TaskState] = {
 }
 
 AtClose = Literal["carriesOver", "ends"]
+WeekOutcome = Literal["rolledOver", "lapsed"]
+OUTCOME_IN_JSON: dict[str, WeekOutcome] = {"rolled_over": "rolledOver", "lapsed": "lapsed"}
 # Recurring items whose tasks are due on a set day.
 FIXED_KINDS = ("weekly", "monthly")
 # How many rollovers since the last answer make a task worth asking about.
@@ -109,6 +112,11 @@ class Task(ApiModel):
         description='Ask "Still matter?": added by hand or a fixed-day recurring task, open, '
         "and rolled over twice since it was last answered."
     )
+    week_outcome: WeekOutcome | None = Field(
+        description="How the week read's row ended for this task: it rolled over, or lapsed. "
+        "Empty for a row in play or done, and in every other read and write. A task that "
+        "rolled over and was checked off late reads `rolledOver` here and `done` in `state`.",
+    )
 
     @classmethod
     def from_row(
@@ -135,8 +143,9 @@ class Task(ApiModel):
             planned_day=row.planned_day,
             placed_by_hand=bool(row.placed_by_hand),
             carried_over=row.carried_over,
-            at_close=at_close(row),
+            at_close=None if row.week_outcome in OUTCOME_IN_JSON else at_close(row),
             still_matters=still_matters(row),
+            week_outcome=OUTCOME_IN_JSON.get(row.week_outcome or ""),
         )
 
 
@@ -209,14 +218,25 @@ class Week(ApiModel):
     from it."""
 
     week: date
+    status: WeekStatus = Field(
+        description="`closed` before the current week, `open` for the current week and next "
+        "week once open, `notOpen` for every later week."
+    )
     is_current: bool
     next_week_open: bool = Field(description="Next week has been opened (from Sunday evening).")
+    first_week: date | None = Field(
+        description="The Monday of the earliest week with any row, whatever its outcome: how "
+        "far back Week can go. Empty when there are none."
+    )
     tasks: list[Task] = Field(
-        description="On a day, then in the bank; with no outcome or done. Set-aside rows "
-        "aren't shown."
+        description="On a day, then in the bank: in play or done, and in a closed week also "
+        "rolled over or lapsed (`weekOutcome`). A week that hasn't opened has only the tasks "
+        "placed on it by hand. Set-aside and dropped rows aren't shown."
     )
     goals: list[WeekGoal] = Field(
-        description="Every active building goal with a target that week, and its progress."
+        description="An open week: every active building goal with a target that week. A "
+        "closed week: every goal with a target and a session row that week, whatever its "
+        "status now. A week that hasn't opened: none."
     )
     days: list[DayMark] = Field(description="Monday to Sunday, each with the full-day mark.")
     quitting_goals: list[WeekQuitGoal] = Field(

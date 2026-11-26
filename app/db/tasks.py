@@ -65,6 +65,14 @@ where id = :p1 and user_id = :p2 and deleted_at is null
 """
 
 
+FIRST_ROW = """-- name: first_row \\:one
+select id, user_id, task_id, week, planned_day, placed_by_hand, outcome, created_at, updated_at, deleted_at from task_weeks
+where user_id = :p1 and deleted_at is null
+order by week
+limit 1
+"""
+
+
 GET_TASK = """-- name: get_task \\:one
 select id, user_id, title, origin, goal_id, recurring_item_id, state, due_date, time_kind, time_of_day, value_logged, completed_at, completed_on, period_start, number, still_matters_answered_on, created_at, updated_at, deleted_at from tasks
 where id = :p1 and user_id = :p2 and deleted_at is null
@@ -73,6 +81,7 @@ where id = :p1 and user_id = :p2 and deleted_at is null
 
 GET_TASK_VIEW = """-- name: get_task_view \\:one
 select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, shown.week, shown.planned_day, shown.placed_by_hand,
+  null\\:\\:text as week_outcome,
   goals.label as goal_label,
   aspirations.id as aspiration_id, aspirations.name as aspiration_name,
   aspirations.position as aspiration_position,
@@ -125,6 +134,7 @@ class GetTaskViewRow(pydantic.BaseModel):
     week: Optional[datetime.date]
     planned_day: Optional[datetime.date]
     placed_by_hand: Optional[bool]
+    week_outcome: Optional[str]
     goal_label: Optional[str]
     aspiration_id: Optional[uuid.UUID]
     aspiration_name: Optional[str]
@@ -162,6 +172,7 @@ class ListItemSlotsRow(pydantic.BaseModel):
 
 LIST_STEPS = """-- name: list_steps \\:many
 select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, shown.week, shown.planned_day, shown.placed_by_hand,
+  null\\:\\:text as week_outcome,
   goals.label as goal_label,
   aspirations.id as aspiration_id, aspirations.name as aspiration_name,
   aspirations.position as aspiration_position,
@@ -216,6 +227,7 @@ class ListStepsRow(pydantic.BaseModel):
     week: Optional[datetime.date]
     planned_day: Optional[datetime.date]
     placed_by_hand: Optional[bool]
+    week_outcome: Optional[str]
     goal_label: str
     aspiration_id: Optional[uuid.UUID]
     aspiration_name: Optional[str]
@@ -228,6 +240,7 @@ class ListStepsRow(pydantic.BaseModel):
 
 LIST_UPCOMING = """-- name: list_upcoming \\:many
 select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, null\\:\\:date as week, null\\:\\:date as planned_day, false as placed_by_hand,
+  null\\:\\:text as week_outcome,
   goals.label as goal_label,
   aspirations.id as aspiration_id, aspirations.name as aspiration_name,
   aspirations.position as aspiration_position,
@@ -269,6 +282,7 @@ class ListUpcomingRow(pydantic.BaseModel):
     week: Optional[datetime.date]
     planned_day: Optional[datetime.date]
     placed_by_hand: bool
+    week_outcome: Optional[str]
     goal_label: Optional[str]
     aspiration_id: Optional[uuid.UUID]
     aspiration_name: Optional[str]
@@ -281,6 +295,7 @@ class ListUpcomingRow(pydantic.BaseModel):
 
 LIST_WEEK_TASKS = """-- name: list_week_tasks \\:many
 select tasks.id, tasks.user_id, tasks.title, tasks.origin, tasks.goal_id, tasks.recurring_item_id, tasks.state, tasks.due_date, tasks.time_kind, tasks.time_of_day, tasks.value_logged, tasks.completed_at, tasks.completed_on, tasks.period_start, tasks.number, tasks.still_matters_answered_on, tasks.created_at, tasks.updated_at, tasks.deleted_at, task_weeks.week, task_weeks.planned_day, task_weeks.placed_by_hand,
+  task_weeks.outcome as week_outcome,
   goals.label as goal_label,
   aspirations.id as aspiration_id, aspirations.name as aspiration_name,
   aspirations.position as aspiration_position,
@@ -300,7 +315,7 @@ left join recurring_items items on items.id = tasks.recurring_item_id
 left join aspirations on aspirations.id = coalesce(goals.aspiration_id, items.aspiration_id)
   and aspirations.deleted_at is null
 where task_weeks.user_id = :p1 and task_weeks.week = :p2 and task_weeks.deleted_at is null
-  and (task_weeks.outcome is null or task_weeks.outcome = 'done')
+  and (task_weeks.outcome is null or task_weeks.outcome in ('done', 'rolled_over', 'lapsed'))
 order by task_weeks.planned_day nulls last, tasks.time_of_day nulls last, tasks.created_at,
   tasks.id
 """
@@ -329,6 +344,7 @@ class ListWeekTasksRow(pydantic.BaseModel):
     week: datetime.date
     planned_day: Optional[datetime.date]
     placed_by_hand: bool
+    week_outcome: Optional[str]
     goal_label: Optional[str]
     aspiration_id: Optional[uuid.UUID]
     aspiration_name: Optional[str]
@@ -486,6 +502,23 @@ class Querier:
     def delete_task(self, *, id: uuid.UUID, user_id: uuid.UUID) -> None:
         self._conn.execute(sqlalchemy.text(DELETE_TASK), {"p1": id, "p2": user_id})
 
+    def first_row(self, *, user_id: uuid.UUID) -> Optional[models.TaskWeek]:
+        row = self._conn.execute(sqlalchemy.text(FIRST_ROW), {"p1": user_id}).first()
+        if row is None:
+            return None
+        return models.TaskWeek(
+            id=row[0],
+            user_id=row[1],
+            task_id=row[2],
+            week=row[3],
+            planned_day=row[4],
+            placed_by_hand=row[5],
+            outcome=row[6],
+            created_at=row[7],
+            updated_at=row[8],
+            deleted_at=row[9],
+        )
+
     def get_task(self, *, id: uuid.UUID, user_id: uuid.UUID) -> Optional[models.Task]:
         row = self._conn.execute(sqlalchemy.text(GET_TASK), {"p1": id, "p2": user_id}).first()
         if row is None:
@@ -539,14 +572,15 @@ class Querier:
             week=row[19],
             planned_day=row[20],
             placed_by_hand=row[21],
-            goal_label=row[22],
-            aspiration_id=row[23],
-            aspiration_name=row[24],
-            aspiration_position=row[25],
-            item_kind=row[26],
-            item_period=row[27],
-            rolled_since_answer=row[28],
-            carried_over=row[29],
+            week_outcome=row[22],
+            goal_label=row[23],
+            aspiration_id=row[24],
+            aspiration_name=row[25],
+            aspiration_position=row[26],
+            item_kind=row[27],
+            item_period=row[28],
+            rolled_since_answer=row[29],
+            carried_over=row[30],
         )
 
     def goal_week_done(self, *, user_id: uuid.UUID, week: datetime.date, goal_id: Optional[uuid.UUID]) -> Optional[GoalWeekDoneRow]:
@@ -592,14 +626,15 @@ class Querier:
                 week=row[19],
                 planned_day=row[20],
                 placed_by_hand=row[21],
-                goal_label=row[22],
-                aspiration_id=row[23],
-                aspiration_name=row[24],
-                aspiration_position=row[25],
-                item_kind=row[26],
-                item_period=row[27],
-                rolled_since_answer=row[28],
-                carried_over=row[29],
+                week_outcome=row[22],
+                goal_label=row[23],
+                aspiration_id=row[24],
+                aspiration_name=row[25],
+                aspiration_position=row[26],
+                item_kind=row[27],
+                item_period=row[28],
+                rolled_since_answer=row[29],
+                carried_over=row[30],
             )
 
     def list_upcoming(self, *, user_id: uuid.UUID) -> Iterator[ListUpcomingRow]:
@@ -628,14 +663,15 @@ class Querier:
                 week=row[19],
                 planned_day=row[20],
                 placed_by_hand=row[21],
-                goal_label=row[22],
-                aspiration_id=row[23],
-                aspiration_name=row[24],
-                aspiration_position=row[25],
-                item_kind=row[26],
-                item_period=row[27],
-                rolled_since_answer=row[28],
-                carried_over=row[29],
+                week_outcome=row[22],
+                goal_label=row[23],
+                aspiration_id=row[24],
+                aspiration_name=row[25],
+                aspiration_position=row[26],
+                item_kind=row[27],
+                item_period=row[28],
+                rolled_since_answer=row[29],
+                carried_over=row[30],
             )
 
     def list_week_tasks(self, *, user_id: uuid.UUID, week: datetime.date) -> Iterator[ListWeekTasksRow]:
@@ -664,14 +700,15 @@ class Querier:
                 week=row[19],
                 planned_day=row[20],
                 placed_by_hand=row[21],
-                goal_label=row[22],
-                aspiration_id=row[23],
-                aspiration_name=row[24],
-                aspiration_position=row[25],
-                item_kind=row[26],
-                item_period=row[27],
-                rolled_since_answer=row[28],
-                carried_over=row[29],
+                week_outcome=row[22],
+                goal_label=row[23],
+                aspiration_id=row[24],
+                aspiration_name=row[25],
+                aspiration_position=row[26],
+                item_kind=row[27],
+                item_period=row[28],
+                rolled_since_answer=row[29],
+                carried_over=row[30],
             )
 
     def rename_item_open_tasks(self, *, recurring_item_id: Optional[uuid.UUID], user_id: uuid.UUID, title: str) -> None:
